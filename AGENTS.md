@@ -24,3 +24,14 @@ Build the firmware and settings site for user-designed, non-split keyboards. Fir
 4. Implement the smallest testable increment; do not build the polished UI first.
 5. Update roadmap and record what is and is not verified after each milestone.
 6. Always distinguish host C tests, actual Zephyr/ZMK builds, hardware tests, and production sign-off.
+
+## Existing Keys · ryong web app — STRICT BASELINE PRESERVATION
+The owner has an already-working customer-facing Keys · ryong website, built using Claude. Its working flows include ZMK Studio-based live keymap editing and a **separate Firmware tab**. This is the **known-good baseline**, not a rewrite target.
+- NEVER modify or deploy over the production website during development.
+- Do not rebuild the existing design or duplicate its working Studio/Firmware features.
+- Before web integration, obtain the source from `hiryong/keys-ryong` (currently inaccessible to the linked GitHub connector as of 2026-11-02) or a verifiable source archive.
+- First identify its current deployed commit/revision, create an immutable baseline tag/snapshot (with owner authorization), and inspect deployment settings. DO NOT claim a branch alone is an immutable archive.
+- Implement additions only on a separate dev branch/copy of the app; use a staging site distinct from production.
+- Preserve current styling, routes, authentication, Studio unlock, 5-change history and separate Firmware tab. Regression-test them before proposing any merge.
+- Never deploy or change production without explicit owner approval.
+- Having `ryong-firmware` access does not grant `keys-ryong` access. If the app repo is private, GitHub App installation may need explicit additional repository permission.
