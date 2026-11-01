@@ -35,3 +35,6 @@ ctest --test-dir build --output-on-failure
 Ryong60 reference design includes nRF52840, 61 switches, 5 row × 14 column matrix, USB-C, BLE and white key backlight. **Do not guess actual GPIO numbers** from the counts here; obtain verified original board source before a device build.
 
 This repository is private, but external dependencies and their licenses must still be respected.
+
+## Protect the existing web application
+**Keys · ryong is already working.** It has ZMK Studio-based live configuration and a separate Firmware tab. Do **not** replace it. Integrate new runtime behavior editing into an isolated development copy of `hiryong/keys-ryong` after obtaining repository permission, tagging an immutable baseline and mapping the deployed version. No production deployments without user approval.
