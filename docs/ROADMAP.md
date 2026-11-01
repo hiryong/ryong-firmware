@@ -37,3 +37,12 @@ Host C unit tests passed in ChatGPT working container (2026-11-02).
 
 ## Next task
 Inspect upstream ZMK's current combo and behavior extension APIs and prototype the first live event integration without making unfounded hardware claims.
+
+## Existing Keys · ryong baseline (mandatory)
+- [x] Owner confirmed the existing production app already works with Studio and a separate Firmware tab.
+- [ ] Obtain authorized GitHub access to `hiryong/keys-ryong`.
+- [ ] Identify deployed version, record commit and create immutable baseline snapshot/tag.
+- [ ] Create isolated staging development branch/copy; no production changes.
+- [ ] Map existing Studio RPC, firmware tab, settings history and UI behavior.
+- [ ] Add dynamic combo/macro features behind a disabled-by-default feature flag.
+- [ ] Regression test unchanged production behavior and new feature side by side.
