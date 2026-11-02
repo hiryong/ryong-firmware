@@ -792,3 +792,13 @@ dialog:focus, dialog:focus-visible { outline: none; }
   background-repeat: no-repeat; background-position: right 16px center; background-size: 12px; }
 .ry-beh select option { background: #141414; color: var(--ink); }
 .ry-beh input:focus, .ry-beh select:focus { outline: none; border-color: var(--ink); }
+
+/* VIA-style key grid (development copy) */
+.ry-via { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 10px; }
+.ry-via-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.ry-via-grid { display: flex; flex-wrap: wrap; gap: 6px; max-height: 196px; overflow-y: auto; padding: 2px; }
+.ry-via-key { min-width: 44px; height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: linear-gradient(#1A1A1A, #111); color: var(--ink); font-size: 13px; cursor: pointer; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.45); white-space: nowrap; }
+.ry-via-key.is-wide { min-width: 88px; }
+.ry-via-key:hover { border-color: rgba(255, 255, 255, 0.45); }
+.ry-via-key:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ry-via-key[aria-pressed="true"] { background: var(--ink); color: #000; border-color: var(--ink); box-shadow: none; }

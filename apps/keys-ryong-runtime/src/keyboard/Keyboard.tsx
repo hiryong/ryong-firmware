@@ -1,4 +1,5 @@
 import { RuntimeBindingPicker } from "../ryong/runtime/RuntimeBindingPicker";
+import { ViaKeyGrid } from "../ryong/runtime/ViaKeyGrid";
 import React, {
   SetStateAction,
   useCallback,
@@ -588,6 +589,8 @@ export default function Keyboard() {
       )}
       {keymap && selectedBinding && (
         <div className="p-2 col-start-2 row-start-2 bg-base-200">
+          {import.meta.env.VITE_RYONG_RUNTIME === "1" && <ViaKeyGrid behaviors={Object.values(behaviors)} binding={selectedBinding}
+            layers={keymap.layers.map(({ id, name }) => ({ id, name }))} onChange={doUpdateBinding} />}
           {import.meta.env.VITE_RYONG_RUNTIME === "1" && <RuntimeBindingPicker binding={selectedBinding} onChange={doUpdateBinding} />}
           <BehaviorBindingPicker
             binding={selectedBinding}
