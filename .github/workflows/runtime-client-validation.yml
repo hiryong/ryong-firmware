@@ -47,6 +47,20 @@ jobs:
         run: |
           npx tsc -p tsconfig.runtime.json
           npx vite build --config vite.runtime.config.ts --outDir dist-runtime
+      - name: Install browser QA in the runner only
+        run: |
+          npm install --prefix /tmp/ryong-ui-qa playwright@1.56.1
+          node /tmp/ryong-ui-qa/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Verify existing editor in a real browser
+        working-directory: apps/keys-ryong-runtime
+        env:
+          RYONG_PLAYWRIGHT: /tmp/ryong-ui-qa/node_modules/playwright/index.mjs
+        run: node tests/runtime-ui.test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-ui-verification
+          path: apps/keys-ryong-runtime/ui-verification
       - uses: actions/upload-artifact@v4
         with:
           name: runtime-client-compatibility
