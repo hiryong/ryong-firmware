@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
+import { buildSync } from "esbuild";
+import { createRequire } from "node:module";
 
 const file = new URL("../src/ryong/runtime/customRpc.ts", import.meta.url);
 const compiled = ts.transpileModule(fs.readFileSync(file, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
 }).outputText;
 
-function adapter(modern, rpc) {
+function adapter(modern, rpc, codec) {
   const Request = {
     fromJSON: value => modern ? value : {},
     encode: value => ({ finish: () => new TextEncoder().encode(JSON.stringify(value)) }),
@@ -16,7 +18,7 @@ function adapter(modern, rpc) {
   };
   const exports = {};
   vm.runInNewContext(compiled, {
-    exports, require: () => ({ Request, call_rpc: rpc }), Uint8Array,
+    exports, require: () => ({ Request: codec ?? Request, call_rpc: rpc }), Uint8Array,
     Set, Error, Number, Array
   });
   return exports;
@@ -66,3 +68,20 @@ const wrong = adapter(true, async (_conn, req) => req.custom.listCustomSubsystem
   { custom: { call: { subsystemIndex: 99, payload: new Uint8Array() } } });
 await assert.rejects(wrong.readRuntimeCatalogs(conn), /Invalid runtime catalog/);
 console.log("PASS: runtime read adapter: old codec, discovery, indices, malformed response, lock rejection");
+
+const bundledClient = buildSync({
+  stdin: { contents: 'export { Request } from "@zmkfirmware/zmk-studio-ts-client/index";',
+           resolveDir: process.cwd() },
+  bundle: true, platform: "node", format: "cjs", write: false
+}).outputFiles[0].text;
+const clientModule = { exports: {} };
+vm.runInNewContext(bundledClient, {
+  module: clientModule, exports: clientModule.exports,
+  require: createRequire(import.meta.url), Buffer, process, console,
+  setTimeout, clearTimeout, Uint8Array
+});
+let actualCalls = 0;
+const actual = adapter(false, async () => { actualCalls++; }, clientModule.exports.Request);
+await assert.rejects(actual.discoverRuntime(conn), /No request was sent/);
+assert.equal(actualCalls, 0);
+console.log("PASS: installed upstream codec also fails closed before I/O");
