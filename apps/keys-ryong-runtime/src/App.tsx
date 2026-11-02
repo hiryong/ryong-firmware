@@ -49,7 +49,7 @@ declare global {
 }
 
 // Development copy only: a simulated keyboard so every screen can be tried without hardware.
-const VIRTUAL: TransportFactory[] = import.meta.env.VITE_RYONG_RUNTIME === "1" ? [{ label: "Virtual", connect: virtualConnect }] : [];
+const VIRTUAL: TransportFactory[] = import.meta.env.VITE_RYONG_RUNTIME === "1" ? [{ label: t("Virtual keyboard", "가상 키보드"), connect: virtualConnect }] : [];
 const TRANSPORTS: TransportFactory[] = import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1" ? VIRTUAL : [...VIRTUAL,
   navigator.serial && { label: "USB", connect: serial_connect },
   ...(navigator.bluetooth && navigator.userAgent.indexOf("Linux") >= 0

@@ -1,0 +1,63 @@
+# Deploys the development web app ONLY to a separate Cloudflare Pages project
+# (ryong-keys-beta → keysbeta.ryong.com). It never touches keys.ryong.com or its
+# project. Does nothing until the owner adds the two repository secrets.
+# Static files only: no GitHub sign-in functions, no firmware installs.
+name: keysbeta deploy
+on:
+  push:
+    branches: [dev/keys-ryong-runtime]
+    paths: ['apps/keys-ryong-runtime/**', 'experiments/runtime-client/**', '.github/workflows/keysbeta-deploy.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: keysbeta-deploy
+  cancel-in-progress: true
+env:
+  PROJECT: ryong-keys-beta
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check that the owner enabled deployment
+        id: gate
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$ACCOUNT" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else echo "enabled=false" >> "$GITHUB_OUTPUT"; echo "::notice::keysbeta deploy skipped: CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets are not set."; fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.enabled == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.enabled == 'true'
+        with:
+          node-version: '22'
+      - name: Build pinned custom Studio client
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          sudo apt-get update && sudo apt-get install -y protobuf-compiler
+          bash experiments/runtime-client/prepare.sh "$GITHUB_WORKSPACE/vendor/runtime-studio-client"
+      - name: Build development web app
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: apps/keys-ryong-runtime
+        run: |
+          npm ci
+          mkdir -p src/data
+          [ -f src/data/release-data.json ] || echo '{"tag_name":"","assets":[]}' > src/data/release-data.json
+          npx tsc -p tsconfig.runtime.json
+          npx vite build --config vite.runtime.config.ts --outDir dist-runtime
+          # Keep search engines away from the development site.
+          printf 'User-agent: *\nDisallow: /\n' > dist-runtime/robots.txt
+          printf '/*\n  X-Robots-Tag: noindex\n' > dist-runtime/_headers
+      - name: Deploy to the separate Pages project
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Run from an empty folder so the app's sign-in functions/ are never uploaded.
+          mkdir -p /tmp/deploy && cp -r apps/keys-ryong-runtime/dist-runtime /tmp/deploy/site && cd /tmp/deploy
+          npx --yes wrangler@3 pages project list | grep -q " $PROJECT " || npx --yes wrangler@3 pages project create "$PROJECT" --production-branch=main
+          npx --yes wrangler@3 pages deploy site --project-name="$PROJECT" --branch=main --commit-hash="$GITHUB_SHA" --commit-dirty=true
