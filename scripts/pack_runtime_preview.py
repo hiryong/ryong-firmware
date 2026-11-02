@@ -53,6 +53,7 @@ html = re.sub(r"<style>([\s\S]*?)</style>", lambda m: "<style>" + css(m.group(1)
 html = re.sub(r"""<link\b[^>]*rel=["'](?:modulepreload|preload)["'][^>]*>""", "", html)
 if re.search(r"""<script\b[^>]*src=["']""", html) or re.search(r"""<link\b[^>]*rel=["']stylesheet["']""", html):
     raise ValueError("External application scripts/styles remain")
+html = html.replace('<script type="module">', '<script>try{if(!localStorage.getItem("ryong.lang"))localStorage.setItem("ryong.lang","ko")}catch{}</script><script type="module">', 1)
 output.parent.mkdir(parents=True, exist_ok=True)
 output.write_text(html)
 print(f"Offline preview: {output.stat().st_size} bytes")

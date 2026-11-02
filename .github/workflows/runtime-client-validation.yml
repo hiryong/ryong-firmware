@@ -2,7 +2,7 @@ name: Runtime client compatibility
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['experiments/runtime-client/**', 'apps/keys-ryong-runtime/**', 'apps/keys-ryong/vite.runtime.config.ts', 'apps/keys-ryong/tsconfig.runtime.json', '.github/workflows/runtime-client-validation.yml']
+    paths: ['experiments/runtime-client/**', 'scripts/pack_runtime_preview.py', 'apps/keys-ryong-runtime/**', 'apps/keys-ryong/vite.runtime.config.ts', 'apps/keys-ryong/tsconfig.runtime.json', '.github/workflows/runtime-client-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read

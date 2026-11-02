@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 const { chromium } = await import(process.env.RYONG_PLAYWRIGHT);
 const root = path.resolve("dist-runtime");
 const output = path.resolve("ui-verification");
@@ -57,6 +58,17 @@ try {
   assert.equal(await page.locator(".ry-item.is-open input[type=number]").inputValue(), "65");
   await page.getByRole("button", { name: /^매크로/ }).click();
   await page.getByRole("button", { name: /Hello/ }).first().waitFor();
+  const offline = path.resolve("offline-preview/Keys-Ryong-Runtime-Preview.html");
+  const offlineHtml = await fs.readFile(offline, "utf8");
+  assert.ok(offlineHtml.length > 500000, "standalone app bundle must be embedded");
+  assert.ok(!/<script[^>]*src=/.test(offlineHtml));
+  const offlinePage = await context.newPage();
+  offlinePage.on("pageerror", error => errors.push(error.message));
+  await offlinePage.goto(pathToFileURL(offline).href);
+  await offlinePage.locator(".ry-item-head").first().waitFor();
+  await offlinePage.getByText("미리보기 · 이 브라우저에만 저장하며 실제 키보드는 변경하지 않습니다.", { exact: true }).waitFor();
+  await offlinePage.screenshot({ path: output + "/offline-preview.png", fullPage: true });
+  await offlinePage.close();
   assert.deepEqual(errors, []);
   assert.deepEqual(mutations, []);
   await fs.writeFile(output + "/result.json", JSON.stringify({ passed: true,
