@@ -40,6 +40,8 @@ jobs:
         run: |
           npm ci
           node tests/runtime-device.test.mjs
+          mkdir -p src/data
+          cp ../keys-ryong/src/data/release-data.json src/data/release-data.json
       - name: Build custom client variant without changing original app dependencies
         working-directory: apps/keys-ryong-runtime
         run: |

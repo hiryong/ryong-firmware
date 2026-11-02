@@ -17,6 +17,7 @@ export type DesiredMacro = { slot?: number; name: string; steps: M.MacroStep[] }
 export type DesiredCombo = C.Combo & { macroName?: string };
 export type DesiredProfile = { combos: DesiredCombo[]; macros: DesiredMacro[] };
 export type RuntimePort = {
+  physicalKeyCount: number;
   combo: (request: C.Request) => Promise<C.Response>;
   macro: (request: M.Request) => Promise<M.Response>;
   assertUnlocked: () => Promise<void>;
@@ -117,7 +118,10 @@ export class RuntimeSession {
       });
       for (const combo of resolvedCombos) {
         check(await this.port.combo(C.Request.fromPartial({ setCombo: {
-          ...combo, persist: false,
+          index: combo.index, keyPositions: combo.keyPositions, behavior: combo.behavior,
+          layerMask: combo.layerMask, enabled: combo.enabled, timeoutMs: combo.timeoutMs,
+          requirePriorIdleMs: combo.requirePriorIdleMs, slowReleaseOverride: combo.slowReleaseOverride,
+          persist: false,
         } })));
         check(await this.port.combo(C.Request.fromPartial({ setComboName: {
           index: combo.index, name: combo.name, persist: false,
@@ -141,6 +145,13 @@ export class RuntimeSession {
             canonical(actual.behavior) !== canonical(combo.behavior) ||
             actual.layerMask !== combo.layerMask || actual.name !== combo.name) {
           throw new Error("Persisted combo readback differs. Recovery journal retained.");
+        }
+      }
+      for (const macro of desired.macros) {
+        const actual = result.macros.find(item => item.name === macro.name);
+        if (!actual || canonical(actual.steps) !== canonical(macro.steps) ||
+            (macro.slot !== undefined && actual.slot !== macro.slot)) {
+          throw new Error("Persisted macro readback differs. Recovery journal retained.");
         }
       }
       journal.complete();
@@ -212,7 +223,7 @@ export class RuntimeSession {
       if (!Number.isInteger(combo.index) || combo.index < 0 || combo.index >= before.comboLimits.maxCombo ||
           comboSlots.has(combo.index) || combo.keyPositions.length < 2 || combo.keyPositions.length > 4 ||
           new Set(combo.keyPositions).size !== combo.keyPositions.length ||
-          combo.keyPositions.some(position => !Number.isInteger(position) || position < 0 || position > 95) ||
+          combo.keyPositions.some(position => !Number.isInteger(position) || position < 0 || position >= this.port.physicalKeyCount) ||
           !combo.behavior || !combo.behavior.behaviorId ||
           !Number.isInteger(combo.timeoutMs) || combo.timeoutMs < 1 || combo.timeoutMs > 1000) {
         throw new Error("Invalid runtime combo.");
@@ -238,7 +249,11 @@ export async function connectRuntime(conn: RpcConnection) {
   };
   const comboIndex = find("cormoran__runtime_combo");
   const macroIndex = find("cormoran__runtime_macro");
+  const layouts = (await call_rpc(conn, { keymap: { getPhysicalLayouts: true } })).keymap?.getPhysicalLayouts;
+  const physicalKeyCount = layouts?.layouts[layouts.activeLayoutIndex]?.keys.length ?? 0;
+  if (physicalKeyCount < 1 || physicalKeyCount > 96) throw new Error("Unknown physical key layout.");
   const port: RuntimePort = {
+    physicalKeyCount,
     combo: async request => C.Response.decode(await callRuntimePayload(conn, comboIndex, C.Request.encode(request).finish())),
     macro: async request => M.Response.decode(await callRuntimePayload(conn, macroIndex, M.Request.encode(request).finish())),
     assertUnlocked: async () => {

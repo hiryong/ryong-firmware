@@ -20,6 +20,7 @@ function fixture() {
   const statusM = () => M.Response.fromPartial({ status: { affectedCount: 1, message: "ok" } });
   const write = () => { state.writes++; if (state.failAt === state.writes) { state.disconnected = true; throw new Error("disconnected"); } };
   const port = {
+    physicalKeyCount: 61,
     assertUnlocked: async () => { if (state.locked || state.disconnected) throw new Error("locked/disconnected"); },
     combo: async req => {
       if (state.disconnected) throw new Error("disconnected");
