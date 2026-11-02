@@ -576,7 +576,12 @@ export default function Keyboard() {
           </div>
         )}
       </div>
-      {layouts && keymap && behaviors && (
+      {/* runtime copy: show the keyboard only once key names are known, never a board of "?" caps */}
+      {viaFirst && layouts && keymap && !Object.keys(behaviors).length && (
+        <div className="ry-keys-float p-2 col-start-1 row-start-1 grid place-items-center text-sm" role="status" style={{ color: "var(--mute)" }}>
+          {tr("Reading the keyboard…", "키보드를 읽는 중…")}</div>
+      )}
+      {layouts && keymap && behaviors && (!viaFirst || Object.keys(behaviors).length > 0) && (
         <div className={(viaFirst ? "ry-keys-float " : "") + "p-2 " + (viaFirst ? "col-start-1" : "col-start-2") + " row-start-1 grid items-center justify-center relative min-w-0"}>
           <div className={keymapView === "3d" ? "ry-view-3d" : "ry-view-2d"}>
           <div className="ry-tilt" key={keymapView}>

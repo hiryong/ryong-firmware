@@ -442,7 +442,7 @@ export async function virtualConnect(): Promise<RpcTransport> {
   decoder.readable.pipeTo(new WritableStream<Uint8Array>({
     write(frame) {
       const req = Request.decode(frame);
-      return new Promise(resolve => setTimeout(() => { send(virtualDevice.handle(req)); resolve(); }, 25));
+      return new Promise(resolve => setTimeout(() => { send(virtualDevice.handle(req)); resolve(); }, 3));
     },
   })).catch(() => undefined);
   abortController.signal.addEventListener("abort", () => { virtualDevice.detach(); try { out.close(); } catch { /* ignore */ } });
