@@ -2,7 +2,7 @@ name: Ryong60 compile validation
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['hardware/ryong60/**', 'experiments/dya-runtime/**', 'scripts/prepare_zmk.py', 'scripts/secure_runtime_rpc.py', 'scripts/run_module_simulations.py', '.github/workflows/zmk-validation.yml']
+    paths: ['hardware/ryong60/**', 'modules/**', 'experiments/dya-runtime/**', 'scripts/prepare_zmk.py', 'scripts/secure_runtime_rpc.py', 'scripts/run_module_simulations.py', '.github/workflows/zmk-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -35,6 +35,7 @@ jobs:
         run: |
           west init -l config
           west update --fetch-opt=--filter=tree:0
+          west forall -c 'git restore --source=HEAD --worktree --staged .'
           west zephyr-export
           west manifest --freeze --active-only > resolved-manifest.yml
       - name: Require Studio unlock in external modules
@@ -47,7 +48,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
         run: |
           EXTRA=()
-          if [ "$VARIANT" = runtime ]; then EXTRA=("-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.overlay"); fi
+          if [ "$VARIANT" = runtime ]; then EXTRA=("-DZMK_EXTRA_MODULES=/tmp/ryong-build/board;$GITHUB_WORKSPACE/modules/ryong-holdtap" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.overlay"); fi
           west build -s zmk/app -d build -b ryong60//zmk -S studio-rpc-usb-uart -- -DZMK_CONFIG=/tmp/ryong-build/config -DZMK_EXTRA_MODULES=/tmp/ryong-build/board "${EXTRA[@]}"
       - name: Install native simulator compiler
         if: matrix.variant == 'runtime'
@@ -74,3 +75,4 @@ jobs:
           name: diagnostic-${{ matrix.variant }}
           path: /tmp/ryong-build/reports
 # Deliberately never upload UF2, HEX, BIN or ELF: not hardware approved.
+

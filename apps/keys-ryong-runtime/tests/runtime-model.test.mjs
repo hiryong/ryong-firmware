@@ -44,7 +44,7 @@ assert.throws(() => compileDocument(badLayer, view), /Unknown combo layer/);
 const nonAscii = structuredClone(doc); nonAscii.macros[0].steps[0].text = "한글";
 assert.throws(() => compileDocument(nonAscii, view), /unsupported characters/);
 const options = empty(); options.settings.push({ behavior: "mt", props: {} });
-assert.throws(() => compileDocument(options, view), /not runtime-enabled/);
+assert.throws(() => compileDocument(options, view), /runtime module is unavailable/);
 const packed = { ...view, snapshot: { ...snapshot, macros: [M.MacroDetail.fromPartial({ slot: 0, name: "Packed",
   steps: [{ keyTapSequence: { packedKeys: new Uint8Array([0x84, 0x05]) } }] })] } };
 const restored = viewDocument(packed);
@@ -56,3 +56,4 @@ assert.equal(fetches, 0);
 await gh("/repos/hiryong/keys-ryong");
 assert.equal(fetches, 1);
 console.log("PASS: editor model mapping, text timing, macro references, bounds, packed readback, protected GitHub write guard");
+

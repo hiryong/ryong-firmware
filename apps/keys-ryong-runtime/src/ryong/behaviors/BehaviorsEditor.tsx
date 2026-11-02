@@ -1,3 +1,4 @@
+import { exportProfile, importProfile, downloadText } from "../runtime/profileFile";
 import { ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Code, Copy, Lock, Plus, Trash2 } from "lucide-react";
 import { Board, confPath, links, matchesDevice, useMyBoards } from "../keyboards";
@@ -376,7 +377,13 @@ const Editor = ({
         const journalKey = "ryong-runtime-pending:" + (preview ? "preview" : runtimeConn!.label);
         const result = await runtimeView.session.save(runtimeView.snapshot, desired, {
           prepare(before, next) {
-            localStorage.setItem(journalKey, JSON.stringify({ version: 1, device: connectedName, at: Date.now(), before, desired: next }, (_key, value) => value instanceof Uint8Array ? { type: "uint8", bytes: Array.from(value) } : value));
+            const previous=localStorage.getItem(journalKey);
+            if(previous){
+              const archiveKey=journalKey+":recovery-history";
+              const archive=JSON.parse(localStorage.getItem(archiveKey)||"[]");
+              localStorage.setItem(archiveKey,JSON.stringify([JSON.parse(previous),...archive].slice(0,5)));
+            }
+            localStorage.setItem(journalKey, JSON.stringify({ version: 1, device: connectedName, at: Date.now(), before, desired: next, beforeBackup: exportProfile(viewDocument({ ...runtimeView, snapshot: before }), runtimeView) }, (_key, value) => value instanceof Uint8Array ? { type: "uint8", bytes: Array.from(value) } : value));
           },
           complete() {
             const pending = localStorage.getItem(journalKey);
@@ -514,13 +521,28 @@ const Editor = ({
       {runtime && !loading && <div className="ry-row">
         <p className="ry-faint">{t("Existing firmware defaults remain active. This list edits additional runtime entries.", "기존 펌웨어 기본 동작은 유지됩니다. 이 목록에서는 추가 동적 설정을 편집합니다.")}</p>
         <button className="ry-text" disabled={saving} onClick={load}>{t("Reload device", "다시 불러오기")}</button>
+        <button className="ry-text" disabled={saving || !runtimeView} onClick={()=>runtimeView && downloadText("ryong-dynamic-backup.json",exportProfile(doc,runtimeView))}>{t("Export dynamic settings","동적 설정 백업")}</button>
+        <label className="ry-text">{t("Import backup","백업 불러오기")}<input aria-label={t("Import runtime backup","동적 설정 백업 불러오기")} type="file" accept=".json,application/json" disabled={saving} onChange={async e=>{
+          const file=e.currentTarget.files?.[0];e.currentTarget.value="";
+          if(!file || !runtimeView)return;
+          try {if(file.size>262144)throw new Error("Backup exceeds 256 KiB.");setDoc(importProfile(await file.text(),runtimeView));setError(null);}
+          catch(error){setError(String(error));}
+        }}/></label>
+        <button className="ry-text" disabled={saving || !runtimeView} onClick={()=>{
+          const key="ryong-runtime-pending:"+(preview?"preview":runtimeConn!.label);
+          const raw=localStorage.getItem(key);
+          if(!raw){setError(t("No interrupted save journal.","중단된 저장 기록이 없습니다."));return;}
+          const record=JSON.parse(raw);
+          downloadText("ryong-interrupted-save.json",raw);
+          if(record.beforeBackup && runtimeView){try{setDoc(importProfile(record.beforeBackup,runtimeView));setError(t("Previous settings loaded for review. Reload the keyboard first if its state changed, then import the exported backup. Save explicitly to restore.","이전 설정을 검토용으로 불러왔습니다. 장치 상태가 바뀌었다면 먼저 다시 불러오고 백업을 가져오세요. 복원은 저장 버튼을 눌러야 적용됩니다."));}catch(error){setError(String(error));}}
+        }}>{t("Interrupted save recovery","중단된 저장 복구")}</button>
       </div>}
 
       {loaded && (
         <>
           <div className="ry-row" style={{ borderBottom: "1px solid var(--line)" }}>
             <div className="ry-tabs">
-              {SECTIONS.filter(s => !runtime || s.id === "combos" || s.id === "macros").map((s) => (
+              {SECTIONS.filter(s => !runtime || s.id === "combos" || s.id === "macros" || !!runtimeView?.snapshot.advanced).map((s) => (
                 <button key={s.id} className="ry-tab" aria-pressed={section === s.id} onClick={() => setSection(s.id)}>
                   {s.label()}
                   <span className="ry-count">{(doc[s.id] ?? []).length}</span>
@@ -669,6 +691,7 @@ const Editor = ({
                   </Item>
                 ))}
 
+              {section === "tapDances" && runtime && <p className="ry-note">{t("One global interval; use the same value on every card. One to three actions. Assign the returned ID through Studio.", "판정 시간은 전체 공통입니다. 모든 카드에 같은 값을 입력하세요. 동작은 최대 3개이며 저장 후 ID를 Studio에서 지정합니다.")}</p>}
               {section === "tapDances" &&
                 doc.tapDances.map((td) => (
                   <Item
@@ -681,6 +704,7 @@ const Editor = ({
                     onCopy={() => duplicate("tapDances", td.id)}
                   >
                     <Field label={t("Name", "이름")} hint={t("Name in the behavior list.", "동작 목록에 보이는 이름.")}>
+                      {runtime && td.id.startsWith("runtime_dance_") && <p className="ry-note">Studio · Runtime Tap Dance · ID {td.id.slice(14)}</p>}
                       <input type="text" value={td.name} onChange={(e) => update("tapDances", td.id, { name: e.target.value })} />
                     </Field>
                     <Field label={t("Taps", "탭")}>
@@ -721,7 +745,7 @@ const Editor = ({
 
               {section === "settings" && (
                 <>
-                  <FeaturesEditor conf={loaded.conf} board={loaded.board} edits={confEdits} setEdits={setConfEdits} />
+                  {!runtime && <FeaturesEditor conf={loaded.conf} board={loaded.board} edits={confEdits} setEdits={setConfEdits} />}
                   {loaded.board && (
                     <SoftOffCard
                       kb={kb}
@@ -735,7 +759,7 @@ const Editor = ({
                     />
                   )}
                   <h3 className="ry-h2" style={{ marginTop: 8 }}>{t("Behavior options", "동작 옵션")}</h3>
-                  <SettingsEditor doc={doc} setDoc={setDoc} kb={kb} skip={loaded.board ? ["soft_off"] : []} />
+                  <SettingsEditor doc={doc} setDoc={setDoc} kb={kb} skip={runtime ? Object.keys(SETTING_SPECS).filter(k=>!doc.settings.some(s=>s.behavior===k)) : loaded.board ? ["soft_off"] : []} />
                 </>
               )}
 
@@ -1299,3 +1323,4 @@ const MacroSteps = ({
     </div>
   );
 };
+

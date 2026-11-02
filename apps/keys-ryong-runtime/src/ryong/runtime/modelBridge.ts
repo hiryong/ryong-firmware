@@ -1,7 +1,7 @@
 import { call_rpc } from "@zmkfirmware/zmk-studio-ts-client/index";
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
 import type { BehaviorDoc, Binding, Mod, MacroStep as EditorStep } from "../behaviors/model";
-import { emptyDoc, textToKeys, BT_CMDS, OUT_CMDS } from "../behaviors/model";
+import { emptyDoc, textToKeys, BT_CMDS, OUT_CMDS, FLAVORS } from "../behaviors/model";
 import values from "./keycode-values.json";
 import * as C from "./proto/runtime_combo";
 import * as M from "./proto/runtime_macro";
@@ -14,6 +14,7 @@ const aliases: Record<string, string[]> = {
   tog: ["togglelayer"], to: ["tolayer"], sl: ["stickylayer"],
   none: ["none"], trans: ["transparent"], caps_word: ["capsword"],
   key_repeat: ["keyrepeat"], studio_unlock: ["studiounlock"],
+  mt: ["modtap"], lt: ["layertap"], rtd: ["runtimetapdance"],
   ref: ["runtimemacro"], bt: ["bluetooth"], out: ["outputselection"],
   sys_reset: ["reset"], bootloader: ["bootloader"],
 };
@@ -42,6 +43,7 @@ export async function loadRuntimeView(conn: RpcConnection): Promise<RuntimeView>
   }
   if (!catalog.kp || !catalog.ref) throw new Error("Key Press / Runtime Macro behavior is unavailable.");
   session.port.runtimeMacroBehaviorId = catalog.ref;
+  session.port.runtimeDanceBehaviorId = catalog.rtd;
   session.port.noneBehaviorId = catalog.none;
   const keymap = (await call_rpc(conn, { keymap: { getKeymap: true } })).keymap?.getKeymap;
   if (!keymap) throw new Error("Device keymap is unavailable.");
@@ -137,11 +139,18 @@ export function viewDocument(view: RuntimeView): BehaviorDoc {
     keys: [...combo.keyPositions], layers: Array.from({ length: view.layerNames.length }, (_, layer) => layer).filter(layer => combo.layerMask && (combo.layerMask & (1 << layer)) !== 0),
     timeout: combo.timeoutMs || view.snapshot.comboLimits.timeoutMs, binding: decode(combo.behavior, view),
   }));
+  if (view.snapshot.advanced) {
+    const a = view.snapshot.advanced;
+    doc.tapDances = a.dances.map(d=>({id:"runtime_dance_"+d.index,name:d.name,term:a.global.intervalMs,
+      bindings:[d.config?.singleBinding,d.config?.doubleBinding,d.config?.tripleBinding].filter(b=>b?.behaviorId).map(b=>decode(b,view))}));
+    doc.settings = a.holds.map(h=>({behavior:Object.entries(view.catalog).find(([kind,id])=>(kind==="mt"||kind==="lt")&&id===h.behaviorId)?.[0] ?? "holdtap_"+h.slot,
+      props:{"tapping-term-ms":h.tappingTermMs,"quick-tap-ms":h.quickTapMs,"require-prior-idle-ms":h.requirePriorIdleMs,flavor:FLAVORS[h.flavor]}}));
+  }
   return doc;
 }
 
 export function compileDocument(doc: BehaviorDoc, view: RuntimeView): DesiredProfile {
-  if (doc.tapDances.length || doc.settings.length) throw new Error("Tap Dance / behavior options are not runtime-enabled yet; nothing was written.");
+  if ((doc.tapDances.length || doc.settings.length) && !view.snapshot.advanced) throw new Error("Advanced runtime module is unavailable; nothing was written.");
   const original = viewDocument(view);
   const macros = doc.macros.map(macro => {
     if (![macro.tap, macro.wait].every(value => Number.isInteger(value) && value >= 0 && value <= 5000)) throw new Error("Invalid macro timing.");
@@ -164,6 +173,7 @@ export function compileDocument(doc: BehaviorDoc, view: RuntimeView): DesiredPro
       wait(macro.wait);
     };
     for (const step of macro.steps) {
+      if (!["wait","text","tap","press","release"].includes(step.t)) throw new Error("Unknown macro step type.");
       if (step.t === "wait") wait(step.ms);
       else if (step.t === "text") {
         const text = textToKeys(step.text);
@@ -190,7 +200,25 @@ export function compileDocument(doc: BehaviorDoc, view: RuntimeView): DesiredPro
       timeoutMs: combo.timeout,
     }), macroName: binding.macroName };
   });
-  const desired = { combos, macros };
+  const advanced = view.snapshot.advanced ? (() => {
+    const old = view.snapshot.advanced!;
+    const intervals = new Set(doc.tapDances.map(d=>d.term));
+    if (intervals.size > 1) throw new Error("This firmware uses one global Tap Dance interval. Set the same interval on all cards.");
+    const dances = doc.tapDances.map(d=>({index:old.dances.find(x=>"runtime_dance_"+x.index===d.id)?.index,name:d.name,
+      bindings:d.bindings.map(b=>{ if(b.b==="ref") throw new Error("Macro actions inside Tap Dance are not yet enabled."); return encode(b,view,doc).wire; })}));
+    const holds = old.holds.map(h=>{
+      const behavior = Object.entries(view.catalog).find(([kind,id])=>(kind==="mt"||kind==="lt")&&id===h.behaviorId)?.[0] ?? "holdtap_"+h.slot;
+      const props = doc.settings.find(s=>s.behavior===behavior)?.props;
+      if (!props) return h;
+      return {...h,tappingTermMs:Number(props["tapping-term-ms"] ?? h.tappingTermMs),quickTapMs:Number(props["quick-tap-ms"] ?? h.quickTapMs),
+        requirePriorIdleMs:Number(props["require-prior-idle-ms"] ?? h.requirePriorIdleMs),flavor:props.flavor === undefined ? h.flavor : FLAVORS.indexOf(String(props.flavor))};
+    });
+    const allowed = old.holds.map(h=>Object.entries(view.catalog).find(([kind,id])=>(kind==="mt"||kind==="lt")&&id===h.behaviorId)?.[0] ?? "holdtap_"+h.slot);
+    if (doc.settings.some(s=>!allowed.includes(s.behavior))) throw new Error("Only discovered runtime Hold-Tap options are supported.");
+    return {dances,holds,interval:doc.tapDances[0]?.term ?? old.global.intervalMs};
+  })() : undefined;
+  const desired = { combos, macros, advanced };
   view.session.validate(view.snapshot, desired);
   return desired;
 }
+

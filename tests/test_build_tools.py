@@ -9,6 +9,7 @@ import importlib.util
 ROOT = Path(__file__).resolve().parents[1]
 HANDLERS = [
     ('zmk-feature-runtime-combo', 'runtime_combo'),
+    ('zmk-feature-runtime-tapdance', 'runtime_tapdance'),
     ('zmk-feature-runtime-macro', 'runtime_macro'),
     ('zmk-feature-custom-settings', 'custom_settings'),
 ]

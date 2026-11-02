@@ -1,3 +1,5 @@
+import * as T from "./proto/runtime_tapdance";
+import * as H from "./proto/holdtap";
 /** Explicit browser-only preview. Never talks to USB, BLE or GitHub. */
 import * as C from "./proto/runtime_combo";
 import * as M from "./proto/runtime_macro";
@@ -5,7 +7,7 @@ import { RuntimeSession, RuntimePort } from "./device";
 import type { RuntimeView } from "./modelBridge";
 import codes from "./keycode-values.json";
 
-type Data = { combos: C.Combo[]; macros: M.MacroDetail[] };
+type Data = { combos: C.Combo[]; macros: M.MacroDetail[]; advanced?: {interval:number;next:number;dances:T.State[];holds:H.HoldTapInfo[]} };
 const key = "ryong-runtime-preview-v1";
 const clone = <T,>(value: T): T => structuredClone(value);
 let cached: RuntimeView | null = null;
@@ -19,11 +21,46 @@ export async function makePreviewView(): Promise<RuntimeView> {
   };
   const stored = localStorage.getItem(key);
   let flash: Data = stored ? JSON.parse(stored) : initial;
+  flash.advanced ??= {interval:200,next:0,dances:[],holds:[
+    H.HoldTapInfo.fromPartial({slot:0,behaviorId:17,found:true,tappingTermMs:200,quickTapMs:0,requirePriorIdleMs:0,flavor:0}),
+    H.HoldTapInfo.fromPartial({slot:1,behaviorId:18,found:true,tappingTermMs:200,quickTapMs:0,requirePriorIdleMs:0,flavor:2})]};
   let ram = clone(flash);
   const cStatus = () => C.Response.fromPartial({ status: { affectedCount: 1 } });
   const mStatus = () => M.Response.fromPartial({ status: { affectedCount: 1 } });
   const persist = () => localStorage.setItem(key, JSON.stringify(flash));
   const port: RuntimePort = {
+    runtimeDanceBehaviorId:19,
+    advanced: {
+      dance: async request => {
+        const a = ram.advanced!;
+        if(request.getGlobal) return T.Response.fromPartial({global:{intervalMs:a.interval,maxEntries:8,usedEntries:a.dances.length,maxNameLength:24,poolBytesTotal:1024,apiVersion:2}});
+        if(request.list) return T.Response.fromPartial({list:{entries:a.dances.map(d=>({index:d.index,name:d.name})),hasMore:false}});
+        if(request.get) return T.Response.fromPartial({state:a.dances.find(d=>d.index===request.get!.index)});
+        if(request.create) {
+          const index=flash.advanced!.next++; persist(); a.next=flash.advanced!.next;
+          const state=T.State.fromPartial({index,name:request.create.name,config:{},intervalMs:a.interval,maxCount:8});a.dances.push(state);
+          return T.Response.fromPartial({state:clone(state)});
+        }
+        if(request.rename) a.dances.find(d=>d.index===request.rename!.index)!.name=request.rename.name;
+        if(request.set) {
+          const d=a.dances.find(d=>d.index===request.set!.index)!; d.config ??= T.Config.fromPartial({});
+          const k=request.set.tapCount===1 ? "singleBinding" : request.set.tapCount===2 ? "doubleBinding" : "tripleBinding";
+          d.config[k]=clone(request.set.binding);
+        }
+        if(request.setInterval) a.interval=request.setInterval.intervalMs;
+        if(request.remove) a.dances=a.dances.filter(d=>d.index!==request.remove!.index);
+        if(request.save) {flash.advanced=clone(a);persist();}
+        if(request.discard) ram.advanced=clone(flash.advanced);
+        return T.Response.fromPartial({status:{affectedCount:1}});
+      },
+      hold: async request => {
+        const a=ram.advanced!;
+        if(request.count) return H.Response.fromPartial({count:{count:a.holds.length}});
+        if(request.get) return H.Response.fromPartial({get:a.holds.find(h=>h.slot===request.get!.slot) ?? {slot:request.get.slot,found:false}});
+        if(request.set) {const h=a.holds.find(h=>h.slot===request.set!.slot)!;Object.assign(h,request.set);flash.advanced=clone(a);persist();return H.Response.fromPartial({set:{ok:true}});}
+        throw new Error("Unsupported preview hold-tap operation");
+      }
+    },
     physicalKeyCount: 61,
     runtimeMacroBehaviorId: 2,
     noneBehaviorId: 8,
@@ -90,7 +127,8 @@ export async function makePreviewView(): Promise<RuntimeView> {
   cached = { session, snapshot: await session.read(), catalog: {
     kp: 1, ref: 2, mo: 3, tog: 4, to: 5, sl: 6, sk: 7,
     none: 8, trans: 9, caps_word: 10, key_repeat: 11, studio_unlock: 12,
-    bt: 13, out: 14, bootloader: 15, sys_reset: 16,
+    bt: 13, out: 14, bootloader: 15, sys_reset: 16, mt:17, lt:18, rtd:19,
   }, layerNames: ["Base", "Fn", "Mac"] };
   return cached;
 }
+

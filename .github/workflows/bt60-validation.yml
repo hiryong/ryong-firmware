@@ -34,6 +34,7 @@ jobs:
         run: |
           west init -l config
           west update --fetch-opt=--filter=tree:0
+          west forall -c 'git restore --source=HEAD --worktree --staged .'
           west zephyr-export
       - name: Secure runtime RPC
         if: matrix.variant == 'runtime'
@@ -67,3 +68,4 @@ jobs:
           name: bt60-diagnostic-${{ matrix.variant }}
           path: /tmp/bt60-build/reports
 # Never upload installable images until the actual unit/recovery path is verified.
+

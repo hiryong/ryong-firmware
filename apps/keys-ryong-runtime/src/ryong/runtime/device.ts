@@ -1,3 +1,6 @@
+import { AdvancedPort, AdvancedState, AdvancedDesired, readAdvanced, validateAdvanced, saveAdvanced } from "./advanced";
+import * as T from "./proto/runtime_tapdance";
+import * as H from "./proto/holdtap";
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
 import { call_rpc } from "@zmkfirmware/zmk-studio-ts-client/index";
 import type { Keymap, BehaviorBinding as KeymapBinding } from "@zmkfirmware/zmk-studio-ts-client/keymap";
@@ -14,11 +17,14 @@ export type RuntimeSnapshot = {
   maxMacroBytes: number;
   maxNameLength: number;
   keymap?: Keymap;
+  advanced?: AdvancedState;
 };
 export type DesiredMacro = { slot?: number; name: string; steps: M.MacroStep[] };
 export type DesiredCombo = C.Combo & { macroName?: string };
-export type DesiredProfile = { combos: DesiredCombo[]; macros: DesiredMacro[] };
+export type DesiredProfile = { combos: DesiredCombo[]; macros: DesiredMacro[]; advanced?: AdvancedDesired };
 export type RuntimePort = {
+  advanced?: AdvancedPort;
+  runtimeDanceBehaviorId?: number;
   physicalKeyCount: number;
   runtimeMacroBehaviorId?: number;
   noneBehaviorId?: number;
@@ -75,6 +81,7 @@ export class RuntimeSession {
       macroLimits: macroLimits.getMacroGlobalSettings.settings,
       maxMacroBytes: macros.listMacros.maxMacroBytes,
       maxNameLength: macros.listMacros.maxNameLength,
+      advanced: this.port.advanced ? await readAdvanced(this.port.advanced) : undefined,
       keymap: this.port.keymap ? await this.port.keymap.read() : undefined,
     };
   }
@@ -175,6 +182,10 @@ export class RuntimeSession {
         // References are durable before the old macro is finally removed.
         for (const old of removed) check(await this.port.macro(M.Request.fromPartial({ deleteMacro: { name: old.name } })));
       }
+      if (desired.advanced && before.advanced && this.port.advanced) {
+        await this.port.assertUnlocked();
+        await saveAdvanced(this.port.advanced, before.advanced, desired.advanced);
+      }
       const result = await this.read();
       // Keep journal if final readback fails or a device restarts between saves.
       for (const combo of resolvedCombos) {
@@ -207,6 +218,7 @@ export class RuntimeSession {
         try {
           await this.port.macro(M.Request.fromPartial({ discardMacros: {} }));
           await this.port.combo(C.Request.fromPartial({ discard: {} }));
+          if (this.port.advanced) await this.port.advanced.dance(T.Request.fromPartial({discard:{}}));
           if (this.port.keymap) await this.port.keymap.discard();
         } catch { /* connection may be gone; journal is still pending */ }
       }
@@ -217,6 +229,13 @@ export class RuntimeSession {
   }
 
   validate(before: RuntimeSnapshot, desired: DesiredProfile) {
+    if (desired.advanced) {
+      if (!before.advanced || !this.port.advanced) throw new Error("Advanced runtime capability missing.");
+      validateAdvanced(before.advanced, desired.advanced, this.port.runtimeMacroBehaviorId, this.port.runtimeDanceBehaviorId);
+    }
+    // Existing external dance->macro links cannot be silently invalidated.
+    if (before.advanced?.dances.some(d => [d.config?.singleBinding,d.config?.doubleBinding,d.config?.tripleBinding].some(b => b?.behaviorId === this.port.runtimeMacroBehaviorId)) &&
+        before.macros.some(m=>!desired.macros.some(n=>n.slot===m.slot && n.name===m.name))) throw new Error("Remove Tap Dance macro references before renaming/deleting macros.");
     if (desired.combos.length > before.comboLimits.maxCombo ||
         desired.macros.length > before.macroLimits.maxEntries) throw new Error("Device slot limit exceeded.");
     const names = new Set<string>();
@@ -310,6 +329,10 @@ export async function connectRuntime(conn: RpcConnection) {
   if (physicalKeyCount < 1 || physicalKeyCount > 96) throw new Error("Unknown physical key layout.");
   const port: RuntimePort = {
     physicalKeyCount,
+    advanced: subsystems.some(s=>s.identifier === "cormoran__runtime_tapdance") && subsystems.some(s=>s.identifier === "zmk__holdtap") ? {
+      dance: async request => T.Response.decode(await callRuntimePayload(conn,find("cormoran__runtime_tapdance"),T.Request.encode(request).finish())),
+      hold: async request => H.Response.decode(await callRuntimePayload(conn,find("zmk__holdtap"),H.Request.encode(request).finish())),
+    } : undefined,
     keymap: {
       read: async () => {
         const value = (await call_rpc(conn, { keymap: { getKeymap: true } })).keymap?.getKeymap;
@@ -345,3 +368,4 @@ export async function connectRuntime(conn: RpcConnection) {
   };
   return new RuntimeSession(port);
 }
+
