@@ -18,7 +18,7 @@ struct rt_holdtap_timing {
 // *live immediately (or when settings load completes).
 // behavior_name is the registering device's dev->name (a static devicetree
 // string, stored by pointer); pass NULL if unknown.
-void rt_holdtap_register(uint8_t slot, struct rt_holdtap_timing *live,
+int rt_holdtap_register(uint8_t slot, struct rt_holdtap_timing *live,
                          const struct rt_holdtap_timing *dt_default,
                          const char *behavior_name);
 

@@ -7,6 +7,7 @@
         ht_bal: behavior_hold_tap_balanced {
             compatible = "zmk,behavior-runtime-hold-tap";
             #binding-cells = <2>;
+            runtime-slot = <0>;
             flavor = "balanced";
             tapping-term-ms = <300>;
             quick-tap-ms = <200>;
@@ -24,3 +25,4 @@
         };
     };
 };
+

@@ -69,13 +69,17 @@ static int rt_holdtap_settings_set(const char *name, size_t len, settings_read_c
 SETTINGS_STATIC_HANDLER_DEFINE(rt_holdtap, SETTINGS_PREFIX, NULL, rt_holdtap_settings_set, NULL,
                                NULL);
 
-void rt_holdtap_register(uint8_t slot, struct rt_holdtap_timing *live,
+int rt_holdtap_register(uint8_t slot, struct rt_holdtap_timing *live,
                          const struct rt_holdtap_timing *dt_default,
                          const char *behavior_name) {
-    if (slot >= SLOTS || live == NULL || dt_default == NULL) {
-        return;
+    if (slot >= SLOTS || live == NULL || !valid_timing(dt_default)) {
+        return -EINVAL;
     }
     k_mutex_lock(&rt_holdtap_lock, K_FOREVER);
+    if (slots[slot].registered && slots[slot].live != live) {
+        k_mutex_unlock(&rt_holdtap_lock);
+        return -EEXIST;
+    }
     slots[slot].live = live;
     slots[slot].dt_default = *dt_default;
     slots[slot].behavior_name = behavior_name;
@@ -84,6 +88,7 @@ void rt_holdtap_register(uint8_t slot, struct rt_holdtap_timing *live,
         *live = slots[slot].saved; // apply a value already loaded from NVS
     }
     k_mutex_unlock(&rt_holdtap_lock);
+    return 0;
 }
 
 int rt_holdtap_get(uint8_t slot, struct rt_holdtap_timing *out) {

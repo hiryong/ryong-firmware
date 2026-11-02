@@ -892,8 +892,7 @@ static int behavior_runtime_hold_tap_init(const struct device *dev) {
         .flavor = (uint8_t)cfg->flavor,
     };
     data->t = dt;
-    rt_holdtap_register(data->slot, &data->t, &dt, dev->name);
-    return 0;
+    return rt_holdtap_register(data->slot, &data->t, &dt, dev->name);
 }
 
 #define KP_INST(n)                                                                                 \
@@ -920,7 +919,7 @@ static int behavior_runtime_hold_tap_init(const struct device *dev) {
         .ignore_key_positions = ignore_key_positions_##n,                                          \
         .ignore_key_positions_len = DT_INST_PROP_LEN(n, ignore_key_positions),                     \
     };                                                                                             \
-    static struct behavior_runtime_hold_tap_data behavior_runtime_hold_tap_data_##n = {.slot = n};                 \
+    static struct behavior_runtime_hold_tap_data behavior_runtime_hold_tap_data_##n = {.slot = DT_INST_PROP(n, runtime_slot)};                 \
     BEHAVIOR_DT_INST_DEFINE(n, behavior_runtime_hold_tap_init, NULL, &behavior_runtime_hold_tap_data_##n,          \
                             &behavior_runtime_hold_tap_config_##n, POST_KERNEL,                            \
                             CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, &behavior_runtime_hold_tap_driver_api);

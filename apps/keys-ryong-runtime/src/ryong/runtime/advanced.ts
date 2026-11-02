@@ -74,7 +74,7 @@ export async function saveAdvanced(port: AdvancedPort, before: AdvancedState, de
       checked(await port.dance(T.Request.fromPartial({ rename: { index, name:d.name, persist:false } })));
     }
     for (let tap = 3; tap > d.bindings.length; tap--) checked(await port.dance(T.Request.fromPartial({ set: { index, tapCount:tap, binding:{behaviorId:0,param1:0,param2:0}, persist:false } })));
-    for (let tap = 1; tap <= d.bindings.length; tap++) checked(await port.dance(T.Request.fromPartial({ set: { index, tapCount:tap, binding:d.bindings[tap-1] ?? {behaviorId:0,param1:0,param2:0}, persist:false } })));
+    for (let tap = 1; tap <= d.bindings.length; tap++) checked(await port.dance(T.Request.fromPartial({ set: { index, tapCount:tap, binding:{behaviorId:d.bindings[tap-1]?.behaviorId ?? 0,param1:d.bindings[tap-1]?.param1 ?? 0,param2:d.bindings[tap-1]?.param2 ?? 0}, persist:false } })));
   }
   checked(await port.dance(T.Request.fromPartial({ setInterval: { intervalMs:desired.interval, persist:false } })));
   // Remove is staged; IDs are never recycled by the pinned module.

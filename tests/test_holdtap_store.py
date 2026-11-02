@@ -39,7 +39,9 @@ static int length;
 static int read_record(void*a,void*b,size_t n){memcpy(b,&record,n);return length;}
 int main(void){
  struct rt_holdtap_timing live={200,0,0,0},defaults=live,next={275,100,50,2},got;
- rt_holdtap_register(0,&live,&defaults,"mt");
+ assert(rt_holdtap_register(0,&live,&defaults,"mt")==0);
+ struct rt_holdtap_timing duplicate=defaults;
+ assert(rt_holdtap_register(0,&duplicate,&defaults,"lt")==-EEXIST);
  assert(rt_holdtap_set(0,&next)==0 && live.tapping_term_ms==275);
  failure=-EIO;next.tapping_term_ms=300;
  assert(rt_holdtap_set(0,&next)==-EIO && live.tapping_term_ms==275);

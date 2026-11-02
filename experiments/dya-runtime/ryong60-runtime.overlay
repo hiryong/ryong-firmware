@@ -2,6 +2,6 @@
 #include <behaviors/runtime_macro.dtsi>
 
 #include <behaviors/runtime_tapdance.dtsi>
-&mt { compatible = "zmk,behavior-runtime-hold-tap"; };
-&lt { compatible = "zmk,behavior-runtime-hold-tap"; };
+&mt { compatible = "zmk,behavior-runtime-hold-tap"; runtime-slot = <0>; };
+&lt { compatible = "zmk,behavior-runtime-hold-tap"; runtime-slot = <1>; };
 

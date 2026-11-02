@@ -8,6 +8,10 @@ compatible: "zmk,behavior-runtime-hold-tap"
 include: two_param.yaml
 
 properties:
+  runtime-slot:
+    type: int
+    required: true
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
   bindings:
     type: phandles
     required: true
