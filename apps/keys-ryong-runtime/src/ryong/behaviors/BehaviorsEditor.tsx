@@ -731,6 +731,7 @@ const Editor = ({
                         ))}
                         <button
                           className="ry-ghost"
+                          disabled={runtime && td.bindings.length >= 3}
                           onClick={() => update("tapDances", td.id, { bindings: [...td.bindings, defaultBinding("kp")] })}
                         >
                           <Plus /> {t("Add a tap", "탭 추가")}
@@ -738,7 +739,7 @@ const Editor = ({
                       </div>
                     </Field>
                     <Field label="tapping-term-ms" hint={t("Wait for the next tap. Usually 200.", "다음 탭을 기다리는 시간이에요. 보통 200.")}>
-                      <Num value={td.term} onChange={(term) => update("tapDances", td.id, { term })} min={50} max={1000} />
+                      <Num value={td.term} onChange={(term) => runtime ? setDoc(d=>({...d,tapDances:d.tapDances.map(x=>({...x,term}))})) : update("tapDances", td.id, { term })} min={50} max={1000} />
                     </Field>
                   </Item>
                 ))}

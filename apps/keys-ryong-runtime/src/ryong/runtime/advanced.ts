@@ -81,7 +81,7 @@ export async function saveAdvanced(port: AdvancedPort, before: AdvancedState, de
   for (const old of before.dances) if (!desired.dances.some(x=>x.index===old.index)) checked(await port.dance(T.Request.fromPartial({ remove:{index:old.index,persist:false} })));
   checked(await port.dance(T.Request.fromPartial({ save:{} })));
   for (const h of desired.holds) if (!same(h,before.holds.find(x=>x.slot===h.slot))) {
-    if (!(await port.hold(H.Request.fromPartial({set:h}))).set?.ok) throw new Error("Hold-Tap persistence failed.");
+    if (!(await port.hold(H.Request.fromPartial({set:{slot:h.slot,tappingTermMs:h.tappingTermMs,quickTapMs:h.quickTapMs,requirePriorIdleMs:h.requirePriorIdleMs,flavor:h.flavor}}))).set?.ok) throw new Error("Hold-Tap persistence failed.");
   }
   const result = await readAdvanced(port);
   if (result.global.intervalMs !== desired.interval || result.dances.length !== desired.dances.length) throw new Error("Advanced configuration readback failed.");

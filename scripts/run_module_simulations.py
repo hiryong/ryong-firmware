@@ -11,7 +11,7 @@ import sys
 def secured_snapshot(text):
     # Our deliberate hardening changes these metadata lines only.
     # Never remove security lines or accept both secured/unsecured output.
-    for identifier in ("cormoran__runtime_combo", "cormoran__runtime_macro", "cormoran_custom_settings"):
+    for identifier in ("cormoran__runtime_combo", "cormoran__runtime_macro", "cormoran_custom_settings", "cormoran__runtime_tapdance"):
         text = text.replace(f"{identifier}, Security: Unsecured",
                             f"{identifier}, Security: Secured")
     return text
@@ -19,11 +19,12 @@ def secured_snapshot(text):
 
 def main():
     workspace = Path(sys.argv[1]).resolve()
-    modules = ["zmk-feature-runtime-combo", "zmk-feature-runtime-macro", "zmk-feature-custom-settings"]
+    modules = ["zmk-feature-runtime-combo", "zmk-feature-runtime-macro", "zmk-feature-custom-settings", "zmk-feature-runtime-tapdance"]
     extra = ";".join(str(workspace / name) for name in modules)
     cases = {
         "zmk-feature-runtime-combo": ["test", "studio", "overrides", "defaults", "discard"],
         "zmk-feature-runtime-macro": ["test", "studio"],
+        "zmk-feature-runtime-tapdance": ["runtime-tapdance", "studio"],
     }
     for module, names in cases.items():
         for name in names:

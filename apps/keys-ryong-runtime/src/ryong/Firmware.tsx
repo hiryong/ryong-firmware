@@ -243,8 +243,8 @@ export const Firmware = ({ deviceName, onWide }: { deviceName?: string; onWide?:
         <h1 className="ry-h1">{t("Firmware", "펌웨어")}</h1>
         <p className="ry-lead">
           {t(
-            "The latest firmware for each keyboard. Your keymap stays the same after an update.",
-            "키보드별 최신 펌웨어예요. 업데이트해도 키맵은 그대로 유지돼요.",
+            import.meta.env.VITE_RYONG_RUNTIME === "1" ? "Runtime development firmware is not released. Back up keymaps and dynamic settings separately; upgrade compatibility is still under test." : "The latest firmware for each keyboard. Your keymap stays the same after an update.",
+            import.meta.env.VITE_RYONG_RUNTIME === "1" ? "런타임 개발 펌웨어는 아직 배포하지 않습니다. 키맵과 동적 설정을 각각 백업하세요. 업데이트 호환성은 검증 중입니다." : "키보드별 최신 펌웨어예요. 업데이트해도 키맵은 그대로 유지돼요.",
           )}
         </p>
         {deviceName && !anyLive && !mine.loading && catalog && (
@@ -1138,3 +1138,4 @@ const OwnCopy = ({ b, me, have, add }: { b: Board } & OwnCopyProps) => {
     </div>
   );
 };
+

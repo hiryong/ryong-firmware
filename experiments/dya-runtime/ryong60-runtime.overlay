@@ -1,2 +1,7 @@
 /* Add the runtime macro behavior without changing the imported keymap. */
 #include <behaviors/runtime_macro.dtsi>
+
+#include <behaviors/runtime_tapdance.dtsi>
+&mt { compatible = "zmk,behavior-runtime-hold-tap"; };
+&lt { compatible = "zmk,behavior-runtime-hold-tap"; };
+

@@ -2,6 +2,7 @@ name: Host core tests
 on:
   push:
     paths:
+      - 'modules/**'
       - 'src/**'
       - 'include/**'
       - 'tests/**'
@@ -33,6 +34,9 @@ jobs:
       - name: Compile
         run: cmake --build build --parallel 2
       - name: Build isolation and security tests
+        env:
+          CC: ${{ matrix.compiler }}
         run: python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Test
         run: ctest --test-dir build --output-on-failure
+

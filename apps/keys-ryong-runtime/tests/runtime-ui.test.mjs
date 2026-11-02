@@ -67,6 +67,32 @@ try {
   await page.getByRole("button", { name: "미리보기 저장", exact: true }).click();
   await page.getByText("미리보기를 이 브라우저에 저장했습니다.", { exact: true }).waitFor();
   assert.equal(await page.locator(".ry-item").count(), 0);
+  await page.getByRole("button", {name:/^탭댄스/}).click();
+  await page.getByRole("button", {name:"새 탭댄스",exact:true}).click();
+  await page.locator(".ry-item.is-open input[type=text]").first().fill("Double test");
+  await page.locator(".ry-item.is-open input[type=number]").fill("250");
+  await page.getByRole("button", {name:"미리보기 저장",exact:true}).click();
+  await page.getByText("미리보기를 이 브라우저에 저장했습니다.",{exact:true}).waitFor();
+  await page.getByRole("button", {name:/^설정/}).click();
+  const modtap=page.locator(".ry-item").filter({has:page.getByText("Mod-Tap",{exact:true})});
+  await modtap.locator("input[type=number]").first().fill("285");
+  await modtap.locator("select").selectOption("balanced");
+  await page.getByRole("button", {name:"미리보기 저장",exact:true}).click();
+  await page.getByText("미리보기를 이 브라우저에 저장했습니다.",{exact:true}).waitFor();
+  const downloadEvent=page.waitForEvent("download");
+  await page.getByRole("button",{name:"동적 설정 백업",exact:true}).click();
+  const download=await downloadEvent;
+  const backup=await fs.readFile(await download.path(),"utf8");
+  assert.equal(JSON.parse(backup).doc.tapDances[0].term,250);
+  await page.reload();
+  await page.getByRole("button",{name:"연결 없이 미리보기",exact:true}).click();
+  await page.getByRole("button",{name:/^설정/}).click();
+  assert.equal(await modtap.locator("input[type=number]").first().inputValue(),"285");
+  await page.getByLabel("동적 설정 백업 불러오기",{exact:true}).setInputFiles({name:"backup.json",mimeType:"application/json",buffer:Buffer.from(backup)});
+  await page.getByRole("button",{name:/^탭댄스/}).click();
+  await page.getByRole("button",{name:/Double test/}).first().waitFor();
+  await page.locator("dialog[open] .ry-hub-body").evaluate(element=>element.scrollTo(0,0));
+  await page.screenshot({path:output+"/advanced.png",fullPage:true});
   const offline = path.resolve("offline-preview/Keys-Ryong-Runtime-Preview.html");
   const offlineHtml = await fs.readFile(offline, "utf8");
   assert.ok(offlineHtml.length > 500000, "standalone app bundle must be embedded");
@@ -91,3 +117,4 @@ try {
 } finally {
   await browser.close(); await new Promise(resolve => server.close(resolve));
 }
+

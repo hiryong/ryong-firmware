@@ -9,3 +9,11 @@ config ZMK_RUNTIME_HOLDTAP_SLOTS
 config ZMK_RUNTIME_HOLDTAP_STUDIO_RPC
     bool
     default y if ZMK_RUNTIME_HOLDTAP && ZMK_STUDIO
+config ZMK_RUNTIME_HOLDTAP_MAX_HELD
+    int
+    default 10
+    range 1 10
+config ZMK_RUNTIME_HOLDTAP_MAX_CAPTURED_EVENTS
+    int
+    default 40
+    range 4 40
