@@ -79,14 +79,15 @@ function decode(binding: C.BehaviorBinding | undefined, view: RuntimeView): Bind
     if (!command) throw new Error("Unknown device output/Bluetooth command.");
     return { b: kind, cmd: command + (command === "BT_SEL" || command === "BT_DISC" ? " " + binding.param2 : "") } as Binding;
   }
+  if (kind === "rtd") return {b:"ref",id:"runtime_dance_"+binding.param1};
   if (kind === "ref") return { b: "ref", id: "runtime_macro_" + binding.param1 };
   if (["mo", "tog", "to", "sl"].includes(kind ?? "")) return { b: kind, layer: binding.param1 } as Binding;
   if (["none", "trans", "caps_word", "key_repeat", "studio_unlock", "sys_reset", "bootloader"].includes(kind ?? "")) return { b: kind } as Binding;
   throw new Error("A device behavior is not yet supported by the runtime editor: " + binding.behaviorId);
 }
 
-function encode(binding: Binding, view: RuntimeView, doc: BehaviorDoc): { wire: C.BehaviorBinding; macroName?: string } {
-  const behaviorId = view.catalog[binding.b];
+function encode(binding: Binding, view: RuntimeView, doc: BehaviorDoc): { wire: C.BehaviorBinding; macroName?: string; danceName?: string } {
+  const behaviorId = binding.b === "ref" && doc.tapDances.some(d=>d.id===binding.id) ? view.catalog.rtd : view.catalog[binding.b];
   if (!behaviorId) throw new Error("Runtime behavior is not supported: " + binding.b);
   if (binding.b === "kp" || binding.b === "sk") {
     if ((binding.mods ?? []).some(mod => !mods.includes(mod))) throw new Error("Unknown modifier.");
@@ -103,7 +104,12 @@ function encode(binding: Binding, view: RuntimeView, doc: BehaviorDoc): { wire: 
   }
   if (binding.b === "ref") {
     const macro = doc.macros.find(item => item.id === binding.id);
-    if (!macro) throw new Error("Macro reference is missing.");
+    if (!macro) {
+      const dance=doc.tapDances.find(d=>d.id===binding.id);
+      if(!dance)throw new Error("Behavior reference is missing.");
+      const index=view.snapshot.advanced?.dances.find(d=>"runtime_dance_"+d.index===dance.id)?.index ?? 0;
+      return {wire:{behaviorId,param1:index,param2:0},danceName:dance.name};
+    }
     const slot = view.snapshot.macros.find(item => "runtime_macro_" + item.slot === macro.id)?.slot ?? 0;
     return { wire: { behaviorId, param1: slot, param2: 0 }, macroName: macro.name };
   }
@@ -198,14 +204,14 @@ export function compileDocument(doc: BehaviorDoc, view: RuntimeView): DesiredPro
       ...old, index, name: combo.name, enabled: true, keyPositions: combo.keys,
       behavior: binding.wire, layerMask: combo.layers.reduce((mask, layer) => (mask | (1 << layer)) >>> 0, 0),
       timeoutMs: combo.timeout,
-    }), macroName: binding.macroName };
+    }), macroName: binding.macroName, danceName:binding.danceName };
   });
   const advanced = view.snapshot.advanced ? (() => {
     const old = view.snapshot.advanced!;
     const intervals = new Set(doc.tapDances.map(d=>d.term));
     if (intervals.size > 1) throw new Error("This firmware uses one global Tap Dance interval. Set the same interval on all cards.");
     const dances = doc.tapDances.map(d=>({index:old.dances.find(x=>"runtime_dance_"+x.index===d.id)?.index,name:d.name,
-      bindings:d.bindings.map(b=>{ if(b.b==="ref") throw new Error("Macro actions inside Tap Dance are not yet enabled."); return encode(b,view,doc).wire; })}));
+      bindings:d.bindings.map(b=>{ const result=encode(b,view,doc); if(result.danceName)throw new Error("Nested Tap Dance is not supported."); return {...result.wire,...(result.macroName?{macroName:result.macroName}:{})}; })}));
     const holds = old.holds.map(h=>{
       const behavior = Object.entries(view.catalog).find(([kind,id])=>(kind==="mt"||kind==="lt")&&id===h.behaviorId)?.[0] ?? "holdtap_"+h.slot;
       const props = doc.settings.find(s=>s.behavior===behavior)?.props;

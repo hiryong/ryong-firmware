@@ -6,7 +6,7 @@ export type AdvancedPort = {
   hold: (request: H.Request) => Promise<H.Response>;
 };
 export type AdvancedState = { global: T.GlobalResponse; dances: T.State[]; holds: H.HoldTapInfo[] };
-export type AdvancedDesired = { interval: number; dances: { index?: number; name: string; bindings: T.Binding[] }[]; holds: H.HoldTapInfo[] };
+export type AdvancedDesired = { interval: number; dances: { index?: number; name: string; bindings: (T.Binding & {macroName?:string})[] }[]; holds: H.HoldTapInfo[] };
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 function checked(r: T.Response) { if (r.error) throw new Error(r.error.message); return r; }
 export async function readAdvanced(port: AdvancedPort): Promise<AdvancedState> {
@@ -51,7 +51,7 @@ export function validateAdvanced(before: AdvancedState, desired: AdvancedDesired
     if (d.bindings.length < 1 || d.bindings.length > 3) throw new Error("Tap Dance supports one to three actions.");
     for (const b of d.bindings) {
       if (!b.behaviorId || [b.behaviorId,b.param1,b.param2].some(n => !Number.isInteger(n) || n < 0 || n > 0xffffffff)) throw new Error("Invalid Tap Dance binding.");
-      if (b.behaviorId === macroId || b.behaviorId === danceId) throw new Error("Nested macro/dance actions require a separate reference migration; nothing was written.");
+      if ((b.behaviorId === macroId && !b.macroName) || b.behaviorId === danceId) throw new Error("Unresolved macro or nested dance action; nothing was written.");
     }
   }
   if (desired.holds.length !== before.holds.length || new Set(desired.holds.map(x=>x.slot)).size !== desired.holds.length) throw new Error("Hold-Tap identity changed.");

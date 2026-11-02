@@ -20,7 +20,7 @@ export type RuntimeSnapshot = {
   advanced?: AdvancedState;
 };
 export type DesiredMacro = { slot?: number; name: string; steps: M.MacroStep[] };
-export type DesiredCombo = C.Combo & { macroName?: string };
+export type DesiredCombo = C.Combo & { macroName?: string; danceName?:string };
 export type DesiredProfile = { combos: DesiredCombo[]; macros: DesiredMacro[]; advanced?: AdvancedDesired };
 export type RuntimePort = {
   advanced?: AdvancedPort;
@@ -126,15 +126,31 @@ export class RuntimeSession {
       }
       const macroCatalog = await this.port.macro(M.Request.fromPartial({ listMacros: {} }));
       check(macroCatalog);
+      // Persist macro bodies before dances can point at their slots. Dances
+      // precede combos and removal of old macros, preserving durable references.
+      check(await this.port.macro(M.Request.fromPartial({ saveMacros: {} })));
+      if (desired.advanced && before.advanced && this.port.advanced) {
+        const advanced = structuredClone(desired.advanced);
+        for(const d of advanced.dances) for(const b of d.bindings) if(b.macroName) {
+          const m=macroCatalog.listMacros?.macros.find(m=>m.name===b.macroName);
+          if(!m)throw new Error("Tap Dance macro has no confirmed slot.");
+          b.param1=m.slot;delete b.macroName;
+        }
+        await this.port.assertUnlocked();
+        await saveAdvanced(this.port.advanced,before.advanced,advanced);
+      }
+      const advancedNow = this.port.advanced ? await readAdvanced(this.port.advanced) : undefined;
       const resolvedCombos = desired.combos.map(combo => {
+        if(combo.danceName) {
+          const dance=advancedNow?.dances.find(d=>d.name===combo.danceName);
+          if(!dance || !combo.behavior)throw new Error("Combo Tap Dance has no confirmed ID.");
+          return {...combo,behavior:{...combo.behavior,param1:dance.index}};
+        }
         if (!combo.macroName) return combo;
         const macro = macroCatalog.listMacros?.macros.find(item => item.name === combo.macroName);
         if (!macro || !combo.behavior) throw new Error("Referenced macro has no confirmed slot.");
         return { ...combo, behavior: { ...combo.behavior, param1: macro.slot } };
       });
-      // Persist every new macro while all old slots still exist. Only then
-      // switch references, so interrupted saves never point at an empty/reused slot.
-      check(await this.port.macro(M.Request.fromPartial({ saveMacros: {} })));
       for (const combo of resolvedCombos) {
         check(await this.port.combo(C.Request.fromPartial({ setCombo: {
           index: combo.index, keyPositions: combo.keyPositions, behavior: combo.behavior,
@@ -182,10 +198,6 @@ export class RuntimeSession {
         // References are durable before the old macro is finally removed.
         for (const old of removed) check(await this.port.macro(M.Request.fromPartial({ deleteMacro: { name: old.name } })));
       }
-      if (desired.advanced && before.advanced && this.port.advanced) {
-        await this.port.assertUnlocked();
-        await saveAdvanced(this.port.advanced, before.advanced, desired.advanced);
-      }
       const result = await this.read();
       // Keep journal if final readback fails or a device restarts between saves.
       for (const combo of resolvedCombos) {
@@ -232,9 +244,10 @@ export class RuntimeSession {
     if (desired.advanced) {
       if (!before.advanced || !this.port.advanced) throw new Error("Advanced runtime capability missing.");
       validateAdvanced(before.advanced, desired.advanced, this.port.runtimeMacroBehaviorId, this.port.runtimeDanceBehaviorId);
+      for(const d of desired.advanced.dances) for(const b of d.bindings) if(b.macroName && !desired.macros.some(m=>m.name===b.macroName))throw new Error("Unknown Tap Dance macro reference.");
     }
     // Existing external dance->macro links cannot be silently invalidated.
-    if (before.advanced?.dances.some(d => [d.config?.singleBinding,d.config?.doubleBinding,d.config?.tripleBinding].some(b => b?.behaviorId === this.port.runtimeMacroBehaviorId)) &&
+    if (!desired.advanced && before.advanced?.dances.some(d => [d.config?.singleBinding,d.config?.doubleBinding,d.config?.tripleBinding].some(b => b?.behaviorId === this.port.runtimeMacroBehaviorId)) &&
         before.macros.some(m=>!desired.macros.some(n=>n.slot===m.slot && n.name===m.name))) throw new Error("Remove Tap Dance macro references before renaming/deleting macros.");
     if (desired.combos.length > before.comboLimits.maxCombo ||
         desired.macros.length > before.macroLimits.maxEntries) throw new Error("Device slot limit exceeded.");
@@ -293,6 +306,7 @@ export class RuntimeSession {
           !Number.isInteger(combo.timeoutMs) || combo.timeoutMs < 1 || combo.timeoutMs > 1000) {
         throw new Error("Invalid runtime combo.");
       }
+      if(combo.danceName && !desired.advanced?.dances.some(d=>d.name===combo.danceName))throw new Error("Unknown combo dance reference.");
       if (combo.macroName && !desired.macros.some(macro => macro.name === combo.macroName)) throw new Error("Unknown combo macro reference.");
       if (combo.behavior.behaviorId === this.port.runtimeMacroBehaviorId && !combo.macroName &&
           !desired.macros.some(macro => macro.slot === combo.behavior!.param1 && before.macros.find(old => old.slot === macro.slot)?.name === macro.name)) {
