@@ -89,7 +89,7 @@ interface Loaded {
   board: PowerDoc | null;
 }
 
-export const BehaviorsEditor = ({ connectedName }: { connectedName?: string }) => {
+export const BehaviorsEditor = ({ connectedName, onRuntimeSaved }: { connectedName?: string; onRuntimeSaved?: () => void }) => {
   const me = useMe();
   const mine = useMyBoards(me);
   const { conn } = useContext(ConnectionContext);
@@ -117,7 +117,7 @@ export const BehaviorsEditor = ({ connectedName }: { connectedName?: string }) =
       <button className="ry-primary" onClick={() => setPreview(true)}>{t("Explore preview", "연결 없이 미리보기")}</button>
     </div>;
     return <Editor key={preview ? "preview" : conn?.label} boards={[RUNTIME_BOARD]}
-      connectedName={connectedName} intro={runtimeIntro} runtimeConn={preview ? undefined : conn ?? undefined} preview={preview} />;
+      connectedName={connectedName} intro={runtimeIntro} runtimeConn={preview ? undefined : conn ?? undefined} preview={preview} onRuntimeSaved={onRuntimeSaved} />;
   }
   if (me.loading) return intro;
   if (!me.user || me.repos.length === 0)
@@ -252,6 +252,7 @@ const Editor = ({
   onDirty,
   runtimeConn,
   preview = false,
+  onRuntimeSaved,
 }: {
   boards: Board[];
   connectedName?: string;
@@ -259,6 +260,7 @@ const Editor = ({
   onDirty?: (d: boolean) => void;
   runtimeConn?: RpcConnection;
   preview?: boolean;
+  onRuntimeSaved?: () => void;
 }) => {
   const lang = useLang();
   const runtime = !!runtimeConn || preview;
@@ -374,7 +376,7 @@ const Editor = ({
         const journalKey = "ryong-runtime-pending:" + (preview ? "preview" : runtimeConn!.label);
         const result = await runtimeView.session.save(runtimeView.snapshot, desired, {
           prepare(before, next) {
-            localStorage.setItem(journalKey, JSON.stringify({ version: 1, device: connectedName, at: Date.now(), before, desired: next }));
+            localStorage.setItem(journalKey, JSON.stringify({ version: 1, device: connectedName, at: Date.now(), before, desired: next }, (_key, value) => value instanceof Uint8Array ? { type: "uint8", bytes: Array.from(value) } : value));
           },
           complete() {
             const pending = localStorage.getItem(journalKey);
@@ -391,6 +393,7 @@ const Editor = ({
         setRuntimeView(view); setDoc(nextDoc);
         setLoaded({ ...loaded, doc: nextDoc, savedJson: JSON.stringify(nextDoc) });
         setSaved(preview ? "preview" : "runtime");
+        if (!preview) onRuntimeSaved?.();
         return;
       }
       const files = [

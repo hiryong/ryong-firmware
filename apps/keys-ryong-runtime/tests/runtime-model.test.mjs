@@ -18,7 +18,7 @@ const snapshot = {
   macroLimits: M.MacroGlobalSettings.fromPartial({ maxEntries: 8, tapMs: 30, poolBytesTotal: 1024 }),
   maxNameLength: 24, maxMacroBytes: 256,
 };
-const view = { snapshot, layerNames: ["Base", "Fn", "Mac"], catalog: { kp: 1, ref: 2 },
+const view = { snapshot, layerNames: ["Base", "Fn", "Mac"], catalog: { kp: 1, ref: 2, bt: 13, out: 14 },
   session: new RuntimeSession({ physicalKeyCount: 61 }) };
 assert.equal(keyValue("A"), 0x70004);
 assert.equal(keyValue("LC(A)"), 0x1070004);
@@ -31,6 +31,12 @@ const compiled = compileDocument(doc, view);
 assert.equal(compiled.macros[0].steps.length, 8);
 assert.equal(compiled.macros[0].steps[0].down.param1, 0x207000b);
 assert.equal(compiled.combos[0].macroName, "Hello");
+const bluetooth = empty();
+bluetooth.combos.push({ id: "bt", name: "Profile", keys: [1, 2], layers: [], timeout: 50, binding: { b: "bt", cmd: "BT_SEL 3" } });
+assert.equal(compileDocument(bluetooth, view).combos[0].behavior.param1, 3);
+assert.equal(compileDocument(bluetooth, view).combos[0].behavior.param2, 3);
+bluetooth.combos[0].binding = { b: "out", cmd: "OUT_USB" };
+assert.equal(compileDocument(bluetooth, view).combos[0].behavior.param1, 1);
 const bad = structuredClone(doc); bad.combos[0].keys = [1, 61];
 assert.throws(() => compileDocument(bad, view), /Invalid runtime combo/);
 const badLayer = structuredClone(doc); badLayer.combos[0].layers = [32];

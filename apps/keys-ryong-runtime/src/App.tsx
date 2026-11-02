@@ -318,7 +318,8 @@ function App() {
             </>}
           />
           {import.meta.env.VITE_RYONG_RUNTIME === "1" && <RuntimePanel
-            open={runtimeOpen} onClose={() => setRuntimeOpen(false)} deviceName={connectedDeviceName} />}
+            open={runtimeOpen} onClose={() => setRuntimeOpen(false)} deviceName={connectedDeviceName}
+            onSaved={() => { reset(); setConn({ conn: conn.conn }); }} />}
           <Hub
             tab={hubTab}
             onTab={setHubTab}

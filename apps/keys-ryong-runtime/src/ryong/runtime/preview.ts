@@ -90,6 +90,7 @@ export async function makePreviewView(): Promise<RuntimeView> {
   cached = { session, snapshot: await session.read(), catalog: {
     kp: 1, ref: 2, mo: 3, tog: 4, to: 5, sl: 6, sk: 7,
     none: 8, trans: 9, caps_word: 10, key_repeat: 11, studio_unlock: 12,
+    bt: 13, out: 14, bootloader: 15, sys_reset: 16,
   }, layerNames: ["Base", "Fn", "Mac"] };
   return cached;
 }

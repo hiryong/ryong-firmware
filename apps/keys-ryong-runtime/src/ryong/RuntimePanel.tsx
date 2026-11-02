@@ -5,7 +5,7 @@ import { RyongMark } from "./RyongMark";
 import { LangToggle } from "./LangToggle";
 import { t } from "./i18n";
 
-export function RuntimePanel({ open, onClose, deviceName }: { open: boolean; onClose: () => void; deviceName?: string }) {
+export function RuntimePanel({ open, onClose, deviceName, onSaved }: { open: boolean; onClose: () => void; deviceName?: string; onSaved?: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (open && !ref.current?.open) ref.current?.showModal();
@@ -21,7 +21,7 @@ export function RuntimePanel({ open, onClose, deviceName }: { open: boolean; onC
       </div>
     </div>
     <div className="ry-hub-body"><div className="ry-hub-page">
-      {open && <BehaviorsEditor connectedName={deviceName} />}
+      {open && <BehaviorsEditor connectedName={deviceName} onRuntimeSaved={onSaved} />}
     </div></div>
   </dialog>;
 }
