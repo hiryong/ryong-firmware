@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "keyboards": [
+    {
+      "id": "bt60-template",
+      "name": "BT60 V2 · template",
+      "note": "What colleagues get with Make it yours",
+      "branch": "main",
+      "workflow": "build.yml",
+      "artifact": "firmware",
+      "keymap": "config/bt60.keymap",
+      "match": [],
+      "layout": "60-ansi",
+      "onlyIn": "hiryong/zmk-config-bt60"
+    }
+  ]
+}
