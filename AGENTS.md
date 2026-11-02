@@ -1,5 +1,9 @@
 # Ryong Firmware — development instructions
 
+## CRITICAL — absolute read-only source repository
+The existing production app at `hiryong/keys-ryong` is **NEVER to be modified** by this project. The owner explicitly forbids all writes, including file edits, pull requests, branches, tags, actions, releases, settings, and deployments. The GitHub API may grant write permission, but that is NOT authorization. Read only from pinned commit `5e7b2239746002ec2c07faaead31b10cf3848622`. All development and copies must live in `hiryong/ryong-firmware` or another independently authorized repository. Never target keys.ryong.com production deployment.
+
+
 ## Product scope
 Build the firmware and settings site for user-designed, non-split keyboards. First target Ryong60 (nRF52840), later the maker's own layouts only. Use ZMK BLE, USB, sleep and power management rather than rewriting them.
 
@@ -29,9 +33,9 @@ Build the firmware and settings site for user-designed, non-split keyboards. Fir
 The owner has an already-working customer-facing Keys · ryong website, built using Claude. Its working flows include ZMK Studio-based live keymap editing and a **separate Firmware tab**. This is the **known-good baseline**, not a rewrite target.
 - NEVER modify or deploy over the production website during development.
 - Do not rebuild the existing design or duplicate its working Studio/Firmware features.
-- Before web integration, obtain the source from `hiryong/keys-ryong` (currently inaccessible to the linked GitHub connector as of 2026-11-02) or a verifiable source archive.
-- First identify its current deployed commit/revision, create an immutable baseline tag/snapshot (with owner authorization), and inspect deployment settings. DO NOT claim a branch alone is an immutable archive.
+- Source access is now available for READ ONLY inspection. The initial source subset is copied under `reference/keys-ryong/` on the `dev/keys-ryong-runtime` branch. Never write to the original.
+- Record the original commit SHA in this repository only; never create tags, branches, or snapshots inside the original repository. Independently verify production deployment revision before staging.
 - Implement additions only on a separate dev branch/copy of the app; use a staging site distinct from production.
 - Preserve current styling, routes, authentication, Studio unlock, 5-change history and separate Firmware tab. Regression-test them before proposing any merge.
-- Never deploy or change production without explicit owner approval.
+- Do not deploy or change the original production site. Future deployment plans require a separate, explicit decision outside the current project scope.
 - Having `ryong-firmware` access does not grant `keys-ryong` access. If the app repo is private, GitHub App installation may need explicit additional repository permission.
