@@ -98,7 +98,7 @@ function Login({ me, onDone }: { me: Me; onDone: () => void }) {
     <div className="ad-shell ad-login">
       <form className="ry-card ad-login-card" onSubmit={submit}>
         <div className="ad-brand"><RyongMark size={24} /> Keys <span className="ry-faint">관리자</span></div>
-        {blocked ? <p className="ry-note">{me.setup.password === "no-password" ? "관리자 비밀번호가 아직 설정되지 않았어요." : "설정된 비밀번호가 너무 짧아요. 12자 이상으로 바꿔 주세요."} GitHub 저장소 Secrets의 ADMIN_PASSWORD를 설정하고 keysbeta를 다시 배포하면 열려요.</p>
+        {blocked ? <p className="ry-note">{me.setup.password === "no-password" ? "관리자 비밀번호가 아직 설정되지 않았어요." : "설정된 비밀번호가 너무 짧아요. 10자 이상으로 바꿔 주세요."} GitHub 저장소 Secrets의 ADMIN_PASSWORD를 설정하고 keysbeta를 다시 배포하면 열려요.</p>
           : <>
             <label className="ry-field"><span className="ry-label">비밀번호</span>
               <input type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus required /></label>

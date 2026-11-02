@@ -17,7 +17,7 @@ export interface AdminEnv {
 
 export const COOKIE = "ry_admin";
 export const SESSION_SECONDS = 12 * 60 * 60;
-export const MIN_PASSWORD = 12;
+export const MIN_PASSWORD = 10;
 const enc = new TextEncoder();
 
 const b64u = (b: ArrayBuffer) =>

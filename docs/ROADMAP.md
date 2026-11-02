@@ -145,7 +145,7 @@ See HOST_OS_LAYOUT.ko.md. This is not yet a working firmware feature.
 - Simulation only: this proves the app and protocol handling, not firmware or BLE behaviour.
 
 ### keysbeta /admin, keyboard-side settings (2026-11-03)
-- **/admin** (keysbeta.ryong.com/admin): password sign-in for now (ADMIN_PASSWORD, ≥12 chars, HMAC-signed
+- **/admin** (keysbeta.ryong.com/admin): password sign-in for now (ADMIN_PASSWORD, ≥10 chars, HMAC-signed
   12 h cookie, lockout after repeated failures; isolated in `admin-functions/_lib/auth.ts` so it can be swapped
   for Cloudflare Access). Status (CI, channels), firmware builds (`firmware-build.yml`, private 30-day artifact,
   UF2 SHA-256 in the artifact name), bench-test records (`firmware-registry` branch, server computes the verdict,
