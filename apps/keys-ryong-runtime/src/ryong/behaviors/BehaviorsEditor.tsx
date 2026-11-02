@@ -297,6 +297,7 @@ const Editor = ({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [showCode, setShowCode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
@@ -406,6 +407,7 @@ const Editor = ({
     if (!loaded) return;
     setSaving(true);
     setError(null);
+    setSaveError(null);
     try {
       if (runtime) {
         if (!runtimeView) throw new Error("Runtime device has not loaded.");
@@ -434,6 +436,11 @@ const Editor = ({
         });
         const view = { ...runtimeView, snapshot: result };
         const nextDoc = viewDocument(view);
+        // New items get their keyboard id on save; keep the same card open so the person stays where they were.
+        if (openId) for (const k of ["combos", "macros", "tapDances"] as const) {
+          const i = doc[k].findIndex((x) => x.id === openId);
+          if (i >= 0) { setOpenId(nextDoc[k][i]?.id ?? null); break; }
+        }
         setRuntimeView(view); setDoc(nextDoc);
         setLoaded({ ...loaded, doc: nextDoc, savedJson: JSON.stringify(nextDoc) });
         localStorage.removeItem(draftKey);
@@ -465,7 +472,7 @@ const Editor = ({
       setWakeNow(null);
       setSaved(url);
     } catch (e) {
-      setError((e as Error).message);
+      setSaveError((e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -650,7 +657,7 @@ const Editor = ({
                   <Item
                     key={c.id}
                     title={c.name}
-                    summary={`${c.keys.map((p) => comboKeys[p]?.[4] ?? p).join(" + ") || t("No keys yet", "아직 키 없음")} → ${bindingLabel(c.binding, doc, layers)}`}
+                    summary={`${c.keys.map((p) => comboKeys[p]?.[4] ?? p).join(" + ") || t("No keys yet", "아직 키 없음")} → ${friendlyLabel(c.binding, doc, layers)}`}
                     open={openId === c.id}
                     onToggle={() => setOpenId(openId === c.id ? null : c.id)}
                     onDelete={() => remove("combos", c.id)}
@@ -747,7 +754,7 @@ const Editor = ({
                   <Item
                     key={td.id}
                     title={td.name}
-                    summary={td.bindings.map((b) => bindingLabel(b, doc, layers)).join(" · ")}
+                    summary={td.bindings.map((b) => friendlyLabel(b, doc, layers)).join(" · ")}
                     open={openId === td.id}
                     onToggle={() => setOpenId(openId === td.id ? null : td.id)}
                     onDelete={() => remove("tapDances", td.id)}
@@ -825,6 +832,8 @@ const Editor = ({
           )}
 
           <div className="ry-savebar">
+            {/* shown next to the button that caused it, not at the top of a long page */}
+            {saveError && dirty && <p className="ry-note ry-danger" role="alert">{t("Couldn't save: {e}", "저장하지 못했어요: {e}", { e: saveError })}</p>}
             {(saved === "runtime" || saved === "preview") && !dirty && <p className="ry-note">
               {saved === "preview" ? t("Preview saved in this browser.", "미리보기를 이 브라우저에 저장했습니다.") : t("Saved to the keyboard. No firmware rebuild was requested.", "키보드에 저장했습니다. 펌웨어 재빌드는 요청하지 않았습니다.")}
             </p>}

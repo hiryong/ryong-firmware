@@ -7,7 +7,15 @@ import * as C from "./proto/runtime_combo";
 import * as M from "./proto/runtime_macro";
 import { connectRuntime, DesiredCombo, DesiredProfile, RuntimeSession, RuntimeSnapshot } from "./device";
 
-const codes = values as Record<string, number>;
+// The generated table misses the bracket keys; add them (HID 0x2F / 0x30) so "[" "]" can be stored.
+const codes = { ...(values as Record<string, number>), LBKT: 0x7002f, LEFT_BRACKET: 0x7002f, RBKT: 0x70030, RIGHT_BRACKET: 0x70030 } as Record<string, number>;
+// ZMK's shifted aliases (what typed text like "!" or "?" turns into) are just Shift + the base key.
+const SHIFTED_ALIASES: Record<string, string> = {
+  EXCL: "N1", EXCLAMATION: "N1", AT: "N2", AT_SIGN: "N2", HASH: "N3", POUND: "N3", DLLR: "N4", DOLLAR: "N4", PRCNT: "N5", PERCENT: "N5",
+  CARET: "N6", AMPS: "N7", AMPERSAND: "N7", STAR: "N8", ASTRK: "N8", ASTERISK: "N8", LPAR: "N9", LEFT_PARENTHESIS: "N9", RPAR: "N0", RIGHT_PARENTHESIS: "N0",
+  UNDER: "MINUS", UNDERSCORE: "MINUS", PLUS: "EQUAL", LBRC: "LBKT", LEFT_BRACE: "LBKT", RBRC: "RBKT", RIGHT_BRACE: "RBKT", PIPE: "BSLH",
+  COLON: "SEMI", DQT: "SQT", DOUBLE_QUOTES: "SQT", LT: "COMMA", LESS_THAN: "COMMA", GT: "DOT", GREATER_THAN: "DOT", QMARK: "FSLH", QUESTION: "FSLH", TILDE: "GRAVE",
+};
 const mods: Mod[] = ["LC", "LS", "LA", "LG", "RC", "RS", "RA", "RG"];
 const aliases: Record<string, string[]> = {
   kp: ["keypress"], sk: ["stickykey"], mo: ["momentarylayer"],
@@ -55,6 +63,7 @@ export function keyValue(key: string, depth = 0): number {
   if (Object.prototype.hasOwnProperty.call(codes, key) && !key.startsWith("__")) return codes[key];
   const match = /^(LC|LS|LA|LG|RC|RS|RA|RG)\((.+)\)$/.exec(key);
   if (match) return (keyValue(match[2], depth + 1) | codes["__mod_" + match[1]]) >>> 0;
+  if (Object.prototype.hasOwnProperty.call(SHIFTED_ALIASES, key)) return keyValue(`LS(${SHIFTED_ALIASES[key]})`, depth + 1);
   throw new Error("Unsupported key: " + key);
 }
 

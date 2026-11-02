@@ -14,7 +14,7 @@ const KNOWN = new Set((keycodes as { id: string }[]).map((k) => k.id));
 const NICE: Record<string, string> = {
   RET: "Enter", ESC: "Esc", BSPC: "Backspace", TAB: "Tab", SPACE: "Space", DEL: "Delete", INS: "Insert", CAPS: "Caps Lock",
   PSCRN: "Print Screen", HOME: "Home", END: "End", PG_UP: "Page Up", PG_DN: "Page Down", LEFT: "←", RIGHT: "→", UP: "↑", DOWN: "↓",
-  MINUS: "-", EQUAL: "=", BSLH: "\\", SEMI: ";", SQT: "'", GRAVE: "`", COMMA: ",", DOT: ".", FSLH: "/",
+  MINUS: "-", EQUAL: "=", LBKT: "[", RBKT: "]", BSLH: "\\", SEMI: ";", SQT: "'", GRAVE: "`", COMMA: ",", DOT: ".", FSLH: "/",
   C_VOL_UP: "Vol +", C_VOL_DN: "Vol −", C_MUTE: "Mute", C_PP: "Play/Pause", C_NEXT: "Next", C_PREV: "Prev", C_MENU: "Menu",
   LCTRL: "Ctrl", LSHFT: "Shift", LALT: "Alt", LGUI: "Win / ⌘", RCTRL: "R Ctrl", RSHFT: "R Shift", RALT: "R Alt", RGUI: "R Win / ⌘",
   LANG1: "한/영", LANG2: "한자",
@@ -44,7 +44,7 @@ export function friendlyLabel(b: Binding, doc?: BehaviorDoc, layers: string[] = 
 /** KeyboardEvent.code → ZMK key name */
 const CODE: Record<string, string> = {
   Enter: "RET", Escape: "ESC", Backspace: "BSPC", Tab: "TAB", Space: "SPACE", Minus: "MINUS", Equal: "EQUAL", Backslash: "BSLH",
-  Semicolon: "SEMI", Quote: "SQT", Backquote: "GRAVE", Comma: "COMMA", Period: "DOT", Slash: "FSLH", CapsLock: "CAPS",
+  Semicolon: "SEMI", Quote: "SQT", Backquote: "GRAVE", BracketLeft: "LBKT", BracketRight: "RBKT", Comma: "COMMA", Period: "DOT", Slash: "FSLH", CapsLock: "CAPS",
   ArrowLeft: "LEFT", ArrowRight: "RIGHT", ArrowUp: "UP", ArrowDown: "DOWN", Home: "HOME", End: "END", PageUp: "PG_UP", PageDown: "PG_DN",
   Insert: "INS", Delete: "DEL", PrintScreen: "PSCRN", ContextMenu: "K_APP", Lang1: "LANG1", Lang2: "LANG2",
   ShiftLeft: "LSHFT", ShiftRight: "RSHFT", ControlLeft: "LCTRL", ControlRight: "RCTRL", AltLeft: "LALT", AltRight: "RALT", MetaLeft: "LGUI", MetaRight: "RGUI",
@@ -104,7 +104,7 @@ export function FriendlyBindingPicker({ value, onChange, doc, layerNames, exclud
         .concat([{ label: t("Redo", "다시 실행"), hint: mac ? "⌘ + Shift + Z" : "Ctrl + Y", binding: mac ? kp("Z", ["LG", "LS"]) : kp("Y", ["LC"]) }]) },
       { id: "chars", label: t("Letters & numbers", "문자·숫자"), tiles: [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map((c) => ({ label: c, binding: kp(c) }))
         .concat([..."1234567890"].map((n) => ({ label: n, binding: kp("N" + n) })))
-        .concat(["MINUS", "EQUAL", "BSLH", "SEMI", "SQT", "GRAVE", "COMMA", "DOT", "FSLH"].map((k) => ({ label: keyNice(k), binding: kp(k) })))
+        .concat(["MINUS", "EQUAL", "LBKT", "RBKT", "BSLH", "SEMI", "SQT", "GRAVE", "COMMA", "DOT", "FSLH"].map((k) => ({ label: keyNice(k), binding: kp(k) })))
         .concat(Array.from({ length: 12 }, (_, i) => ({ label: `F${i + 1}`, binding: kp(`F${i + 1}`) }))) },
       { id: "media", label: t("Volume & media", "볼륨·미디어"), tiles: ([
         [t("Volume up", "볼륨 크게"), "C_VOL_UP"], [t("Volume down", "볼륨 작게"), "C_VOL_DN"], [t("Mute", "음소거"), "C_MUTE"],

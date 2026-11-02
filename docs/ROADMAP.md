@@ -130,3 +130,16 @@ See HOST_OS_LAYOUT.ko.md. This is not yet a working firmware feature.
 - [x] Development copy only: simulated Ryong60 speaking real Studio framing/protobuf; every existing screen runs unchanged against it. Floating controls for unlock key, power cycle, host range, pairing, factory reset. State stays in the browser.
 - [x] Node test plus local headless Chromium walkthrough of keymap, keycap view, Bluetooth devices and saving a combo to the (virtual) keyboard.
 - [ ] Simulation fidelity is by protocol, not firmware: it does not validate timing, flash, BLE or power behaviour.
+
+### Virtual-keyboard end-to-end test (2026-11-03)
+- `apps/keys-ryong-runtime/tests/virtual-e2e.test.mjs` drives the real web app against the in-browser
+  virtual keyboard (clicks, typing, real key presses, touch) and checks what the simulated keyboard
+  stored: keymap edit/save/power-cycle/reload, undo/redo/discard, layer add/remove, combos (create,
+  remove one key, tile and key-capture assignment, try-it lab, delete), text macro with shifted
+  characters and brackets, assigning a macro to a key, tap dance + lab, Hold-Tap term and flavor,
+  Bluetooth rename/switch/remove/manual layout/pairing, phone layout. Runs in CI on Chromium and WebKit.
+- Fixed by this test: text macros containing `! ? ( ) { }` etc. and `[ ]` could not be saved
+  (missing key codes); save errors were shown off-screen; the edited card closed after saving;
+  keycaps showed "Runtime Macro" instead of the macro name; the phone header cut off Discard;
+  the virtual keyboard reported a host as connected after switching away from it.
+- Simulation only: this proves the app and protocol handling, not firmware or BLE behaviour.

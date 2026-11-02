@@ -59,7 +59,8 @@ try {
   await page.getByPlaceholder("입력할 글자 (영문, 숫자, 기호)").fill("Hi");
   await page.getByRole("button", { name: "미리보기 저장", exact: true }).click();
   await page.getByText("미리보기를 이 브라우저에 저장했습니다.", { exact: true }).waitFor();
-  await page.locator(".ry-item-head").first().click();
+  // The card being edited stays open after saving.
+  assert.equal(await page.locator(".ry-item.is-open").count(), 1);
   await page.locator(".ry-workspace").evaluate(element => element.scrollTo(0, 0));
   await page.screenshot({ path: output + "/macros.png", fullPage: true });
   await page.locator(".ry-item.is-open input[type=text]").first().fill("Hello renamed");
@@ -80,9 +81,13 @@ try {
   await page.getByRole("button", {name:"새 탭댄스",exact:true}).click();
   await page.locator(".ry-item.is-open input[type=text]").first().fill("Double test");
   await page.locator(".ry-item.is-open input[type=number]").fill("250");
-  const danceKeys=page.locator(".ry-item.is-open").getByRole("combobox",{name:"키",exact:true});
-  await danceKeys.nth(0).fill("A");await danceKeys.nth(0).press("Enter");
-  await danceKeys.nth(1).fill("B");await danceKeys.nth(1).press("Enter");
+  // Friendly picker: open the list, pick the letter tile.
+  const dancePickers=page.locator(".ry-item.is-open .ry-fb");
+  for (const [i,k] of [[0,"A"],[1,"B"]]) {
+    await dancePickers.nth(i).getByRole("button",{name:"목록에서 고르기"}).click();
+    await dancePickers.nth(i).getByRole("tab",{name:"문자·숫자"}).click();
+    await dancePickers.nth(i).locator(".ry-fb-tile",{hasText:new RegExp(`^${k}$`)}).click();
+  }
   await page.getByRole("button", {name:"미리보기 저장",exact:true}).click();
   await page.getByText("미리보기를 이 브라우저에 저장했습니다.",{exact:true}).waitFor();
   await page.getByRole("button", {name:/^Hold-Tap/}).click();

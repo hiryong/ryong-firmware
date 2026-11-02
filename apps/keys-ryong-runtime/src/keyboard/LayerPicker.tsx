@@ -10,6 +10,7 @@ import {
 } from "react-aria-components";
 import { useModalRef } from "../misc/useModalRef";
 import { GenericModal } from "../GenericModal";
+import { t } from "../ryong/i18n";
 
 interface Layer {
   id: number;
@@ -174,6 +175,8 @@ export const LayerPicker = ({
             type="button"
             className="hover:text-primary-content hover:bg-primary rounded-sm"
             disabled={!canRemove}
+            aria-label={t("Remove layer", "레이어 삭제")}
+            title={t("Remove layer", "레이어 삭제")}
             onClick={onRemoveClicked}
           >
             <Minus className="size-4" />
@@ -183,6 +186,8 @@ export const LayerPicker = ({
           <button
             type="button"
             disabled={!canAdd}
+            aria-label={t("Add layer", "레이어 추가")}
+            title={t("Add layer", "레이어 추가")}
             className="hover:text-primary-content ml-1 hover:bg-primary rounded-sm disabled:text-gray-500 disabled:hover:bg-base-300 disabled:cursor-not-allowed"
             onClick={onAddClicked}
           >

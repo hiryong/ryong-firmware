@@ -71,7 +71,7 @@ jobs:
       - name: Install browser QA in the runner only
         run: |
           npm install --prefix /tmp/ryong-ui-qa playwright@1.56.1
-          node /tmp/ryong-ui-qa/node_modules/playwright/cli.js install --with-deps chromium
+          node /tmp/ryong-ui-qa/node_modules/playwright/cli.js install --with-deps chromium webkit
       - name: Verify existing editor in a real browser
         working-directory: apps/keys-ryong-runtime
         env:
@@ -79,6 +79,13 @@ jobs:
         run: |
           node tests/runtime-ui.test.mjs
           node tests/web-update.test.mjs
+      - name: Use every feature through the virtual keyboard (Chromium and WebKit)
+        working-directory: apps/keys-ryong-runtime
+        env:
+          RYONG_PLAYWRIGHT: /tmp/ryong-ui-qa/node_modules/playwright/index.mjs
+        run: |
+          node tests/virtual-e2e.test.mjs
+          RYONG_BROWSER=webkit node tests/virtual-e2e.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

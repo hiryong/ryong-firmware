@@ -10,6 +10,8 @@ import {
 } from "./PhysicalLayout";
 import { legendFor, legendFit, legendFit3d } from "../ryong/keyLegend";
 import { KeyIcon } from "../ryong/KeyIcon";
+import { useContext } from "react";
+import { RuntimeBindingsContext, namedRuntimeBindings } from "../ryong/runtime/bindings";
 
 type BehaviorMap = Record<number, GetBehaviorDetailsResponse>;
 
@@ -32,6 +34,8 @@ export const Keymap = ({
   selectedKeyPosition,
   onKeyPositionClicked,
 }: KeymapProps) => {
+  // Saved macros / tap dances show their own names, not "Runtime Macro".
+  const named = namedRuntimeBindings(useContext(RuntimeBindingsContext));
   if (!keymap.layers[selectedLayerIndex]) {
     return <></>;
   }
@@ -49,7 +53,10 @@ export const Keymap = ({
       };
     }
 
-    const legend = legendFor(keymap.layers[selectedLayerIndex].bindings[i], behaviors, keymap, k.width / 100);
+    const b = keymap.layers[selectedLayerIndex].bindings[i];
+    const own = named.find((n) => n.binding.behaviorId === b.behaviorId && n.binding.param1 === b.param1);
+    const legend = own ? { main: own.label || (own.kind === "macro" ? "Macro" : "Tap Dance"), sub: own.kind === "macro" ? "MACRO" : "TD", quiet: false, icon: undefined }
+      : legendFor(b, behaviors, keymap, k.width / 100);
     return {
       id: `${keymap.layers[selectedLayerIndex].id}-${i}`,
       header:

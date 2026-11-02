@@ -25,3 +25,9 @@ src/data
 *.sw?
 
 *storybook.log
+
+# local build and browser-test output
+dist-runtime/
+dist-offline/
+offline-preview/
+ui-verification/

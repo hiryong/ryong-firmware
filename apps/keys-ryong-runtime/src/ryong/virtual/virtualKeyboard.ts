@@ -174,6 +174,8 @@ class VirtualDevice {
     Object.assign(s, { bonded: true, connected: true, name: "", host, detected: os, override: O.Os.OS_UNKNOWN, gen: s.gen + 1 });
     this.persist(); return true;
   }
+  /** Like ZMK: only the selected profile holds a connection; `connected` on a slot means "host in range". */
+  linked(i: number) { const s = this.flash.slots[i]; return i === this.flash.active && s.bonded && s.connected; }
   toggleLink(i: number) { const s = this.flash.slots[i]; if (s.bonded) { s.connected = !s.connected; this.persist(); } }
   /** Like a power cycle: unsaved keymap/runtime edits are lost, Studio locks again. */
   reboot() { this.ram = this.saved(this.flash); this.setLock(true); this.dirtyNotify(); }
@@ -380,7 +382,7 @@ class VirtualDevice {
   private profile(i: number): O.BleProfileState {
     const s = this.flash.slots[i];
     const detected = s.bonded ? s.detected : O.Os.OS_UNKNOWN, override = s.bonded ? s.override : O.Os.OS_UNKNOWN;
-    return O.BleProfileState.fromPartial({ index: i, bonded: s.bonded, connected: s.bonded && s.connected, detected, override, effective: override !== O.Os.OS_UNKNOWN ? override : detected });
+    return O.BleProfileState.fromPartial({ index: i, bonded: s.bonded, connected: this.linked(i), detected, override, effective: override !== O.Os.OS_UNKNOWN ? override : detected });
   }
   private os(q: O.Request): O.Response {
     if (q.getState) {
@@ -402,7 +404,7 @@ class VirtualDevice {
   private ble(q: B.Request): B.Response {
     const f = this.flash, status = (error: number) => B.Response.fromPartial({ status: { ok: false, error } });
     const state = () => B.Response.fromPartial({ state: { activeIndex: f.active, nameMaxBytes: 30, protocolVersion: 1,
-      profiles: f.slots.map((s, index) => ({ index, bonded: s.bonded, connected: s.bonded && s.connected, name: s.bonded ? s.name : "", token: this.token(index) })) } });
+      profiles: f.slots.map((s, index) => ({ index, bonded: s.bonded, connected: this.linked(index), name: s.bonded ? s.name : "", token: this.token(index) })) } });
     if (q.getState) return state();
     if (q.select) { if (q.select.index >= f.slots.length) return status(22); f.active = q.select.index; this.persist(); return state(); }
     if (q.rename) {
@@ -429,7 +431,14 @@ const SUBSYSTEMS = ["cormoran__runtime_combo", "cormoran__runtime_macro", "cormo
 
 let instance: VirtualDevice | undefined;
 /** Created on first use so a simulation bug can never break the normal app. */
-export function getVirtualDevice() { return instance ??= new VirtualDevice(); }
+export function getVirtualDevice() {
+  if (!instance) {
+    instance = new VirtualDevice();
+    // Lets automated end-to-end tests read the simulated flash; development copy only.
+    try { (window as unknown as { __ryongVirtual?: VirtualDevice }).__ryongVirtual = instance; } catch { /* no window */ }
+  }
+  return instance;
+}
 
 /** Transport the app treats like USB. Small delays keep progress states visible. */
 export async function virtualConnect(): Promise<RpcTransport> {
