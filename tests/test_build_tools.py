@@ -39,11 +39,20 @@ class BuildTools(unittest.TestCase):
             subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_bt60.py'), str(dest), '--host-layout'], check=True)
             generated = (dest / 'config/bt60.keymap').read_text()
             base = generated.split('    base {', 1)[1].split('    os {', 1)[0]
-            self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE', base)
-            self.assertEqual(base.count('&ry_host'), 2)
+            self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL', base)
+            self.assertEqual(base.count('&ry_host'), 4)
             original = (ROOT / 'hardware/test-fixtures/bt60-v2/config/bt60.keymap').read_text()
             self.assertEqual(generated.split('    os {', 1)[1], original.split('    os {', 1)[1])
             self.assertNotIn('&ry_host', original)
+
+    def test_oreo_variant_gives_the_same_adaptive_row(self):
+        with tempfile.TemporaryDirectory() as temp:
+            dest = Path(temp) / 'workspace'
+            subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_bt60.py'), str(dest), '--host-layout', '--variant', 'oreo'], check=True)
+            generated = (dest / 'config/bt60.keymap').read_text()
+            base = generated.split('    base {', 1)[1].split('    os {', 1)[0]
+            self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL', base)
+            self.assertIn('&bl BL_TOG', generated)  # Oreo's backlight keys stay
 
     def test_simulation_requires_hardened_metadata(self):
         spec = importlib.util.spec_from_file_location("sim_runner", ROOT / "scripts/run_module_simulations.py")

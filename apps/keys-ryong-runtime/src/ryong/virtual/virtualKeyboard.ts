@@ -118,7 +118,7 @@ const DEFAULT_LAYERS: [string, string][] = [
     &kp TAB &kp Q &kp W &kp E &kp R &kp T &kp Y &kp U &kp I &kp O &kp P &kp LBKT &kp RBKT &kp BSLH
     &kp CAPS &kp A &kp S &kp D &kp F &kp G &kp H &kp J &kp K &kp L &kp SEMI &kp SQT &kp RET
     &kp LSHFT &kp Z &kp X &kp C &kp V &kp B &kp N &kp M &kp COMMA &kp DOT &kp FSLH &kp RSHFT
-    &kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &kp RALT &kp C_MENU &kp RCTRL &mo 2`],
+    &kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL &mo 2`],
   ["os", `${T5(41)} ${T5(12)} &trans &kp LALT &kp LGUI &trans &kp RGUI &kp RALT &trans &trans`],
   ["raise", `&kp GRAVE &kp F1 &kp F2 &kp F3 &kp F4 &kp F5 &kp F6 &kp F7 &kp F8 &kp F9 &kp F10 &kp F11 &kp F12 &kp DEL
     &tog 1 &BT_Profile0 &BT_Profile1 &BT_Profile2 &BT_Profile3 &out OUT_TOG &trans &trans &kp INS &trans &kp PSCRN &trans &trans &studio_unlock
