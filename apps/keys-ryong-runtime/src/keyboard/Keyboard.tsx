@@ -5,7 +5,9 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -182,6 +184,37 @@ export default function Keyboard() {
   // Runtime copy: the VIA-style grid is the main picker; Studio's detailed editor opens on request.
   const [detailPicker, setDetailPicker] = useLocalStorageState<boolean>("ryong.detailPicker", false);
   const viaFirst = import.meta.env.VITE_RYONG_RUNTIME === "1";
+  // Runtime copy: the layer menu sits right beside the keyboard, its top on the keyboard's top edge.
+  const canvasRef = useRef<HTMLDivElement>(null), layerMenuRef = useRef<HTMLDivElement>(null);
+  const [layerMenuPos, setLayerMenuPos] = useState<{ left: number; top: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!viaFirst) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let frame = 0;
+    const place = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const board = canvas.querySelector(".ry-tilt > *"), menu = layerMenuRef.current;
+        if (!board || !menu) return;
+        const reserve = menu.offsetWidth + 20 + "px";
+        if (canvas.style.getPropertyValue("--ry-menu") !== reserve) { canvas.style.setProperty("--ry-menu", reserve); place(); return; }
+        const c = canvas.getBoundingClientRect(), b = board.getBoundingClientRect();
+        const left = Math.max(8, b.left - c.left - menu.offsetWidth - 20), top = Math.max(8, b.top - c.top);
+        setLayerMenuPos(p => p && Math.abs(p.left - left) < 0.5 && Math.abs(p.top - top) < 0.5 ? p : { left, top });
+      });
+    };
+    const observer = new ResizeObserver(place);
+    observer.observe(canvas);
+    const board = canvas.querySelector(".ry-tilt > *");
+    if (board) observer.observe(board);
+    if (layerMenuRef.current) observer.observe(layerMenuRef.current);
+    canvas.addEventListener("animationend", place);
+    window.addEventListener("resize", place);
+    const settle = setTimeout(place, 250); // after auto-zoom has applied its scale
+    place();
+    return () => { observer.disconnect(); canvas.removeEventListener("animationend", place); window.removeEventListener("resize", place); clearTimeout(settle); cancelAnimationFrame(frame); };
+  });
   const [keymapScale, setKeymapScale] = useLocalStorageState<LayoutZoom>("keymapScale", "auto", {
     deserialize: deserializeLayoutZoom,
   });
@@ -511,9 +544,10 @@ export default function Keyboard() {
   return (
     <div className={viaFirst
       ? "ry-canvas ry-canvas-float relative grid grid-cols-[minmax(0,1fr)] grid-rows-[1fr_auto] bg-base-300 max-w-full min-w-0 min-h-0"
-      : "ry-canvas grid grid-cols-[auto_1fr] grid-rows-[1fr_minmax(10em,auto)] bg-base-300 max-w-full min-w-0 min-h-0"}>
+      : "ry-canvas grid grid-cols-[auto_1fr] grid-rows-[1fr_minmax(10em,auto)] bg-base-300 max-w-full min-w-0 min-h-0"} ref={canvasRef}>
       {/* runtime copy: layers float beside the keyboard instead of taking a full-height column */}
-      <div className={viaFirst ? "ry-layer-float" : "p-2 flex flex-col gap-2 bg-base-200 row-span-2"}>
+      <div className={viaFirst ? "ry-layer-float" : "p-2 flex flex-col gap-2 bg-base-200 row-span-2"} ref={layerMenuRef}
+        style={viaFirst ? (layerMenuPos ? { left: layerMenuPos.left, top: layerMenuPos.top } : { visibility: "hidden" }) : undefined}>
         {/* the keyboard reports its own layouts; a single one is not a choice, so it is not shown */}
         {layouts && (!viaFirst || layouts.length > 1) && (
           <div className="col-start-3 row-start-1 row-end-2">
