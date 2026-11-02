@@ -184,7 +184,8 @@ export default function Keyboard() {
   // Runtime copy: the VIA-style grid is the main picker; Studio's detailed editor opens on request.
   const [detailPicker, setDetailPicker] = useLocalStorageState<boolean>("ryong.detailPicker", false);
   const viaFirst = import.meta.env.VITE_RYONG_RUNTIME === "1";
-  // Runtime copy: the layer menu sits right beside the keyboard, its top on the keyboard's top edge.
+  // Runtime copy: the layer menu stays at the screen's left edge, its top level with the keyboard's top edge;
+  // the keyboard keeps generous margins in the space to the right of the menu.
   const canvasRef = useRef<HTMLDivElement>(null), layerMenuRef = useRef<HTMLDivElement>(null);
   const [layerMenuPos, setLayerMenuPos] = useState<{ left: number; top: number } | null>(null);
   useLayoutEffect(() => {
@@ -197,10 +198,10 @@ export default function Keyboard() {
       frame = requestAnimationFrame(() => {
         const board = canvas.querySelector(".ry-tilt > *"), menu = layerMenuRef.current;
         if (!board || !menu) return;
-        const reserve = menu.offsetWidth + 20 + "px";
+        const reserve = menu.offsetWidth + 16 + "px";
         if (canvas.style.getPropertyValue("--ry-menu") !== reserve) { canvas.style.setProperty("--ry-menu", reserve); place(); return; }
         const c = canvas.getBoundingClientRect(), b = board.getBoundingClientRect();
-        const left = Math.max(8, b.left - c.left - menu.offsetWidth - 20), top = Math.max(8, b.top - c.top);
+        const left = 16, top = Math.max(8, b.top - c.top);
         setLayerMenuPos(p => p && Math.abs(p.left - left) < 0.5 && Math.abs(p.top - top) < 0.5 ? p : { left, top });
       });
     };
