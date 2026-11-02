@@ -11,6 +11,7 @@ HEADER=r'''
 #define CONFIG_RYONG_UPDATE_MODEL "test-model"
 #define CONFIG_RYONG_UPDATE_BUILD_ID "test-build"
 #define CONFIG_RYONG_UPDATE_VERSION 3
+#define LOG_MODULE_DECLARE(a,b)
 #define BUILD_ASSERT(x) _Static_assert(x,#x)
 #define IS_ENABLED(x) (x)
 #define ARG_UNUSED(x) ((void)(x))
@@ -95,7 +96,7 @@ class UpdateBridge(unittest.TestCase):
  def test_actual_rpc_guard(self):
   with tempfile.TemporaryDirectory() as tmp:
    p=Path(tmp);(p/'shim.h').write_text(HEADER)
-   for name in ['pb_decode.h','zephyr/kernel.h','zephyr/device.h','zmk/behavior.h','zmk/endpoints.h','zmk/usb.h','zmk/studio/custom.h','ryong/update.pb.h']:
+   for name in ['pb_decode.h','zephyr/kernel.h','zephyr/device.h','zephyr/logging/log.h','zmk/behavior.h','zmk/endpoints.h','zmk/usb.h','zmk/studio/custom.h','ryong/update.pb.h']:
     h=p/name;h.parent.mkdir(parents=True,exist_ok=True);h.write_text('#include "shim.h"\n')
    (p/'adapter.c').write_bytes((ROOT/'modules/ryong-update/src/update_rpc.c').read_bytes());(p/'test.c').write_text(HARNESS)
    for allowed in [0,1]:

@@ -4,11 +4,14 @@
 #include <pb_decode.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
+#include <zephyr/logging/log.h>
 #include <zmk/behavior.h>
 #include <zmk/endpoints.h>
 #include <zmk/usb.h>
 #include <zmk/studio/custom.h>
 #include <ryong/update.pb.h>
+
+LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 BUILD_ASSERT(sizeof(CONFIG_RYONG_UPDATE_MODEL) <= 40);
 BUILD_ASSERT(sizeof(CONFIG_RYONG_UPDATE_BUILD_ID) <= 65);
