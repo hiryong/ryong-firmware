@@ -1281,23 +1281,42 @@ const Num = ({ value, onChange, min, max }: { value: number; onChange: (n: numbe
 const ComboKeys = ({ keys, value, onChange }: { keys: KeyRect[]; value: number[]; onChange: (v: number[]) => void }) => {
   const w = Math.max(...keys.map(([x, , kw]) => x + kw), 100);
   const h = Math.max(...keys.map(([, y, , kh]) => y + kh), 100);
+  const MAX = 4; // runtime combos allow up to four keys
+  const full = value.length >= MAX;
   return (
-    <div className="ry-combokeys" style={{ aspectRatio: `${w} / ${h}` }}>
-      {keys.map(([x, y, kw, kh, label], i) => {
-        const on = value.includes(i);
-        return (
-          <button
-            key={i}
-            type="button"
-            aria-pressed={on}
-            title={t("Position {i}", "위치 {i}", { i })}
-            style={{ left: `${(x / w) * 100}%`, top: `${(y / h) * 100}%`, width: `${(kw / w) * 100}%`, height: `${(kh / h) * 100}%` }}
-            onClick={() => onChange(on ? value.filter((p) => p !== i) : [...value, i])}
-          >
-            <span>{label}</span>
-          </button>
-        );
-      })}
+    <div className="ry-combopick">
+      {/* the chosen keys, each removable on its own */}
+      <div className="ry-combo-chosen" aria-live="polite">
+        {value.length ? value.map((p, n) => (
+          <span key={p} className="ry-combo-chip">
+            {n > 0 && <b className="ry-eq-op" aria-hidden="true">+</b>}
+            <span className="ry-combo-chipcap">{keys[p]?.[4] ?? p}
+              <button type="button" aria-label={t("Remove {k}", "{k} 빼기", { k: keys[p]?.[4] ?? String(p) })} onClick={() => onChange(value.filter((x) => x !== p))}>×</button>
+            </span>
+          </span>
+        )) : <span className="ry-faint">{t("Click keys below to add them.", "아래 키보드에서 함께 누를 키를 눌러 추가하세요.")}</span>}
+        {value.length > 0 && <button type="button" className="ry-text" onClick={() => onChange([])}>{t("Clear all", "모두 지우기")}</button>}
+      </div>
+      <p className="ry-faint" style={{ margin: 0 }}>{full ? t("Up to {n} keys. Remove one to choose another.", "최대 {n}개까지예요. 하나를 빼면 다른 키를 고를 수 있어요.", { n: MAX })
+        : t("Click a chosen key again to remove it.", "선택한 키를 다시 누르면 빠져요.")}</p>
+      <div className="ry-combokeys" style={{ aspectRatio: `${w} / ${h}` }}>
+        {keys.map(([x, y, kw, kh, label], i) => {
+          const on = value.includes(i);
+          return (
+            <button
+              key={i}
+              type="button"
+              aria-pressed={on}
+              disabled={!on && full}
+              title={t("Position {i}", "위치 {i}", { i })}
+              style={{ left: `${(x / w) * 100}%`, top: `${(y / h) * 100}%`, width: `${(kw / w) * 100}%`, height: `${(kh / h) * 100}%` }}
+              onClick={() => onChange(on ? value.filter((p) => p !== i) : [...value, i])}
+            >
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 };
