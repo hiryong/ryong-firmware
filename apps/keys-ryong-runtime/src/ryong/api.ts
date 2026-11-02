@@ -92,6 +92,7 @@ export async function signOut() {
 // ---------- GitHub calls ----------
 
 async function gh<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (init.method && !["GET", "HEAD"].includes(init.method.toUpperCase())) throw new Error("GitHub mutations are disabled in this runtime development copy.");
   const signedIn = !!current?.user;
   const url = signedIn ? `/api/gh${path}` : `https://api.github.com${path}`;
   const r = await fetch(url, {

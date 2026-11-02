@@ -1,4 +1,6 @@
 import { AppHeader } from "./AppHeader";
+import { RuntimePanel } from "./ryong/RuntimePanel";
+import { t } from "./ryong/i18n";
 
 import { create_rpc_connection } from "@zmkfirmware/zmk-studio-ts-client";
 import { call_rpc } from "./rpc/logging";
@@ -177,6 +179,9 @@ function App() {
   const [showLicenseNotice, setShowLicenseNotice] = useState(false);
   const [connectionAbort, setConnectionAbort] = useState(new AbortController());
   const [hubTab, setHubTab] = useState<HubTab | null>(null);
+  const [runtimeOpen, setRuntimeOpen] = useState(
+    import.meta.env.VITE_RYONG_RUNTIME === "1" && new URLSearchParams(location.search).get("runtime") === "1"
+  );
   useResumeHub(setHubTab);
   useLang(); // re-render everything in the chosen language
   /** the desktop-app downloads live in the Guide */
@@ -302,12 +307,18 @@ function App() {
         <UndoRedoContext.Provider value={doIt}>
           <UnlockModal extra={<UnlockHelp deviceName={connectedDeviceName} onTab={setHubTab} onApp={openApp} />} />
           <ConnectModal
-            open={!conn.conn}
+            open={!conn.conn && !runtimeOpen}
             transports={TRANSPORTS}
             onTransportCreated={onConnect}
             lead={<ConnectLead />}
-            extra={<FirstRun onTab={setHubTab} onApp={openApp} />}
+            extra={<><FirstRun onTab={setHubTab} onApp={openApp} />
+              {import.meta.env.VITE_RYONG_RUNTIME === "1" && <button className="ry-text" onClick={() => setRuntimeOpen(true)}>
+                {t("Runtime development preview", "동적 설정 개발본 미리보기")}
+              </button>}
+            </>}
           />
+          {import.meta.env.VITE_RYONG_RUNTIME === "1" && <RuntimePanel
+            open={runtimeOpen} onClose={() => setRuntimeOpen(false)} deviceName={connectedDeviceName} />}
           <Hub
             tab={hubTab}
             onTab={setHubTab}
@@ -348,6 +359,9 @@ function App() {
                       {tb.label()}
                     </button>
                   ))}
+                  {import.meta.env.VITE_RYONG_RUNTIME === "1" && <button className="ry-tab" onClick={() => { setHubTab(null); setRuntimeOpen(true); }}>
+                    {t("Runtime", "동적 설정")}
+                  </button>}
                   <LangToggle />
                   <AccountBadge onOpen={() => setHubTab("firmware")} />
                 </nav>

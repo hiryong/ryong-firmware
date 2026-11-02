@@ -262,6 +262,7 @@ const Editor = ({
 }) => {
   const lang = useLang();
   const runtime = !!runtimeConn || preview;
+  const runtimeLock = useContext(LockStateContext);
   const [runtimeView, setRuntimeView] = useState<RuntimeView | null>(null);
   const [kb, setKb] = useState<Board>(() => {
     const want = preferred;
@@ -324,7 +325,7 @@ const Editor = ({
     } finally {
       setLoading(false);
     }
-  }, [kb, jsonPath, runtimeConn, preview, runtime]);
+  }, [kb, jsonPath, runtimeConn, preview, runtime, runtimeConn ? runtimeLock : null]);
 
   useEffect(() => {
     load();
@@ -502,7 +503,7 @@ const Editor = ({
       {error && <p className="ry-note ry-danger">{error}</p>}
       {runtime && !loading && <div className="ry-row">
         <p className="ry-faint">{t("Existing firmware defaults remain active. This list edits additional runtime entries.", "기존 펌웨어 기본 동작은 유지됩니다. 이 목록에서는 추가 동적 설정을 편집합니다.")}</p>
-        <button className="ry-text" onClick={load}>{t("Reload device", "다시 불러오기")}</button>
+        <button className="ry-text" disabled={saving} onClick={load}>{t("Reload device", "다시 불러오기")}</button>
       </div>}
 
       {loaded && (
