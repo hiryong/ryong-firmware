@@ -115,3 +115,18 @@ See HOST_OS_LAYOUT.ko.md. This is not yet a working firmware feature.
 - [x] Verify BT60 Windows Ctrl/Win/Alt vs Apple Ctrl/Option/Command physical positions in preparation tests.
 - [x] Use indexed settings access without retaining borrowed array-view pointers across other lookups.
 - [ ] Real board/bootloader identification, approved recovery image, BLE bond retention and live write/power-loss tests remain open.
+
+## Bluetooth device manager (Easy-Switch style)
+
+- [x] Firmware module `modules/ryong-ble-profiles` (`ryong__ble_profiles`, Studio unlock required): per-slot registered/connected, user name (UTF-8, 30 bytes) bound to the bonded address, select slot, keyboard-side bond removal plus name and per-profile OS records. Peer addresses/keys never leave the device; per-boot token rejects actions on a slot re-paired meanwhile.
+- [x] Host CTest (names, record codec, tokens) and actual-store shim test (flash refusal, reboot, stale purge, clearing a non-selected slot restores the selection), GCC and Clang.
+- [x] BT60 host-layout and Ryong60 runtime ZMK compiles pass with the module (runs 41448465797, 41448465826 at 487ffca). Compile only.
+- [x] Web "Bluetooth 기기" tab: names, state, last detected OS, manual layout, switch, remove with explicit host-side notice; hidden when firmware lacks it; no retries after a lost reply.
+- [ ] Real BLE: select/clear on the system work queue, unpair while connected, re-pair on cleared slot, names across reboot and firmware update.
+- [ ] Not covered: the host's own pairing entry (cannot be removed remotely); live state of hosts that are not connected.
+
+## Virtual keyboard (design and QA without hardware)
+
+- [x] Development copy only: simulated Ryong60 speaking real Studio framing/protobuf; every existing screen runs unchanged against it. Floating controls for unlock key, power cycle, host range, pairing, factory reset. State stays in the browser.
+- [x] Node test plus local headless Chromium walkthrough of keymap, keycap view, Bluetooth devices and saving a combo to the (virtual) keyboard.
+- [ ] Simulation fidelity is by protocol, not firmware: it does not validate timing, flash, BLE or power behaviour.
