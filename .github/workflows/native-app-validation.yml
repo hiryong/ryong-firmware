@@ -2,7 +2,7 @@ name: Independent native development app
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['apps/keys-ryong-runtime/src/**', 'apps/keys-ryong-runtime/package*.json', 'apps/keys-ryong-runtime/vite*.ts', 'experiments/runtime-client/**', 'apps/keys-ryong-runtime/src-tauri/**', 'tools/ryong-updater/**', '.github/workflows/native-app-validation.yml']
+    paths: ['apps/keys-ryong-runtime/src/**', 'apps/keys-ryong-runtime/NOTICE', 'apps/keys-ryong-runtime/LICENSE', 'apps/keys-ryong-runtime/package*.json', 'apps/keys-ryong-runtime/vite*.ts', 'experiments/runtime-client/**', 'apps/keys-ryong-runtime/src-tauri/**', 'tools/ryong-updater/**', '.github/workflows/native-app-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
