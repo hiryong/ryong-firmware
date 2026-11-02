@@ -78,6 +78,7 @@ function encode(binding: Binding, view: RuntimeView, doc: BehaviorDoc): { wire: 
   const behaviorId = view.catalog[binding.b];
   if (!behaviorId) throw new Error("Runtime behavior is not supported: " + binding.b);
   if (binding.b === "kp" || binding.b === "sk") {
+    if ((binding.mods ?? []).some(mod => !mods.includes(mod))) throw new Error("Unknown modifier.");
     const param1 = (binding.mods ?? []).reduce((usage, mod) => usage | codes["__mod_" + mod], keyValue(binding.key)) >>> 0;
     return { wire: { behaviorId, param1, param2: 0 } };
   }
@@ -102,7 +103,10 @@ export function viewDocument(view: RuntimeView): BehaviorDoc {
       if (step.delay) return [{ t: "wait" as const, ms: step.delay.delayMs }];
       if (step.keyTapSequence) {
         return Array.from(step.keyTapSequence.packedKeys, packed => ({
-          t: "tap" as const, binding: keyBinding((0x70000 | (packed & 0x7f) | ((packed & 0x80) ? codes.__mod_LS : 0)) >>> 0),
+          t: "tap" as const, binding: (() => {
+            if ((packed & 0x7f) < 4 || (packed & 0x7f) > 0x38) throw new Error("Invalid packed macro key.");
+            return keyBinding((0x70000 | (packed & 0x7f) | ((packed & 0x80) ? codes.__mod_LS : 0)) >>> 0);
+          })(),
         }));
       }
       if (step.down) return [{ t: "press" as const, binding: decode(step.down, view) }];
@@ -123,6 +127,7 @@ export function compileDocument(doc: BehaviorDoc, view: RuntimeView): DesiredPro
   if (doc.tapDances.length || doc.settings.length) throw new Error("Tap Dance / behavior options are not runtime-enabled yet; nothing was written.");
   const original = viewDocument(view);
   const macros = doc.macros.map(macro => {
+    if (![macro.tap, macro.wait].every(value => Number.isInteger(value) && value >= 0 && value <= 5000)) throw new Error("Invalid macro timing.");
     const old = view.snapshot.macros.find(item => "runtime_macro_" + item.slot === macro.id);
     if (old && JSON.stringify(original.macros.find(item => item.id === macro.id)) === JSON.stringify(macro)) {
       return { slot: old.slot, name: macro.name, steps: old.steps };
@@ -153,6 +158,7 @@ export function compileDocument(doc: BehaviorDoc, view: RuntimeView): DesiredPro
   });
   const used = new Set<number>();
   const combos: DesiredCombo[] = doc.combos.map(combo => {
+    if (combo.layers.some(layer => !Number.isInteger(layer) || layer < 0 || layer >= Math.min(32, view.layerNames.length))) throw new Error("Unknown combo layer.");
     const old = view.snapshot.combos.find(item => "runtime_combo_" + item.index === combo.id);
     let index = old?.index ?? 0;
     if (!old) {

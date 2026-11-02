@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   compatibility:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +40,7 @@ jobs:
         run: |
           npm ci
           node tests/runtime-device.test.mjs
+          node tests/runtime-model.test.mjs
           mkdir -p src/data
           cp ../keys-ryong/src/data/release-data.json src/data/release-data.json
       - name: Build custom client variant without changing original app dependencies
