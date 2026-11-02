@@ -8,7 +8,7 @@ const js = buildSync({
 }).outputFiles[0].text;
 const module = { exports: {} };
 vm.runInNewContext(js, { module, exports: module.exports, require: createRequire(import.meta.url),
-  Buffer, process, console, Uint8Array, TextEncoder, Set, WeakSet, btoa, setTimeout, clearTimeout });
+  Buffer, process, console, Uint8Array, TextEncoder, Set, WeakSet, btoa, structuredClone, setTimeout, clearTimeout });
 const { RuntimeSession, C, M } = module.exports;
 const clone = value => structuredClone(value);
 function fixture() {

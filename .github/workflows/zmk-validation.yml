@@ -2,7 +2,7 @@ name: Ryong60 compile validation
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['hardware/**', 'experiments/**', 'scripts/**', '.github/workflows/zmk-validation.yml']
+    paths: ['hardware/ryong60/**', 'experiments/dya-runtime/**', 'scripts/prepare_zmk.py', 'scripts/secure_runtime_rpc.py', 'scripts/run_module_simulations.py', '.github/workflows/zmk-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
