@@ -49,7 +49,8 @@ jobs:
           int() { [[ "$1" =~ ^[0-9]{1,5}$ ]] && (( 10#$1 >= $2 && 10#$1 <= $3 )) || { echo "::error::$4 out of range ($2-$3): $1"; exit 1; }; }
           [[ "$TARGET" == bt60 || "$TARGET" == bt60-oreo || "$TARGET" == ryong60 ]] || { echo "::error::bad target"; exit 1; }
           [[ "$REQ" =~ ^req-[A-Za-z0-9-]{1,40}$ ]] || { echo "::error::bad request id"; exit 1; }
-          [[ ${#LABEL} -le 40 ]] || { echo "::error::label too long"; exit 1; }
+          # characters, not bytes (Korean labels are 3 bytes per character)
+          python3 -c 'import os,sys; sys.exit(len(os.environ["LABEL"]) > 40)' || { echo "::error::label too long"; exit 1; }
           int "$IDLE" 10 3600 idle_timeout_s; int "$SLEEP" 0 1440 sleep_min
           int "$DP" 1 30 debounce_press_ms; int "$DR" 1 30 debounce_release_ms
           [[ "$TX" == default || "$TX" == plus4 || "$TX" == plus8 ]] || { echo "::error::bad tx_power"; exit 1; }

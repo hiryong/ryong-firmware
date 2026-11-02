@@ -7,7 +7,7 @@ import { t } from "../i18n";
 
 /** VIA-style picker: click a tile and the selected key gets it. The Studio dropdowns stay below for full control. */
 const codes = values as Record<string, number>;
-const HEX: Record<string, number> = { LBKT: 0x7002f, RBKT: 0x70030, C_BRI_DEC: 0xc0070, C_BRI_INC: 0xc006f };
+const HEX: Record<string, number> = { LBKT: 0x7002f, RBKT: 0x70030, C_BRI_DEC: 0xc0070, C_BRI_INC: 0xc006f, NUBS: 0x70064 };
 const usage = (k: string) => codes[k] ?? HEX[k];
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -22,8 +22,20 @@ const BASIC: [string, string][] = [
   ["Z", "Z"], ["X", "X"], ["C", "C"], ["V", "V"], ["B", "B"], ["N", "N"], ["M", "M"], [",", "COMMA"], [".", "DOT"], ["/", "FSLH"], ["Space", "SPACE"],
 ];
 const MODS: [string, string][] = [["L Ctrl", "LCTRL"], ["L Shift", "LSHFT"], ["L Alt · Opt", "LALT"], ["L Win · Cmd", "LGUI"], ["R Ctrl", "RCTRL"], ["R Shift", "RSHFT"], ["R Alt · Opt", "RALT"], ["R Win · Cmd", "RGUI"]];
-const NAV: [string, string][] = [["↑", "UP"], ["↓", "DOWN"], ["←", "LEFT"], ["→", "RIGHT"], ["Home", "HOME"], ["End", "END"], ["PgUp", "PG_UP"], ["PgDn", "PG_DN"], ["Ins", "INS"], ["Del", "DEL"], ["PrtSc", "PSCRN"], ["Menu", "C_MENU"]];
-const MEDIA: [string, string][] = [["Vol +", "C_VOL_UP"], ["Vol −", "C_VOL_DN"], ["Mute", "C_MUTE"], ["Play", "C_PLAY_PAUSE"], ["Next", "C_NEXT"], ["Prev", "C_PREV"], ["Bright +", "C_BRI_INC"], ["Bright −", "C_BRI_DEC"], ["Search", "C_AC_SEARCH"]];
+const NAV: [string, string][] = [["↑", "UP"], ["↓", "DOWN"], ["←", "LEFT"], ["→", "RIGHT"], ["Home", "HOME"], ["End", "END"], ["PgUp", "PG_UP"], ["PgDn", "PG_DN"], ["Ins", "INS"], ["Del", "DEL"],
+  ["PrtSc", "PSCRN"], ["ScrLk", "SLCK"], ["Pause", "PAUSE_BREAK"], ["Menu", "C_MENU"], ["App", "K_APP"]];
+const MEDIA: [string, string][] = [["Vol +", "C_VOL_UP"], ["Vol −", "C_VOL_DN"], ["Mute", "C_MUTE"], ["Play", "C_PLAY_PAUSE"], ["Next", "C_NEXT"], ["Prev", "C_PREV"], ["Stop", "C_STOP"],
+  ["FF", "C_FF"], ["Rew", "C_RW"], ["Eject", "C_EJECT"], ["Bright +", "C_BRI_INC"], ["Bright −", "C_BRI_DEC"], ["Search", "C_AC_SEARCH"], ["Browser Home", "C_AC_HOME"],
+  ["Back", "C_AC_BACK"], ["Forward", "C_AC_FORWARD"], ["Refresh", "C_AC_REFRESH"], ["Calc", "C_AL_CALC"], ["Mail", "C_AL_MAIL"], ["Files", "C_AL_FILES"], ["Sleep", "C_SLEEP"]];
+const NUMPAD: [string, string][] = [["Num Lock", "KP_NUM"], ["P /", "KP_SLASH"], ["P *", "KP_MULTIPLY"], ["P −", "KP_MINUS"], ["P 7", "KP_N7"], ["P 8", "KP_N8"], ["P 9", "KP_N9"], ["P +", "KP_PLUS"],
+  ["P 4", "KP_N4"], ["P 5", "KP_N5"], ["P 6", "KP_N6"], ["P =", "KP_EQUAL"], ["P 1", "KP_N1"], ["P 2", "KP_N2"], ["P 3", "KP_N3"], ["P Enter", "KP_ENTER"], ["P 0", "KP_N0"], ["P .", "KP_DOT"],
+  ["P ,", "KP_COMMA"], ["P (", "KP_LPAR"], ["P )", "KP_RPAR"]];
+/* Shifted characters: Shift + the base key (what ZMK's EXCL, AT, … mean). */
+const SYMBOLS: [string, string][] = [["!", "N1"], ["@", "N2"], ["#", "N3"], ["$", "N4"], ["%", "N5"], ["^", "N6"], ["&", "N7"], ["*", "N8"], ["(", "N9"], [")", "N0"], ["_", "MINUS"], ["+", "EQUAL"],
+  ["{", "LBKT"], ["}", "RBKT"], ["|", "BSLH"], [":", "SEMI"], ["\"", "SQT"], ["<", "COMMA"], [">", "DOT"], ["?", "FSLH"], ["~", "GRAVE"]];
+const MORE: [string, string][] = [["한/영", "LANG1"], ["한자", "LANG2"], ...Array.from({ length: 12 }, (_, i) => [`F${i + 13}`, `F${i + 13}`] as [string, string]),
+  ["かな", "INT_KANA"], ["変換", "INT_HENKAN"], ["無変換", "INT_MUHENKAN"], ["¥", "INT_YEN"], ["ろ", "INT_RO"], ["Non-US #", "NUHS"], ["Non-US \\", "NUBS"],
+  ["Caps (lock)", "LCAPS"], ["Power", "K_PWR"], ["Help", "K_HELP"], ["Undo", "K_UNDO"], ["Cut", "K_CUT"], ["Copy", "K_COPY"], ["Paste", "K_PASTE"], ["Find", "K_FIND"]];
 
 export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDetail, children }: {
   behaviors: GetBehaviorDetailsResponse[]; layers: { id: number; name: string }[];
@@ -45,6 +57,17 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       .map(([label, k]) => ({ label, title: k, binding: { behaviorId: kp, param1: usage(k)!, param2: 0 }, wide: label.length > 5 }));
     const simple = (name: string, label: string, title: string, p1 = 0, p2 = 0): Tile[] =>
       id(name) === undefined ? [] : [{ label, title, binding: { behaviorId: id(name), param1: p1, param2: p2 } }];
+    const withMods = (k: string, mods: string[]) => usage(k) === undefined || kp === undefined ? undefined
+      : mods.reduce((v, m) => (v | codes["__mod_" + m]) >>> 0, usage(k)!);
+    const symbols: Tile[] = SYMBOLS.flatMap(([label, k]) => { const v = withMods(k, ["LS"]); return v === undefined ? [] : [{ label, title: `Shift + ${k}`, binding: { behaviorId: kp!, param1: v, param2: 0 } }]; });
+    // Common shortcuts, Windows (Ctrl) and Mac (Cmd) side by side.
+    const SC: [string, string, string[]][] = [[t("Copy", "복사"), "C", []], [t("Paste", "붙여넣기"), "V", []], [t("Cut", "잘라내기"), "X", []], [t("Undo", "실행 취소"), "Z", []],
+      [t("Redo", "다시 실행"), "Z", ["LS"]], [t("Select all", "모두 선택"), "A", []], [t("Save", "저장"), "S", []], [t("Find", "찾기"), "F", []], [t("New tab", "새 탭"), "T", []], [t("Close tab", "탭 닫기"), "W", []]];
+    const shortcuts: Tile[] = (["LC", "LG"] as const).flatMap((m) => SC.flatMap(([name, k, extra]) => {
+      const v = withMods(k, [m, ...extra]);
+      const who = m === "LC" ? "Win" : "Mac";
+      return v === undefined ? [] : [{ label: `${name} ${who}`, title: `${m === "LC" ? "Ctrl" : "Cmd"}${extra.length ? " + Shift" : ""} + ${k}`, binding: { behaviorId: kp!, param1: v, param2: 0 }, wide: true }];
+    }));
     const layerTiles = layers.flatMap((l, i) => [
       ...simple("momentarylayer", `MO ${i}`, t("Hold for layer {n}", "누르는 동안 {n}", { n: l.name || i }), i),
       ...simple("togglelayer", `TG ${i}`, t("Toggle layer {n}", "{n} 켜기/끄기", { n: l.name || i }), i),
@@ -79,7 +102,11 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       { id: "basic", label: t("Basic", "기본"), tiles: keys(BASIC) },
       { id: "mods", label: t("Modifiers", "수정키"), tiles: keys(MODS) },
       { id: "nav", label: t("Navigation", "이동·편집"), tiles: keys(NAV) },
+      { id: "symbols", label: t("Symbols", "기호"), tiles: symbols },
+      { id: "numpad", label: t("Numpad", "숫자패드"), tiles: keys(NUMPAD) },
       { id: "media", label: t("Media", "미디어"), tiles: keys(MEDIA) },
+      { id: "shortcuts", label: t("Shortcuts", "단축키"), tiles: shortcuts },
+      { id: "more", label: t("F13–24 · Language", "F13–24·언어"), tiles: keys(MORE) },
       { id: "layers", label: t("Layers", "레이어"), tiles: layerTiles },
       { id: "bt", label: "Bluetooth", tiles: [...bt, ...bt2] },
       { id: "special", label: t("Special", "특수"), tiles: special },

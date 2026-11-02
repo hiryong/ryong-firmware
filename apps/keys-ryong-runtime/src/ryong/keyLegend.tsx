@@ -32,9 +32,26 @@ export function keyIcon(usage: number): IconName | undefined {
 const strip = (s?: string) => s?.replace(/^Keyboard /, "") ?? "";
 
 /** A key code's label, longer on wider keys ("Shift" on a Shift key, "Shft" on a 1u key). */
+/* Keypad keys get a short "P" label instead of Studio's "7 Hm" style names. */
+const KEYPAD: Record<number, string> = { 0x53: "NumLk", 0x54: "P /", 0x55: "P *", 0x56: "P −", 0x57: "P +", 0x58: "P Ent", 0x59: "P 1", 0x5a: "P 2", 0x5b: "P 3",
+  0x5c: "P 4", 0x5d: "P 5", 0x5e: "P 6", 0x5f: "P 7", 0x60: "P 8", 0x61: "P 9", 0x62: "P 0", 0x63: "P .", 0x67: "P =", 0x85: "P ,", 0xb6: "P (", 0xb7: "P )" };
+/* Shift + key → the character it types (US layout). */
+const SHIFTED: Record<number, string> = { 0x1e: "!", 0x1f: "@", 0x20: "#", 0x21: "$", 0x22: "%", 0x23: "^", 0x24: "&", 0x25: "*", 0x26: "(", 0x27: ")",
+  0x2d: "_", 0x2e: "+", 0x2f: "{", 0x30: "}", 0x31: "|", 0x33: ":", 0x34: "\"", 0x35: "~", 0x36: "<", 0x37: ">", 0x38: "?" };
+const MOD_GLYPH: [number, string][] = [[0x01, "Ctrl"], [0x10, "Ctrl"], [0x04, "Alt"], [0x40, "Alt"], [0x08, "⌘"], [0x80, "⌘"], [0x02, "⇧"], [0x20, "⇧"]];
+
 export function keyName(usage: number, wide: boolean): string {
+  const mods = (usage >>> 24) & 0xff;
+  if (mods) {
+    const base = (usage & 0xffffff) >>> 0;
+    const [bp, bid] = hid_usage_page_and_id_from_usage(base);
+    if ((bp & 0xff) === 7 && (mods === 0x02 || mods === 0x20) && SHIFTED[bid]) return SHIFTED[bid];
+    const glyphs = [...new Set(MOD_GLYPH.filter(([bit]) => mods & bit).map(([, g]) => g))].join("");
+    return glyphs + keyName(base, wide);
+  }
   let [page, id] = hid_usage_page_and_id_from_usage(usage);
   page &= 0xff;
+  if (page === 7 && KEYPAD[id]) return KEYPAD[id];
   const l = tidyLabels(hid_usage_get_labels(page, id));
   const nice: Record<string, string> = { Ret: "Enter", Return: "Enter", Cap: "Caps", Shft: "Shift", "L Shft": "Shift", "R Shft": "Shift", BkSp: "Bksp", BkSpc: "Bksp", AltG: "AltGr", Appl: "Menu", "␣": "Spc",
     // Studio names some media keys with emoji, which come out in every colour and size: words instead
