@@ -16,6 +16,7 @@ import * as H from "../runtime/proto/holdtap";
 import * as O from "../runtime/proto/os_detection";
 import * as B from "../runtime/proto/ble_profiles";
 import * as U from "../runtime/proto/update";
+import * as S from "../runtime/proto/settings";
 import values from "../runtime/keycode-values.json";
 import { LAYOUTS } from "../behaviors/layouts";
 
@@ -30,7 +31,15 @@ type Macro = { slot: number; name: string; steps: M.MacroStep[] };
 type Dance = { index: number; name: string; config: T.Config };
 type Hold = { slot: number; behaviorId: number; tappingTermMs: number; quickTapMs: number; requirePriorIdleMs: number; flavor: number };
 type Saved = { layers: Layer[]; combos: C.Combo[]; comboTimeout: number; macros: Macro[]; tapMs: number; dances: Dance[]; interval: number; holds: Hold[] };
-type State = Saved & { slots: Slot[]; active: number; usb: boolean; nextLayerId: number; nextDance: number };
+type Device = { settings: S.Settings; blOn: boolean; ugOn: boolean; blWanted: boolean; ugWanted: boolean };
+type State = Saved & { slots: Slot[]; active: number; usb: boolean; nextLayerId: number; nextDance: number; device?: Device };
+/* Mirrors modules/ryong-runtime-settings defaults (lights built in but not in use). */
+const deviceFactory = (): Device => ({
+  settings: S.Settings.fromPartial({ sleepEnabled: true, sleepMinutes: 15,
+    backlight: { use: false, onAtStart: true, brightness: 40, usbOnly: false },
+    underglow: { use: false, onAtStart: true, brightness: 50, usbOnly: true } }),
+  blOn: false, ugOn: false, blWanted: false, ugWanted: false,
+});
 
 /* ---- Behaviors: ids and metadata as a Ryong firmware would report them ---- */
 const HID = { keyboardMax: 0xff, consumerMax: 0xfff };
@@ -176,9 +185,28 @@ class VirtualDevice {
   }
   /** Like ZMK: only the selected profile holds a connection; `connected` on a slot means "host in range". */
   linked(i: number) { const s = this.flash.slots[i]; return i === this.flash.active && s.bonded && s.connected; }
+  /** USB cable in/out (lights with "only on USB power" follow it, like the firmware's 1 s rule). */
+  setUsb(on: boolean) { this.flash.usb = on; this.lightRules(); this.persist(); }
+  get device(): Device { return (this.flash.device ??= deviceFactory()); }
+  private lightRules() {
+    const d = this.device, usb = this.flash.usb;
+    for (const [k, on, wanted] of [["backlight", "blOn", "blWanted"], ["underglow", "ugOn", "ugWanted"]] as const) {
+      const l = d.settings[k]!, allowed = l.use && (!l.usbOnly || usb);
+      if (!allowed && d[on]) { d[wanted] = l.use; d[on] = false; }
+      else if (allowed && !d[on] && d[wanted]) d[on] = true;
+      if (!l.use) d[wanted] = false;
+    }
+  }
   toggleLink(i: number) { const s = this.flash.slots[i]; if (s.bonded) { s.connected = !s.connected; this.persist(); } }
   /** Like a power cycle: unsaved keymap/runtime edits are lost, Studio locks again. */
-  reboot() { this.ram = this.saved(this.flash); this.setLock(true); this.dirtyNotify(); }
+  reboot() {
+    this.ram = this.saved(this.flash);
+    const d = this.device; // start rules, as settings_runtime.c apply_start()
+    for (const [k, on, wanted] of [["backlight", "blOn", "blWanted"], ["underglow", "ugOn", "ugWanted"]] as const) {
+      const l = d.settings[k]!; d[wanted] = l.use && l.onAtStart; d[on] = d[wanted] && (!l.usbOnly || this.flash.usb);
+    }
+    this.persist(); this.setLock(true); this.dirtyNotify();
+  }
   factoryReset() { try { localStorage.removeItem(STORAGE); } catch { /* ignore */ } this.flash = factory(); this.ram = this.saved(this.flash); this.persist(); this.setLock(true); }
 
   private dirty() { return JSON.stringify(this.ram.layers) !== JSON.stringify(this.flash.layers); }
@@ -273,6 +301,7 @@ class VirtualDevice {
       case "zmk__holdtap": return H.Response.encode(this.hold(H.Request.decode(payload))).finish();
       case "cormoran__os_detection": return O.Response.encode(this.os(O.Request.decode(payload))).finish();
       case "ryong__ble_profiles": return B.Response.encode(this.ble(B.Request.decode(payload))).finish();
+      case "ryong__settings": return S.Response.encode(this.settings(S.Request.decode(payload))).finish();
       case "ryong__firmware_identity": case "ryong__firmware_update": return U.Response.encode(this.update(id, U.Request.decode(payload))).finish();
     }
     return new Uint8Array();
@@ -419,6 +448,28 @@ class VirtualDevice {
     return status(95);
   }
 
+  /* -- Keyboard-side settings (mirrors modules/ryong-runtime-settings) -- */
+  private settings(q: S.Request): S.Response {
+    const d = this.device, status = (error: number) => S.Response.fromPartial({ status: { ok: false, error } });
+    const state = () => S.Response.fromPartial({ state: { settings: d.settings, caps: { backlight: true, underglow: true, sleepMaxMinutes: 1440 },
+      backlightOn: d.blOn, underglowOn: d.ugOn, usbPowered: this.flash.usb, protocolVersion: 1 } });
+    if (q.getState) return state();
+    if (q.set) {
+      const n = S.Settings.fromPartial(q.set), ok = (v: number, lo: number, hi: number) => Number.isInteger(v) && v >= lo && v <= hi;
+      if (!n.backlight || !n.underglow || !ok(n.sleepMinutes, 1, 1440) || !ok(n.backlight.brightness, 0, 100) || !ok(n.underglow.brightness, 0, 100)) return status(22);
+      d.settings = n; this.lightRules(); this.persist(); return state();
+    }
+    if (q.power) {
+      const k = q.power.which === 0 ? "backlight" : q.power.which === 1 ? "underglow" : null;
+      if (!k) return status(134);
+      const l = d.settings[k]!;
+      if (q.power.on && !(l.use && (!l.usbOnly || this.flash.usb))) return status(1);
+      if (k === "backlight") { d.blOn = q.power.on; d.blWanted = q.power.on; } else { d.ugOn = q.power.on; d.ugWanted = q.power.on; }
+      this.persist(); return state();
+    }
+    return status(95);
+  }
+
   /* -- Firmware identity: installs stay disabled, exactly like development firmware -- */
   private update(id: string, q: U.Request): U.Response {
     if (q.identity) return U.Response.fromPartial({ identity: { model: "ryong60-virtual", buildId: "virtual-preview", version: 1, bootloaderAllowed: false } });
@@ -427,7 +478,7 @@ class VirtualDevice {
 }
 
 const SUBSYSTEMS = ["cormoran__runtime_combo", "cormoran__runtime_macro", "cormoran__runtime_tapdance", "zmk__holdtap",
-  "cormoran__os_detection", "ryong__ble_profiles", "ryong__firmware_identity", "ryong__firmware_update"];
+  "cormoran__os_detection", "ryong__ble_profiles", "ryong__firmware_identity", "ryong__firmware_update", "ryong__settings"];
 
 let instance: VirtualDevice | undefined;
 /** Created on first use so a simulation bug can never break the normal app. */

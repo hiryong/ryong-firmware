@@ -12,8 +12,10 @@ import { LangToggle } from "./LangToggle";
 // until they use something that needs GitHub.
 export type HubTab = "firmware" | "backup" | "guide";
 
+/** keysbeta (runtime build) has no Firmware tab: builds and releases live in /admin. */
+export const FIRMWARE_TAB = import.meta.env.VITE_RYONG_RUNTIME !== "1";
 export const HUB_TABS: { id: HubTab; label: () => string }[] = [
-  { id: "firmware", label: () => t("Firmware", "펌웨어") },
+  ...(FIRMWARE_TAB ? [{ id: "firmware" as HubTab, label: () => t("Firmware", "펌웨어") }] : []),
   { id: "backup", label: () => t("Backup", "백업") },
   { id: "guide", label: () => t("Guide", "가이드") },
 ];
@@ -78,7 +80,7 @@ export const Hub = ({ tab, onTab, onClose, deviceName, onRestored }: HubProps) =
       </div>
       <div className="ry-hub-body">
         <div className="ry-hub-page">
-        {tab === "firmware" && <Firmware deviceName={deviceName} onWide={setWide} />}
+        {tab === "firmware" && FIRMWARE_TAB && <Firmware deviceName={deviceName} onWide={setWide} />}
         {tab === "backup" && <Backup deviceName={deviceName} onRestored={onRestored} />}
         {tab === "guide" && <Guide onTab={onTab} />}
         </div>

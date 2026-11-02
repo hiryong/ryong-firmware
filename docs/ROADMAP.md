@@ -143,3 +143,25 @@ See HOST_OS_LAYOUT.ko.md. This is not yet a working firmware feature.
   keycaps showed "Runtime Macro" instead of the macro name; the phone header cut off Discard;
   the virtual keyboard reported a host as connected after switching away from it.
 - Simulation only: this proves the app and protocol handling, not firmware or BLE behaviour.
+
+### keysbeta /admin, keyboard-side settings (2026-11-03)
+- **/admin** (keysbeta.ryong.com/admin): password sign-in for now (ADMIN_PASSWORD, ≥12 chars, HMAC-signed
+  12 h cookie, lockout after repeated failures; isolated in `admin-functions/_lib/auth.ts` so it can be swapped
+  for Cloudflare Access). Status (CI, channels), firmware builds (`firmware-build.yml`, private 30-day artifact,
+  UF2 SHA-256 in the artifact name), bench-test records (`firmware-registry` branch, server computes the verdict,
+  tied to the exact UF2 hash and board), releases (`firmware-release.yml`; `scripts/firmware_release_gate.py`
+  is the only gate: same file, same board, every required check; stable only after beta).
+  The server talks to GitHub with ADMIN_GITHUB_TOKEN (fine-grained, ryong-firmware only). Releases are
+  unsigned GitHub Releases in the private repo — not offered to customers until package signing exists.
+- keysbeta no longer shows the Firmware tab or links (owner's decision for the dev site; the production
+  baseline keys.ryong.com is untouched and keeps its Firmware tab).
+- **Keyboard settings** (`modules/ryong-runtime-settings`, secured `ryong__settings` RPC): deep sleep on/off and
+  1–1440 min, backlight and RGB underglow each with a *use* switch, on-at-start, brightness / maximum
+  brightness, and "only on USB power". Replaces build-only CONFIG options; ZMK's own AUTO_OFF_USB is off and
+  ZMK_IDLE_SLEEP_TIMEOUT is pushed out so the runtime values decide. Lights default to *not in use* so the
+  same BT60 image is safe on Cheeto (no LEDs) and Oreo (backlight + underglow).
+  Verified: host C tests (record, validation, light rules, sleep decision), virtual keyboard E2E.
+  Not yet verified: Zephyr compile (CI), anything on real hardware (needs BT60 Oreo for lights).
+- Still build-only (by design): NKRO, mouse keys, Studio unlock requirement, BLE TX power (admin build option).
+- Next: iPhone. iOS browsers have no WebUSB/Web Serial/Web Bluetooth, so phone editing and updates need a
+  native app over BLE plus BLE DFU with signed images and a recovery path.

@@ -81,7 +81,7 @@ export const UnlockHelp = ({ deviceName, onTab, onApp }: { deviceName?: string; 
         <span className="ry-faint">{t("Before you unlock", "잠금 해제 전에")}</span>
         <div className="ry-gap">
           <button className="ry-text" onClick={() => onTab("guide")}>{t("Guide", "가이드")}</button>
-          <button className="ry-text" onClick={() => onTab("firmware")}>{t("Firmware", "펌웨어")}</button>
+          {import.meta.env.VITE_RYONG_RUNTIME !== "1" && <button className="ry-text" onClick={() => onTab("firmware")}>{t("Firmware", "펌웨어")}</button>}
           {!inApp && <button className="ry-text" onClick={onApp}>{t("Desktop app", "데스크톱 앱")}</button>}
         </div>
       </div>

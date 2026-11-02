@@ -20,7 +20,7 @@ export const ConnectLead = () => (
 /** Bottom of the dialog: the way to Firmware, kept small — most people never need it. */
 export const FirstRun = ({ onTab, onApp }: { onTab: (t: HubTab) => void; onApp: () => void }) => (
   <div className="ry-connect-foot">
-    <button className="ry-advanced" onClick={() => onTab("firmware")}>
+    {import.meta.env.VITE_RYONG_RUNTIME !== "1" && <button className="ry-advanced" onClick={() => onTab("firmware")}>
       <span>
         <span className="ry-advanced-t">{t("Firmware (advanced settings)", "펌웨어 (고급 설정)")}</span>
         <span className="ry-advanced-p">
@@ -28,7 +28,7 @@ export const FirstRun = ({ onTab, onApp }: { onTab: (t: HubTab) => void; onApp: 
         </span>
       </span>
       <ChevronRight aria-hidden="true" />
-    </button>
+    </button>}
     <div className="ry-row">
       <div className="ry-gap">
         <button className="ry-text" onClick={() => onTab("guide")}>{t("Guide", "가이드")}</button>

@@ -1,0 +1,26 @@
+config RYONG_RUNTIME_SETTINGS
+    bool "Ryong keyboard-side settings (lights, deep sleep) over Studio RPC"
+    depends on ZMK_STUDIO && SETTINGS
+    default n
+    help
+      Settings that used to need a firmware rebuild, stored on the keyboard and
+      changed from the web app: backlight / RGB underglow use, on-at-start,
+      brightness and "only on USB power", and deep-sleep on/off and minutes.
+      Every feature has a "use" switch. The secured RPC needs Studio unlock.
+      Build with ZMK's own *_AUTO_OFF_USB off and ZMK_IDLE_SLEEP_TIMEOUT set
+      very long: this module applies those rules at runtime instead.
+
+if RYONG_RUNTIME_SETTINGS
+
+config RYONG_RUNTIME_SETTINGS_SLEEP_DEFAULT_MIN
+    int "Deep sleep after N minutes until the user changes it (0 = off)"
+    range 0 1440
+    default 15
+
+config RYONG_RUNTIME_SETTINGS_LIGHTS_DEFAULT_USE
+    bool "Lights are in use until the user changes it"
+    default n
+    help
+      Off by default so the same image is safe on boards without LEDs.
+
+endif

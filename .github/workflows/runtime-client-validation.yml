@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir -p generated-runtime-proto
           protoc --plugin=protoc-gen-ts_proto="$GITHUB_WORKSPACE/vendor/runtime-studio-client/node_modules/.bin/protoc-gen-ts_proto" --ts_proto_out=generated-runtime-proto --ts_proto_opt=env=browser,esModuleInterop=true --proto_path=experiments/runtime-client/proto experiments/runtime-client/proto/*.proto
-          cp generated-runtime-proto/{runtime_tapdance,holdtap,os_detection,update,ble_profiles}.ts apps/keys-ryong-runtime/src/ryong/runtime/proto/
+          cp generated-runtime-proto/{runtime_tapdance,holdtap,os_detection,update,ble_profiles,settings}.ts apps/keys-ryong-runtime/src/ryong/runtime/proto/
       - uses: actions/upload-artifact@v4
         with:
           name: generated-runtime-protocol
@@ -86,6 +86,14 @@ jobs:
         run: |
           node tests/virtual-e2e.test.mjs
           RYONG_BROWSER=webkit node tests/virtual-e2e.test.mjs
+      - name: Admin page and its API (mocked GitHub, no network)
+        working-directory: apps/keys-ryong-runtime
+        env:
+          RYONG_PLAYWRIGHT: /tmp/ryong-ui-qa/node_modules/playwright/index.mjs
+        run: |
+          node tests/admin-api.test.mjs
+          node tests/admin-ui.test.mjs
+          RYONG_BROWSER=webkit node tests/admin-ui.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,0 +1,104 @@
+# Publishes ONE bench-tested firmware build to the beta or stable channel, started from
+# keysbeta.ryong.com/admin. Refuses unless scripts/firmware_release_gate.py passes:
+# same file (SHA-256) as was bench-tested, on its own board, every required check passed.
+# Output: a GitHub Release in this (private) repository + channels.json on the firmware-registry branch.
+# Customer web updates additionally need signed packages; this workflow does not sign anything.
+name: Firmware release
+run-name: "${{ github.event_name == 'push' && 'Firmware release workflow registered' || format('Firmware release · r{0} → {1}', inputs.build_run_id, inputs.channel) }}"
+on:
+  # A push of this file only registers the workflow; it publishes nothing.
+  push:
+    branches: [dev/keys-ryong-runtime]
+    paths: ['.github/workflows/firmware-release.yml']
+  workflow_dispatch:
+    inputs:
+      build_run_id: { description: "firmware-build run id", required: true }
+      channel: { description: "beta | stable", required: true, type: choice, options: [beta, stable] }
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: firmware-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN: ${{ inputs.build_run_id }}
+      CHANNEL: ${{ inputs.channel }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect the build, its file and its bench-test record
+        id: collect
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RUN" =~ ^[0-9]{1,20}$ ]] || { echo "::error::bad run id"; exit 1; }
+          mkdir -p /tmp/rel/art
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN" > /tmp/rel/run.json
+          name=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/artifacts" --jq '[.artifacts[] | select(.name | test("^firmware-(bt60|ryong60)-[0-9a-f]{64}$")) | select(.expired | not)][0].name')
+          [ -n "$name" ] && [ "$name" != null ] || { echo "::error::build file missing or expired"; exit 1; }
+          gh run download "$RUN" -n "$name" -D /tmp/rel/art
+          target=$(python3 -c 'import json;print(json.load(open("/tmp/rel/art/build-info.json"))["target"])')
+          uf2=$(python3 -c 'import json;print(json.load(open("/tmp/rel/art/build-info.json"))["uf2"])')
+          [[ "$target" =~ ^(bt60|ryong60)$ && "$uf2" =~ ^[a-z0-9-]+\.uf2$ ]] || { echo "::error::bad build-info"; exit 1; }
+          git fetch --depth=1 origin firmware-registry
+          git show "FETCH_HEAD:validation/$RUN.json" > /tmp/rel/record.json 2>/dev/null || rm -f /tmp/rel/record.json
+          released=""
+          for ch in beta stable; do
+            if gh release view "fw-$target-$ch-r$RUN" >/dev/null 2>&1; then released="$released$ch,"; fi
+          done
+          echo "target=$target" >> "$GITHUB_OUTPUT"; echo "uf2=$uf2" >> "$GITHUB_OUTPUT"; echo "released=$released" >> "$GITHUB_OUTPUT"
+      - name: Gate (only this decides)
+        run: python3 scripts/firmware_release_gate.py "$CHANNEL" /tmp/rel/run.json /tmp/rel/art/build-info.json "/tmp/rel/art/${{ steps.collect.outputs.uf2 }}" /tmp/rel/record.json "${{ steps.collect.outputs.released }}"
+      - name: Publish the release
+        shell: bash
+        env:
+          TARGET: ${{ steps.collect.outputs.target }}
+          UF2: ${{ steps.collect.outputs.uf2 }}
+        run: |
+          set -euo pipefail
+          tag="fw-$TARGET-$CHANNEL-r$RUN"
+          sha=$(python3 -c 'import json;print(json.load(open("/tmp/rel/run.json"))["head_sha"])')
+          cp /tmp/rel/record.json "/tmp/rel/bench-test-r$RUN.json"
+          python3 - > /tmp/rel/notes.md <<'PY'
+          import json
+          info = json.load(open("/tmp/rel/art/build-info.json")); rec = json.load(open("/tmp/rel/record.json"))
+          print(f"Board: **{info['target']}** · build r{info['run_id']} · `{info['git_sha'][:7]}`\n")
+          print(f"UF2 SHA-256: `{info['uf2_sha256']}`\n")
+          print(f"Bench test: {rec['result']} on {rec['tested_board']} at {rec['tested_at']}\n")
+          print("Settings:\n" + "\n".join(f"- `{s}`" for s in info["settings"]))
+          if rec.get("notes"): print("\nNotes: " + rec["notes"])
+          print("\n_Unsigned. Not offered to customers through the web updater until package signing is set up._")
+          PY
+          flags=(); [ "$CHANNEL" = beta ] && flags+=(--prerelease)
+          gh release create "$tag" --target "$sha" --title "${TARGET} ${CHANNEL} · r$RUN" --notes-file /tmp/rel/notes.md "${flags[@]}" \
+            "/tmp/rel/art/$UF2" /tmp/rel/art/build-info.json "/tmp/rel/bench-test-r$RUN.json"
+          echo "url=$(gh release view "$tag" --json url -q .url)" >> /tmp/rel/url
+      - name: Record the channel on firmware-registry
+        shell: bash
+        env:
+          TARGET: ${{ steps.collect.outputs.target }}
+        run: |
+          set -euo pipefail
+          git config user.name "ryong-firmware release"; git config user.email "actions@users.noreply.github.com"
+          git worktree add /tmp/reg FETCH_HEAD
+          cd /tmp/reg
+          git checkout -B firmware-registry
+          python3 - <<'PY'
+          import json, os, datetime
+          from pathlib import Path
+          p = Path("channels.json"); data = json.loads(p.read_text()) if p.exists() else {}
+          info = json.load(open("/tmp/rel/art/build-info.json"))
+          url = open("/tmp/rel/url").read().split("=", 1)[1].strip()
+          data.setdefault(os.environ["TARGET"], {})[os.environ["CHANNEL"]] = {
+            "run_id": info["run_id"], "tag": f"fw-{os.environ['TARGET']}-{os.environ['CHANNEL']}-r{info['run_id']}",
+            "uf2_sha256": info["uf2_sha256"], "released_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "url": url}
+          p.write_text(json.dumps(data, indent=2) + "\n")
+          PY
+          git add channels.json
+          git commit -m "channel: $TARGET $CHANNEL → r$RUN"
+          git push origin firmware-registry

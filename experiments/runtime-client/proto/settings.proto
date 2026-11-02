@@ -1,0 +1,56 @@
+syntax = "proto3";
+package ryong.settings;
+
+// Keyboard-side settings that previously needed a firmware rebuild.
+message Empty {}
+
+message Light {
+    bool use = 1;            // feature switch: off = always dark, keys can't turn it on
+    bool on_at_start = 2;    // lit when the keyboard starts
+    uint32 brightness = 3;   // backlight: brightness; underglow: maximum brightness (0-100)
+    bool usb_only = 4;       // dark on battery, lit again when USB power returns
+}
+
+message Settings {
+    bool sleep_enabled = 1;
+    uint32 sleep_minutes = 2;  // 1-1440
+    Light backlight = 3;
+    Light underglow = 4;
+}
+
+message Capabilities {
+    bool backlight = 1;        // compiled in (the board may still have no LEDs)
+    bool underglow = 2;
+    uint32 sleep_max_minutes = 3;
+}
+
+message State {
+    Settings settings = 1;
+    Capabilities caps = 2;
+    bool backlight_on = 3;
+    bool underglow_on = 4;
+    bool usb_powered = 5;
+    uint32 protocol_version = 6;
+}
+
+message LightPower {
+    uint32 which = 1;  // 0 = backlight, 1 = underglow
+    bool on = 2;
+}
+
+message Status { bool ok = 1; uint32 error = 2; }
+
+message Request {
+    oneof request_type {
+        Empty get_state = 1;
+        Settings set = 2;
+        LightPower power = 3;
+    }
+}
+
+message Response {
+    oneof response_type {
+        State state = 1;
+        Status status = 2;
+    }
+}

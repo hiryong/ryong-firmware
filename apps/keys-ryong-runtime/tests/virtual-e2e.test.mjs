@@ -66,6 +66,7 @@ async function power() {
   if (!(await btn.isVisible())) await page.locator(".ry-virtual button").first().click();
   await btn.click();
   await page.getByRole("button", { name: "가상 키보드: 잠금 해제 키 누르기" }).click({ timeout: 10000 });
+  if (await btn.isVisible()) await page.locator(".ry-virtual button").first().click(); // fold the panel away again
 }
 const tab = (name) => page.getByRole("button", { name: new RegExp(`^${name}( ·)?$`) }).first().click();
 async function saveBehaviors() {
@@ -97,8 +98,7 @@ await step("keymap: change Q to Esc via the VIA grid and save", async () => {
   await key(15).click();
   await page.getByRole("tab", { name: "기본" }).click();
   await page.locator(".ry-via-key", { hasText: /^Esc$/ }).first().click();
-  const r = await ram();
-  assert.equal(usage(r.layers[0].bindings[15].param1), 0x29, "RAM now Esc");
+  await page.waitForFunction(() => (window.__ryongVirtual.ram.layers[0].bindings[15].param1 & 0xffff) === 0x29, null, { timeout: 3000 });
   assert.equal(usage((await flash()).layers[0].bindings[15].param1), usage(beforeQ.param1), "flash untouched before save");
   await page.locator("button:has([aria-label=Save])").click();
   await page.waitForFunction(() => (window.__ryongVirtual.flash.layers[0].bindings[15].param1 & 0xffff) === 0x29, null, { timeout: 5000 });
@@ -340,10 +340,69 @@ await step("bluetooth: pair a new Windows PC on the empty selected slot", async 
   const panelBtn = page.getByRole("button", { name: "Windows", exact: true });
   if (!(await panelBtn.isVisible())) await page.locator(".ry-virtual button").first().click();
   await panelBtn.click();
+  await page.locator(".ry-virtual button").first().click(); // fold the panel
   await page.getByRole("button", { name: "키보드에서 다시 읽기" }).click();
   await page.waitForFunction(() => window.__ryongVirtual.flash.slots[1].bonded, null, { timeout: 3000 });
   await page.getByLabel("슬롯 2", { exact: true }).getByText("연결됨").waitFor({ timeout: 5000 });
   await page.getByLabel("슬롯 1", { exact: true }).getByText("등록됨 · 연결 안 됨").waitFor({ timeout: 5000 });
+});
+
+await step("keysbeta has no firmware menu (firmware lives in /admin)", async () => {
+  assert.equal(await page.getByRole("button", { name: "펌웨어", exact: true }).count(), 0);
+});
+
+await step("keyboard settings: deep sleep off/on and minutes, saved on the keyboard", async () => {
+  await tab("키보드 설정");
+  const pane = page.locator("#ry-device-pane");
+  await pane.getByRole("switch", { name: "깊은 절전" }).waitFor({ timeout: 8000 });
+  assert.equal(await pane.getByRole("switch", { name: "깊은 절전" }).getAttribute("aria-checked"), "true");
+  await pane.getByRole("button", { name: "10분" }).click();
+  await pane.getByRole("button", { name: "키보드에 저장" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device?.settings.sleepMinutes === 10, null, { timeout: 5000 });
+  await pane.getByRole("switch", { name: "깊은 절전" }).click();
+  await pane.getByRole("button", { name: "키보드에 저장" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device?.settings.sleepEnabled === false, null, { timeout: 5000 });
+  assert.equal(await pane.getByRole("button", { name: "10분" }).count(), 0, "minutes hidden while sleep is off");
+  await page.screenshot({ path: `${output}/09-device-settings.png`, fullPage: true });
+});
+
+await step("keyboard settings: backlight use switch, turn on now, USB-only follows the cable", async () => {
+  const pane = page.locator("#ry-device-pane");
+  const bl = pane.getByLabel("백라이트", { exact: true });
+  assert.equal(await bl.getByRole("button", { name: "켜기" }).count(), 0, "no power button while the feature is off");
+  await pane.getByRole("switch", { name: "백라이트 사용" }).click();
+  await bl.getByRole("slider", { name: "밝기" }).focus();
+  for (let i = 0; i < 6; i++) await page.keyboard.press("ArrowRight"); // 40 → 70 in 5% steps
+  await pane.getByRole("button", { name: "키보드에 저장" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device?.settings.backlight.use === true && window.__ryongVirtual.flash.device.settings.backlight.brightness === 70, null, { timeout: 5000 });
+  await bl.getByRole("button", { name: "켜기" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device.blOn === true, null, { timeout: 5000 });
+  await bl.getByRole("switch", { name: "USB 연결 때만 켜기" }).click();
+  await pane.getByRole("button", { name: "키보드에 저장" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.backlight.usbOnly === true, null, { timeout: 5000 });
+  const usb = page.getByRole("button", { name: /USB 케이블/ });
+  if (!(await usb.isVisible())) await page.locator(".ry-virtual button").first().click();
+  await usb.click(); // unplug
+  assert.equal(await page.evaluate(() => window.__ryongVirtual.flash.device.blOn), false, "dark on battery");
+  await usb.click(); // plug back
+  assert.equal(await page.evaluate(() => window.__ryongVirtual.flash.device.blOn), true, "lit again on USB");
+  await page.locator(".ry-virtual button").first().click();
+  // feature off → dark
+  await pane.getByRole("switch", { name: "백라이트 사용" }).click();
+  await pane.getByRole("button", { name: "키보드에 저장" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device.blOn === false && !window.__ryongVirtual.flash.device.settings.backlight.use, null, { timeout: 5000 });
+});
+
+await step("keyboard settings: underglow on at start survives a power cycle", async () => {
+  const pane = page.locator("#ry-device-pane");
+  await pane.getByRole("switch", { name: "RGB 언더글로우 사용" }).click();
+  await pane.getByRole("switch", { name: "USB 연결 때만 켜기" }).last().click(); // off: also on battery
+  await pane.getByRole("button", { name: "키보드에 저장" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.underglow.use && !window.__ryongVirtual.flash.device.settings.underglow.usbOnly, null, { timeout: 5000 });
+  await power();
+  assert.equal(await page.evaluate(() => window.__ryongVirtual.flash.device.ugOn), true, "on at start");
+  await pane.getByRole("button", { name: "키보드에서 다시 읽기" }).click();
+  await pane.getByLabel("RGB 언더글로우", { exact: true }).getByText("켜짐", { exact: true }).waitFor({ timeout: 5000 });
 });
 
 await step("no page errors (desktop)", async () => assert.deepEqual(errors, []));

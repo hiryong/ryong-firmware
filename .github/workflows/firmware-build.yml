@@ -1,0 +1,157 @@
+# Firmware build started from keysbeta.ryong.com/admin (or by hand). Builds ONE board with the
+# chosen basic settings and keeps the UF2 as a private, short-lived Actions artifact for the
+# owner's bench test. It is NOT a release: nothing is published until the release workflow
+# finds a passing bench-test record for exactly this file (see firmware-release.yml).
+name: Firmware build
+run-name: "${{ github.event_name == 'push' && 'Firmware build workflow registered' || format('Firmware build · {0} · {1} · {2}', inputs.target, inputs.label, inputs.request_id) }}"
+on:
+  # A push of this file only registers the workflow so the admin page can start it; it builds nothing.
+  push:
+    branches: [dev/keys-ryong-runtime]
+    paths: ['.github/workflows/firmware-build.yml']
+  workflow_dispatch:
+    inputs:
+      target: { description: "bt60 | ryong60", required: true, type: choice, options: [bt60, ryong60] }
+      label: { description: "Short name", required: false, default: build }
+      idle_timeout_s: { description: "Idle after (s)", required: false, default: "30" }
+      sleep_min: { description: "Default deep sleep (min, 0 = off); users change it on the keyboard", required: false, default: "15" }
+      debounce_press_ms: { description: "Press debounce (ms)", required: false, default: "5" }
+      debounce_release_ms: { description: "Release debounce (ms)", required: false, default: "5" }
+      tx_power: { description: "default | plus4 | plus8", required: false, default: default }
+      request_id: { description: "Set by the admin page to find this run", required: false, default: req-manual }
+permissions:
+  contents: read
+concurrency:
+  group: firmware-build-${{ inputs.request_id || github.run_id }}
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    container: zmkfirmware/zmk-build-arm:stable
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the requested settings (never trust the caller)
+        shell: bash
+        env:
+          TARGET: ${{ inputs.target }}
+          LABEL: ${{ inputs.label }}
+          IDLE: ${{ inputs.idle_timeout_s }}
+          SLEEP: ${{ inputs.sleep_min }}
+          DP: ${{ inputs.debounce_press_ms }}
+          DR: ${{ inputs.debounce_release_ms }}
+          TX: ${{ inputs.tx_power }}
+          REQ: ${{ inputs.request_id }}
+        run: |
+          set -euo pipefail
+          int() { [[ "$1" =~ ^[0-9]{1,5}$ ]] && (( 10#$1 >= $2 && 10#$1 <= $3 )) || { echo "::error::$4 out of range ($2-$3): $1"; exit 1; }; }
+          [[ "$TARGET" == bt60 || "$TARGET" == ryong60 ]] || { echo "::error::bad target"; exit 1; }
+          [[ "$REQ" =~ ^req-[A-Za-z0-9-]{1,40}$ ]] || { echo "::error::bad request id"; exit 1; }
+          [[ ${#LABEL} -le 40 ]] || { echo "::error::label too long"; exit 1; }
+          int "$IDLE" 10 3600 idle_timeout_s; int "$SLEEP" 0 1440 sleep_min
+          int "$DP" 1 30 debounce_press_ms; int "$DR" 1 30 debounce_release_ms
+          [[ "$TX" == default || "$TX" == plus4 || "$TX" == plus8 ]] || { echo "::error::bad tx_power"; exit 1; }
+          if (( 10#$SLEEP > 0 && 10#$SLEEP * 60 <= 10#$IDLE )); then echo "::error::sleep must be longer than idle"; exit 1; fi
+          {
+            echo "CONFIG_ZMK_IDLE_TIMEOUT=$(( 10#$IDLE * 1000 ))"
+            echo "CONFIG_RYONG_RUNTIME_SETTINGS_SLEEP_DEFAULT_MIN=$(( 10#$SLEEP ))"
+            echo "CONFIG_ZMK_KSCAN_DEBOUNCE_PRESS_MS=$(( 10#$DP ))"
+            echo "CONFIG_ZMK_KSCAN_DEBOUNCE_RELEASE_MS=$(( 10#$DR ))"
+            if [ "$TX" = plus4 ]; then echo "CONFIG_BT_CTLR_TX_PWR_PLUS_4=y"; fi
+            if [ "$TX" = plus8 ]; then echo "CONFIG_BT_CTLR_TX_PWR_PLUS_8=y"; fi
+          } > /tmp/admin-settings.conf
+          cat /tmp/admin-settings.conf
+      - name: Prepare workspace
+        shell: bash
+        run: |
+          if [ "${{ inputs.target }}" = bt60 ]; then python3 scripts/prepare_bt60.py /tmp/fw --host-layout
+          else python3 scripts/prepare_zmk.py /tmp/fw; fi
+      - uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/fw/zmk
+            /tmp/fw/zephyr
+            /tmp/fw/modules
+            /tmp/fw/tools
+            /tmp/fw/bootloader
+            /tmp/fw/zmk-feature-runtime-combo
+            /tmp/fw/zmk-feature-runtime-macro
+            /tmp/fw/zmk-feature-custom-settings
+          key: fw-${{ inputs.target }}-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'experiments/dya-runtime/west.yml') }}
+      - name: Resolve pinned dependencies
+        working-directory: /tmp/fw
+        run: |
+          west init -l config
+          west update --fetch-opt=--filter=tree:0
+          west forall -c 'git restore --source=HEAD --worktree --staged .'
+          west zephyr-export
+      - name: Require Studio unlock in external modules
+        run: python3 scripts/secure_runtime_rpc.py /tmp/fw
+      - name: Compile (same module set as the CI-validated runtime build)
+        shell: bash
+        working-directory: /tmp/fw
+        run: |
+          set -euo pipefail
+          W="$GITHUB_WORKSPACE"
+          if [ "${{ inputs.target }}" = bt60 ]; then
+            west build -s zmk/app -d build -b bt60//zmk -S studio-rpc-usb-uart -- -DCONFIG_ZMK_STUDIO=y -DZMK_CONFIG=/tmp/fw/config \
+              "-DZMK_EXTRA_MODULES=/tmp/fw/bt60-module;$W/modules/ryong-holdtap;$W/modules/ryong-host-layout;$W/modules/ryong-update;$W/modules/ryong-ble-profiles;$W/modules/ryong-runtime-settings" \
+              "-DEXTRA_CONF_FILE=$W/experiments/dya-runtime/ryong60-runtime.conf;$W/experiments/host-layout/host-layout.conf;$W/experiments/host-layout/update.conf;$W/experiments/host-layout/ble-profiles.conf;$W/experiments/host-layout/runtime-settings.conf;$W/experiments/bt60-runtime/lights.conf;/tmp/admin-settings.conf" \
+              "-DEXTRA_DTC_OVERLAY_FILE=$W/experiments/bt60-runtime/runtime.overlay;$W/experiments/host-layout/host-layout.overlay" \
+              "-DCONFIG_RYONG_UPDATE_BUILD_ID=\"${GITHUB_SHA}\""
+          else
+            west build -s zmk/app -d build -b ryong60//zmk -S studio-rpc-usb-uart -- -DZMK_CONFIG=/tmp/fw/config \
+              "-DZMK_EXTRA_MODULES=/tmp/fw/board;$W/modules/ryong-holdtap;$W/modules/ryong-ble-profiles;$W/modules/ryong-runtime-settings" \
+              "-DEXTRA_CONF_FILE=$W/experiments/dya-runtime/ryong60-runtime.conf;$W/experiments/host-layout/ble-profiles.conf;$W/experiments/host-layout/runtime-settings.conf;/tmp/admin-settings.conf" \
+              "-DEXTRA_DTC_OVERLAY_FILE=$W/experiments/dya-runtime/ryong60-runtime.overlay"
+          fi
+      - name: Confirm every requested setting reached the firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r line; do
+            key="${line%%=*}"; val="${line#*=}"
+            if [ "$val" = n ]; then grep -qx "# $key is not set" /tmp/fw/build/zephyr/.config || grep -qx "$key=n" /tmp/fw/build/zephyr/.config || { echo "::error::$key not applied"; exit 1; }
+            else grep -qx "$line" /tmp/fw/build/zephyr/.config || { echo "::error::$line not applied"; exit 1; }; fi
+          done < /tmp/admin-settings.conf
+      - name: Package for the bench test (private artifact, 30 days)
+        id: pkg
+        shell: bash
+        env:
+          TARGET: ${{ inputs.target }}
+          LABEL: ${{ inputs.label }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/out/reports
+          short="${GITHUB_SHA:0:7}"
+          uf2="${TARGET}-r${GITHUB_RUN_ID}-${short}.uf2"
+          cp /tmp/fw/build/zephyr/zmk.uf2 "/tmp/out/$uf2"
+          sha=$(sha256sum "/tmp/out/$uf2" | cut -d' ' -f1)
+          cp /tmp/fw/build/zephyr/.config /tmp/out/reports/config.txt
+          cp /tmp/admin-settings.conf /tmp/out/reports/requested-settings.conf
+          python3 - "$uf2" "$sha" <<'PY'
+          import json, os, sys, datetime
+          uf2, sha = sys.argv[1], sys.argv[2]
+          info = {
+            "version": 1, "target": os.environ["TARGET"], "label": os.environ["LABEL"],
+            "run_id": int(os.environ["GITHUB_RUN_ID"]), "git_sha": os.environ["GITHUB_SHA"], "ref": os.environ["GITHUB_REF_NAME"],
+            "uf2": uf2, "uf2_sha256": sha, "uf2_bytes": os.path.getsize("/tmp/out/" + uf2),
+            "settings": open("/tmp/admin-settings.conf").read().splitlines(),
+            "built_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "status": "unvalidated — owner bench test only, not a release",
+          }
+          json.dump(info, open("/tmp/out/build-info.json", "w"), indent=2)
+          PY
+          echo "name=firmware-${TARGET}-${sha}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Firmware build · ${TARGET} · ${LABEL}"
+            echo "- File: \`$uf2\`"
+            echo "- SHA-256: \`$sha\`"
+            echo "- Not a release. Bench-test it and record the result in keysbeta.ryong.com/admin."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pkg.outputs.name }}
+          path: /tmp/out
+          retention-days: 30
+          if-no-files-found: error

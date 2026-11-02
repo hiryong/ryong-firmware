@@ -5,9 +5,10 @@ import { LAYOUTS } from "./behaviors/layouts";
 import { RuntimeBindingsContext } from "./runtime/bindings";
 import type { RuntimeView } from "./runtime/modelBridge";
 import { HostPanel } from "./HostPanel";
+import { DeviceSettingsPanel } from "./DeviceSettingsPanel";
 import { t } from "./i18n";
 
-type Section = "keymap" | "host" | RuntimeSection;
+type Section = "keymap" | "host" | "device" | RuntimeSection;
 
 /** One workspace and connection. Switching sections never unmounts either editor. */
 export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSectionChange, onVirtual }: {
@@ -27,6 +28,7 @@ export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSec
     { id: "tapDances", label: t("Tap Dance", "탭댄스") },
     { id: "settings", label: "Hold-Tap" },
     { id: "host", label: t("Bluetooth", "Bluetooth 기기") },
+    { id: "device", label: t("Keyboard settings", "키보드 설정") },
   ];
   return <main className="ry-workspace" aria-label={t("Keyboard settings", "키보드 설정")}>
     <div className="ry-workspace-top">
@@ -42,8 +44,8 @@ export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSec
     </div>
     <nav className="ry-tabs ry-workspace-tabs" aria-label={t("Keyboard settings sections", "키보드 설정 메뉴")}>
       {tabs.map(tab => <button key={tab.id} className="ry-tab" aria-pressed={section === tab.id}
-        aria-controls={tab.id === "keymap" ? "ry-keymap-pane" : tab.id === "host" ? "ry-host-pane" : "ry-dynamic-pane"}
-        onClick={() => setSection(tab.id)}>{tab.label}{dirty && tab.id !== "keymap" && tab.id !== "host" && <span aria-label={t("Unsaved changes", "저장 안 된 변경")}> ·</span>}</button>)}
+        aria-controls={tab.id === "keymap" ? "ry-keymap-pane" : tab.id === "host" ? "ry-host-pane" : tab.id === "device" ? "ry-device-pane" : "ry-dynamic-pane"}
+        onClick={() => setSection(tab.id)}>{tab.label}{dirty && tab.id !== "keymap" && tab.id !== "host" && tab.id !== "device" && <span aria-label={t("Unsaved changes", "저장 안 된 변경")}> ·</span>}</button>)}
     </nav>
     <RuntimeBindingsContext.Provider value={view}>
     <section id="ry-keymap-pane" className="ry-workspace-keymap" hidden={section !== "keymap"}>
@@ -57,11 +59,12 @@ export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSec
         <p className="ry-note">{t("Connect and unlock your keyboard to edit its real keymap. Explore dynamic settings in the same menu.", "연결하고 잠금을 풀면 실제 키맵을 편집할 수 있습니다. 같은 메뉴에서 동적 설정을 미리 볼 수 있습니다.")}</p>
       </div>}
     </section>
-    <section id="ry-dynamic-pane" className="ry-workspace-dynamic" hidden={section === "keymap" || section === "host"}>
+    <section id="ry-dynamic-pane" className="ry-workspace-dynamic" hidden={section === "keymap" || section === "host" || section === "device"}>
       <BehaviorsEditor connectedName={deviceName} onRuntimeSaved={onSaved} embedded
-        activeSection={section === "keymap" || section === "host" ? "combos" : section} onDirty={setDirty} onView={setView} />
+        activeSection={section === "keymap" || section === "host" || section === "device" ? "combos" : section} onDirty={setDirty} onView={setView} />
     </section>
     <section id="ry-host-pane" className="ry-workspace-dynamic" hidden={section !== "host"}><HostPanel /></section>
+    <section id="ry-device-pane" className="ry-workspace-dynamic" hidden={section !== "device"}><DeviceSettingsPanel /></section>
     </RuntimeBindingsContext.Provider>
   </main>;
 }

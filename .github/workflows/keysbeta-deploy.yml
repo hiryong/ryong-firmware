@@ -1,20 +1,25 @@
 # Deploys the development web app ONLY to a separate Cloudflare Pages project
 # (ryong-keys-beta → keysbeta.ryong.com). It never touches keys.ryong.com or its
-# project. Does nothing until the owner adds the two repository secrets.
-# Static files only: no GitHub sign-in functions, no firmware installs.
+# project. Does nothing until the owner adds the two Cloudflare repository secrets.
+# Uploads the static app plus ONLY the /api/admin functions (admin-functions/); the
+# original app's GitHub sign-in functions are never uploaded.
+# Optional secrets: ADMIN_PASSWORD and ADMIN_GITHUB_TOKEN are copied into the Pages
+# project's encrypted secrets so /admin can sign in and drive the firmware workflows.
 name: keysbeta deploy
 on:
   push:
     branches: [dev/keys-ryong-runtime]
     paths: ['apps/keys-ryong-runtime/**', 'experiments/runtime-client/**', '.github/workflows/keysbeta-deploy.yml']
+env:
+  PROJECT: ryong-keys-beta
+  DOMAIN: keysbeta.ryong.com
+  ZONE: ryong.com
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
   group: keysbeta-deploy
   cancel-in-progress: true
-env:
-  PROJECT: ryong-keys-beta
 jobs:
   deploy:
     runs-on: ubuntu-24.04
@@ -56,10 +61,39 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          ADMIN_GITHUB_TOKEN: ${{ secrets.ADMIN_GITHUB_TOKEN }}
         run: |
-          # Run from an empty folder so the app's sign-in functions/ are never uploaded.
-          mkdir -p /tmp/deploy && cp -r apps/keys-ryong-runtime/dist-runtime /tmp/deploy/site && cd /tmp/deploy
+          # Run from a folder holding only the site and the admin API, so the app's sign-in functions/ are never uploaded.
+          mkdir -p /tmp/deploy && cp -r apps/keys-ryong-runtime/dist-runtime /tmp/deploy/site
+          cp -r apps/keys-ryong-runtime/admin-functions /tmp/deploy/functions && rm -f /tmp/deploy/functions/tsconfig.json
+          cd /tmp/deploy
           npx --yes wrangler@3 pages project list | grep -q " $PROJECT " || npx --yes wrangler@3 pages project create "$PROJECT" --production-branch=main
+          # Admin secrets live encrypted in the Pages project; they are never part of the uploaded files.
+          for name in ADMIN_PASSWORD ADMIN_GITHUB_TOKEN; do
+            if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx --yes wrangler@3 pages secret put "$name" --project-name="$PROJECT" >/dev/null && echo "$name set"; else echo "::notice::$name not set; /admin stays closed until it is."; fi
+          done
           npx --yes wrangler@3 pages deploy site --project-name="$PROJECT" --branch=main --commit-hash="$GITHUB_SHA" --commit-dirty=true
           echo "### keysbeta deployed" >> "$GITHUB_STEP_SUMMARY"
-          echo "Pages project: \`$PROJECT\` · https://$PROJECT.pages.dev (custom domain keysbeta.ryong.com once connected)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pages project: \`$PROJECT\` · https://$PROJECT.pages.dev · https://$DOMAIN" >> "$GITHUB_STEP_SUMMARY"
+      - name: Connect keysbeta.ryong.com (only this name; never keys.ryong.com)
+        if: steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -u
+          api() { curl -sS -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" "$@"; }
+          [ "$DOMAIN" = keysbeta.ryong.com ] || { echo "::error::refusing to touch $DOMAIN"; exit 1; }
+          base="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/pages/projects/$PROJECT/domains"
+          if api "$base/$DOMAIN" | grep -q '"success":true'; then echo "Domain already attached to $PROJECT."
+          else api -X POST "$base" -d "{\"name\":\"$DOMAIN\"}" | tee /tmp/dom.json | grep -q '"success":true' \
+            && echo "Attached $DOMAIN to $PROJECT." || { echo "::warning::Could not attach the domain (token needs Pages:Edit). $(head -c 300 /tmp/dom.json)"; }
+          fi
+          zone=$(api "https://api.cloudflare.com/client/v4/zones?name=$ZONE" | python3 -c 'import json,sys; r=json.load(sys.stdin).get("result") or []; print(r[0]["id"] if r else "")')
+          if [ -z "$zone" ]; then echo "::warning::Token cannot read the $ZONE zone (needs Zone:DNS:Edit). Add the CNAME in the dashboard: keysbeta → $PROJECT.pages.dev"; exit 0; fi
+          if api "https://api.cloudflare.com/client/v4/zones/$zone/dns_records?name=$DOMAIN" | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("result") else 1)'; then echo "DNS record for $DOMAIN already exists; left unchanged."
+          else api -X POST "https://api.cloudflare.com/client/v4/zones/$zone/dns_records" -d "{\"type\":\"CNAME\",\"name\":\"keysbeta\",\"content\":\"$PROJECT.pages.dev\",\"proxied\":true,\"comment\":\"ryong-firmware keysbeta (dev)\"}" \
+            | grep -q '"success":true' && echo "Created CNAME keysbeta → $PROJECT.pages.dev" || echo "::warning::Could not create the DNS record (token needs Zone:DNS:Edit)."
+          fi

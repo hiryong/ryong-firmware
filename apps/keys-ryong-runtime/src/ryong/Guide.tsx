@@ -61,6 +61,7 @@ export const Guide = ({ onTab }: { onTab: (t: HubTab) => void }) => {
 
       {!inApp && <DesktopApp />}
 
+      {import.meta.env.VITE_RYONG_RUNTIME === "1" ? <RuntimeGuide /> : <>
       <div className="ry-sec">
         <h2 className="ry-h2">{t("Three things to tell apart", "구분해야 할 세 가지")}</h2>
         {L(
@@ -157,9 +158,35 @@ export const Guide = ({ onTab }: { onTab: (t: HubTab) => void }) => {
           )}
         </p>
       </div>
+      </>}
     </>
   );
 };
+
+/** keysbeta: everything is changed on the keyboard itself; firmware is the maker's job. */
+const RuntimeGuide = () => (
+  <>
+    <div className="ry-sec">
+      <h2 className="ry-h2">{t("What to change where", "무엇을 어디서 바꾸나")}</h2>
+      <table className="ry-table">
+        <thead><tr><th>{t("To…", "하려는 일")}</th><th>{t("Use", "쓰는 곳")}</th></tr></thead>
+        <tbody>
+          <tr><td>{t("Change a key or a layer", "키·레이어 바꾸기")}</td><td>{t("Keymap → Save", "키맵 → 저장")}</td></tr>
+          <tr><td>{t("Make a combo, macro or tap dance", "콤보·매크로·탭댄스 만들기")}</td><td>{t("Its tab → Save to keyboard. No firmware update, no sign-in.", "각 탭 → 키보드에 저장. 펌웨어 업데이트도, 로그인도 필요 없어요.")}</td></tr>
+          <tr><td>{t("Tap / hold timing", "짧게·길게 누르기 판정")}</td><td>Hold-Tap</td></tr>
+          <tr><td>{t("Lights, deep sleep", "조명, 깊은 절전")}</td><td>{t("Keyboard settings", "키보드 설정")}</td></tr>
+          <tr><td>{t("Name, switch or remove Bluetooth devices", "Bluetooth 기기 이름·전환·삭제")}</td><td>{t("Bluetooth devices", "Bluetooth 기기")}</td></tr>
+          <tr><td>{t("Keep a copy of your keys", "키 설정 보관")}</td><td>{t("Backup", "백업")}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div className="ry-sec">
+      <h2 className="ry-h2">{t("Good to know", "알아두면 좋아요")}</h2>
+      <p className="ry-note">{t("Everything here is stored on the keyboard and survives turning it off. Only what the firmware itself contains (for example N-key rollover) is decided by the keyboard maker.",
+        "여기서 바꾸는 건 모두 키보드에 저장되고 꺼도 유지돼요. 펌웨어 자체에 들어가는 것(예: N키 롤오버)만 키보드 제작자가 정해요.")}</p>
+    </div>
+  </>
+);
 
 const DesktopApp = () => {
   const r = useAppRelease();

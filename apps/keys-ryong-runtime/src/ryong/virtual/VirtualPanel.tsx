@@ -35,7 +35,9 @@ export function VirtualPanel({ onDisconnect }: { onDisconnect: () => void }) {
       <div className="ry-virtual-row">
         <button className="ry-chip" onClick={() => v.setLock(!v.locked)}>{v.locked ? t("Press unlock key", "잠금 해제 키") : t("Lock", "잠그기")}</button>
         <button className="ry-chip" onClick={() => v.reboot()}>{t("Unplug & replug", "껐다 켜기")}</button>
+        <button className="ry-chip" aria-pressed={f.usb} onClick={() => v.setUsb(!f.usb)}>{f.usb ? t("USB cable: in", "USB 케이블: 꽂음") : t("USB cable: out", "USB 케이블: 뺌")}</button>
       </div>
+      <p className="ry-faint" aria-live="polite">{t("Lights", "조명")}: {t("backlight", "백라이트")} {v.device.blOn ? "●" : "○"} · {t("underglow", "언더글로우")} {v.device.ugOn ? "●" : "○"}</p>
       <p className="ry-label">{t("Bluetooth (selected: slot {n})", "Bluetooth (선택: 슬롯 {n})", { n: f.active + 1 })}</p>
       <div className="ry-virtual-row">
         {f.slots.map((s, i) => <button key={i} className="ry-chip" aria-pressed={s.bonded && s.connected} disabled={!s.bonded}

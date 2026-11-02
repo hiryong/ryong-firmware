@@ -874,6 +874,33 @@ header .ry-tabs { flex-wrap: nowrap; white-space: nowrap; }
 @media (max-width: 560px) { .ry-lab { --lab-label: 64px; padding: 12px; } .ry-lab-pad { width: 96px; height: 64px; } }
 @media (prefers-reduced-motion: reduce) { .ry-lab-out { animation: none; } }
 
+/* ===== Keyboard settings (lights, deep sleep) ===== */
+.ry-setcard { gap: 0; padding: 4px 16px; }
+.ry-setrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); }
+.ry-setrow:first-child { border-top: 0; }
+.ry-setrow-t { font-size: 14px; }
+.ry-setrow-c { display: flex; align-items: center; gap: 8px; flex: none; }
+.ry-switch { position: relative; width: 44px; height: 26px; border-radius: 9999px; border: 0; background: rgba(255, 255, 255, 0.18); cursor: pointer; padding: 0; transition: background 0.15s; flex: none; }
+.ry-switch span { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+.ry-switch[aria-checked="true"] { background: var(--ok); }
+.ry-switch[aria-checked="true"] span { transform: translateX(18px); }
+.ry-switch:disabled { opacity: 0.4; cursor: default; }
+.ry-range { display: inline-flex; align-items: center; gap: 10px; }
+.ry-range input { width: 160px; accent-color: var(--ink); }
+.ry-range output { min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; color: var(--soft); }
+.ry-chips { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.ry-num-unit { display: inline-flex; align-items: center; gap: 6px; color: var(--mute); font-size: 13px; }
+.ry-num-unit .ry-num { width: 72px; }
+@media (max-width: 640px) {
+  .ry-setrow { flex-wrap: wrap; }
+  .ry-setrow-c { flex: 1 0 100%; justify-content: flex-start; }
+  .ry-setrow:has(> .ry-setrow-c > .ry-switch:only-child) { flex-wrap: nowrap; }
+  .ry-setrow:has(> .ry-setrow-c > .ry-switch:only-child) .ry-setrow-c { flex: none; }
+  .ry-range input { width: 100%; flex: 1; }
+  .ry-range { flex: 1; }
+  .ry-chips { justify-content: flex-start; }
+}
+
 /* ===== Phones (development copy): usable with the virtual keyboard ===== */
 @media (max-width: 640px) {
   .ry-app, .ry-workspace { overflow-x: hidden; }
