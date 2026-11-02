@@ -139,6 +139,7 @@ jobs:
           dfu=""
           if [[ "$TARGET" == bt60* ]]; then
             # Bluetooth update package for the Adafruit bootloader (legacy Nordic DFU). Development only: unsigned.
+            python3 -m pip --version >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq python3-pip >/dev/null; }
             python3 -m pip install --quiet adafruit-nrfutil==0.5.3.post16 2>/dev/null || python3 -m pip install --quiet --break-system-packages adafruit-nrfutil==0.5.3.post16
             dfu="${TARGET}-r${GITHUB_RUN_ID}-${short}-bluetooth.zip"
             adafruit-nrfutil dfu genpkg --dev-type 0x0052 --sd-req 0xFFFE --application /tmp/fw/build/zephyr/zmk.hex "/tmp/out/$dfu"
