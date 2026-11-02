@@ -1,118 +1,102 @@
 # Runtime integration checkpoint — 2026-11-02
 
-## Protected baseline
+## Scope and protected sources
 
-All writes for this work target only hiryong/ryong-firmware, branch
-dev/keys-ryong-runtime. No production site, source web repository, or original
-board repository was changed or deployed.
+All changes are in hiryong/ryong-firmware, dev/keys-ryong-runtime.
+hiryong/keys-ryong, keys.ryong.com and the original board repositories remain
+read-only; no production deployment or original-repository Actions were triggered.
+The owner confirms production Keys · ryong already fully supports BT60 v2.
+That existing support is the baseline, not a feature to recreate.
 
-apps/keys-ryong is an independent source/assets copy of the original app at
-5e7b2239746002ec2c07faaead31b10cf3848622. The 298 imported Git blob hashes
-are recorded in apps/baseline-manifest.json and checked in CI.
-Only the prebuilt Mac DMG and Windows EXE are excluded. Source, lockfile,
-fonts, styling, Studio, Firmware, advanced editor, backup, auth functions and
-desktop source are preserved. Building is supported; this copy has no configured
-deployment or independently configured OAuth session. A build does not test login.
+apps/keys-ryong preserves 298 exact original source/assets blobs at
+5e7b2239746002ec2c07faaead31b10cf3848622 (prebuilt installers excluded).
+apps/baseline-manifest.json verifies them. All editable integration lives in
+apps/keys-ryong-runtime. Existing Studio, Firmware, backup, login and design
+remain in the original copy. A successful build does not verify OAuth login.
 
-## Firmware experiment
+## Firmware and BT60 fixture
 
-The pinned manifest selects cormoran's custom-Studio ZMK fork plus MIT combo,
-macro and custom-settings modules. It is not an upstream-only solution.
-The top-level feature/fork commits are pinned. The fork imports Zephyr through
-a maintenance-branch ref; CI captures the resolved commit graph (archived at
-docs/build-evidence/34a0f3d-baseline-west.yml), but a fully
-frozen transitive manifest is still required for a reproducible release.
-Both comparison builds use that same pinned fork; only the runtime build enables
-the feature overlay. An independent official-ZMK baseline comparison is still needed.
+Pinned cormoran ZMK/custom Studio plus MIT runtime-combo, runtime-macro and
+custom-settings modules compile for Ryong60 and independently for bt60//zmk.
+This is a documented custom-fork dependency, not an upstream-only solution.
+BT60 uses its own source copied from hiryong/zmk-config-bt60 at
+dbf49fcdf3e5c45b0960859919b91361e33fa36f; no Ryong60 hardware/power code is reused.
+The fixture manifest uses the archived fully resolved 59-project snapshot.
+Original sources remain unchanged; inactive invalid underglow options are removed
+only in disposable build copies.
 
-The imported hardware tree remains unchanged. prepare_zmk.py copies it into an
-isolated workspace, then removes only two inactive underglow options from that
-copy to satisfy newer Kconfig. This does not enable lighting.
-The runtime overlay adds rmacro's behavior without replacing the default keymap.
+Experiment bounds: 8 combos, 4 positions/combo, 8 macros, 256 encoded bytes/macro,
+1024 shared macro bytes. These are not product capacity promises.
+The fail-closed security patch changes all three custom subsystem registrations
+to SECURED and enables Studio locking. Host checks and native snapshots verify
+metadata; real locked/unlocked RPC enforcement remains unverified.
 
-Provisional experiment limits: 8 combos, 4 positions per combo, 8 macros,
-256 encoded bytes per macro, 1024-byte shared macro pool.
-These are experiment bounds, not a product capacity promise.
+## Runtime editor implemented
 
-## Security
+The isolated runtime app aliases every Studio-client import to the pinned
+compatible custom client at 3a759c4bd259d8d8f7c3783a9fa90a3048adfc47.
+Standard Studio and custom RPC share the existing connection and call_rpc queue.
+Protocol compatibility is checked by encode/decode before I/O; subsystem indices,
+behavior IDs, physical position count and limits are discovered from the device.
 
-The pinned combo RPC registration is UNSECURED; unlike the macro module's
-per-request checks, its write dispatcher has no unlock check. The build script
-changes the registrations for combo, macro and custom-settings to SECURED.
-Studio locking is explicitly enabled for the runtime board build.
-The script verifies all three expected registrations before editing any file;
-unexpected upstream changes fail closed. This intentionally locks reads too.
+The existing combo/macro editor and BehaviorDoc are reused in a separate runtime
+panel. Read, edit, save and reload paths are implemented. Symbolic behavior
+conversion preserves modifiers, layers, Bluetooth/output commands, macro text
+and timing. Unchanged packed macros retain their original wire representation.
+Unsupported settings, Tap Dance and Hold-Tap are explicitly rejected, never dropped.
+All GitHub mutations are disabled in the runtime development copy.
 
-Four host tests verify the patch mechanics, required secured snapshot metadata and build isolation. Only actual RPC
-locked/unlocked tests can prove end-to-end enforcement; those remain required.
+Save validates bounded input, lock state, a fresh snapshot, concurrency and a
+durable browser journal before writing. Macro bodies and combo records are read
+back. Rename creates a spare slot, persists replacement bodies, updates/persists
+combo and standard-keymap references, then deletes the old macro LAST.
+Delete first removes durable references. Dirty standard keymaps are rejected.
+No automatic retry follows an ambiguous write; the recovery journal is retained.
+This avoids dangling references in modeled interruption cases, but the entire
+profile remains a sequence of per-module writes, not an atomic transaction.
+A journal exists; complete user-guided recovery is still pending.
 
-## Client integration boundary
+## Offline preview
 
-The preserved app uses standard zmk-studio-ts-client 0.0.18. Its generated
-protobuf codec does not carry the fork's custom subsystem messages.
-Do not cast a custom request into the old codec: it can silently omit that data.
-Do not open a second serial connection to compete with the existing Studio stream.
+The standalone HTML reuses the real existing editor against a browser-only mock.
+USB/BLE transports and GitHub writes are disabled. It saves only preview state in
+browser storage. No firmware, device connection or installation is required.
+The packer inlines app code/styles/assets; CI opens the actual file:// output.
+It demonstrates UI and model behavior, not physical persistence or RPC compatibility.
 
-A read-only adapter now exists at apps/keys-ryong/src/ryong/runtime/customRpc.ts.
-It uses the existing call_rpc queue, resolves subsystem indices from discovery,
-and only exposes discovery/catalog reads. It rejects a codec that drops custom
-messages before any I/O. It is not imported by the UI and cannot save edits.
-Adapter tests cover mock discovery/lock/error paths; installed-codec preflight
-is also checked separately in app CI. This is not an end-to-end device test.
+## Verification evidence
 
-A candidate MIT client fork is cormoran/zmk-studio-ts-client at
-3a759c4bd259d8d8f7c3783a9fa90a3048adfc47, but it has NOT been integrated or
-regression tested here. A single shared connection and request serialization
-must serve both standard Studio and custom RPCs.
-
-Use the existing BehaviorDoc and editor. Negotiate subsystem identifiers rather
-than hard-coding subsystem indices. Learn device limits and behavior IDs.
-Macro slots are assigned by the device and must be read back, never inferred
-from array order. Preserve wait/tap timing, text semantics and references.
-Unsupported settings, Tap Dance and Hold-Tap must be reported explicitly;
-never silently drop them.
-
-The existing editor currently still uses its original GitHub/build workflow.
-No runtime save button is enabled. No claim of working browser runtime editing
-is made at this checkpoint.
-
-## Remaining software gates
-
-- Extend the seven passing upstream native snapshots with Ryong-specific interaction, authorization and fault-injection scenarios.
-- Runtime RPC interoperability with existing Studio and the original editor.
-- Locked-write rejection, disconnect/reconnect and BLE authorization.
-- Concurrent edit/playback behavior and cancellation with key-release guarantees.
-- Persistence across restart and interrupted saves, including macro-slot reuse.
-- Profile-level consistency: upstream per-item persistence is not an atomic
-  multi-combo/macro document transaction.
-- CRC16 local-ID migration vs original stored keymaps and BLE bond preservation.
-- Hold-Tap/Tap Dance feasibility after combo/macro support is proven.
-
-## Hardware test gate — closed
-
-No UF2/HEX/BIN/ELF is uploaded by validation CI, and no release is published.
-CI keeps only configuration, devicetree, map, dependency and size diagnostics.
-
-The original board Kconfig defaults BOARD_ENABLE_DCDC to y and selects
-SOC_DCDC_NRF52X, while its DTS comment says to retain LDO because module
-inductance is unconfirmed. Resolve this source/hardware discrepancy before
-real-board testing. Do not silently choose a regulator mode.
-
-Exact board revision, bootloader version, recoverable USB entry procedure,
-known-good restoration image and storage/bond compatibility are unconfirmed.
-Existing battery-polarity/USB-current audit questions also remain hardware gates.
-No user flashing or physical test is requested.
-
-
-## Verified CI checkpoint
-
-- Firmware baseline + runtime compile, seven native snapshots and actual memory reports:
+- Ryong60 baseline/runtime compile, 7 native event snapshots and memory diagnostics:
   https://github.com/hiryong/ryong-firmware/actions/runs/41367763843
-- GCC/Clang host tests and four Python build/security regression tests:
+- GCC/Clang core and 4 build/security tests:
   https://github.com/hiryong/ryong-firmware/actions/runs/41367763854
-- All 298 preserved files, runtime read-adapter tests (including installed codec) and web build:
-  https://github.com/hiryong/ryong-firmware/actions/runs/41367974198
+- BT60 baseline/runtime compile, isolated target and dependency diagnostics:
+  https://github.com/hiryong/ryong-firmware/actions/runs/41370026985
+- Runtime UI combo/macro save/reload and standalone file browser verification:
+  https://github.com/hiryong/ryong-firmware/actions/runs/41372225390
+- Full client/model/service and browser verification, including 20 interruption/
+  response-loss points for macro rename/delete, UI rename/delete/save/reload and
+  standalone file:// preview:
+  https://github.com/hiryong/ryong-firmware/actions/runs/41373082666
+  Tested source: 604675d4f2bc9f9644552f340bfb09c07ea5cab0.
+  Earlier failed browser runs were corrected test selectors, not device evidence.
 
-The firmware CI source revision is 34a0f3da194da6b90bd6c68ef09e5f85c4867480.
-The app adapter CI source revision is 81bee5aa94f4a2e03ab7cd24662d0edabdaaca43.
-Subsequent checkpoint documentation does not change either tested implementation.
+Mock restart/ACK-loss tests do not establish real flash power-loss safety.
+Build output is not hardware verification. No installable image is published.
+
+## Remaining gates
+
+1. Actual device interoperability, locked writes, reconnect, BLE authorization,
+   simultaneous playback/editing and key-release behavior.
+2. Real restart/interrupted persistence and guided journal recovery.
+3. Original SETTINGS_TABLE behavior IDs versus runtime CRC16 IDs: migrate by
+   discovered behavior names, preserve stored keymaps and BLE bonds, and verify
+   rollback. Do not reset settings as a shortcut.
+4. Hold-Tap/Tap Dance module integration and corresponding firmware/native tests.
+5. Confirm the actual BT60 unit, known-good firmware and reliable bootloader entry
+   even after an application failure before requesting physical tests.
+6. Ryong60 has a separate unresolved DCDC/LDO source discrepancy; do not apply
+   that board's electrical choices to BT60.
+
+No UF2/HEX/BIN/ELF is uploaded, no physical test is requested, and no production
+sign-off is claimed.
