@@ -35,6 +35,8 @@ import { baseKeyName, baseLabels, findInKeymap, KeyLabel, keysAt, positionsAt, P
 import { useSub } from "../../usePubSub";
 import { WakePicker } from "../PowerInfo";
 import { KeyPress } from "../UnlockAnim";
+import { BehaviorLab } from "./BehaviorLab";
+import type { MacroItem } from "./labEngine";
 
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
 import { compileDocument, loadRuntimeView, RuntimeView, viewDocument } from "../runtime/modelBridge";
@@ -661,8 +663,9 @@ const Editor = ({
                         : undefined
                     }
                   >
-                    {c.keys.length >= 1 && c.keys.length <= 2 && c.keys.every((p) => comboKeys[p]) && (
-                      <KeyPress keys={c.keys.map((p) => ({ label: comboKeys[p][4], x: comboKeys[p][0], y: comboKeys[p][1], w: comboKeys[p][2] }))} mode={c.keys.length > 1 ? "together" : "single"} />
+                    {c.keys.length >= 2 && c.keys.length <= 4 && (
+                      <BehaviorLab lab={{ kind: "combo", timeout: c.timeout, comboLabel: bindingLabel(c.binding, doc, layers),
+                        keyLabels: c.keys.map((p) => comboKeys[p]?.[4] ?? String(p)) }} />
                     )}
                     <Field label={t("Name", "이름")}>
                       <input type="text" value={c.name} onChange={(e) => update("combos", c.id, { name: e.target.value })} />
@@ -724,6 +727,8 @@ const Editor = ({
                         onChange={(steps) => update("macros", m.id, { steps })}
                       />
                     </Field>
+                    {m.steps.length > 0 && <BehaviorLab lab={{ kind: "macro", name: m.name, wait: m.wait, tap: m.tap, steps: m.steps.map((st): MacroItem =>
+                      st.t === "wait" ? { kind: "wait", label: "", ms: st.ms } : st.t === "text" ? { kind: "text", label: st.text } : { kind: st.t, label: bindingLabel(st.binding, doc, layers) }) }} />}
                     <div className="ry-two">
                       <Field label="wait-ms" hint={t("Time between steps.", "단계 사이 시간이에요.")}>
                         <Num value={m.wait} onChange={(wait) => update("macros", m.id, { wait })} min={0} max={1000} />
@@ -782,6 +787,7 @@ const Editor = ({
                         </button>
                       </div>
                     </Field>
+                    {td.bindings.length > 0 && <BehaviorLab lab={{ kind: "tapDance", term: td.term, labels: td.bindings.map((b) => bindingLabel(b, doc, layers)) }} />}
                     <Field label="tapping-term-ms" hint={t("Wait for the next tap. Usually 200.", "다음 탭을 기다리는 시간이에요. 보통 200.")}>
                       <Num value={td.term} onChange={(term) => runtime ? setDoc(d=>({...d,tapDances:d.tapDances.map(x=>({...x,term}))})) : update("tapDances", td.id, { term })} min={50} max={1000} />
                     </Field>
@@ -1148,6 +1154,13 @@ const SettingsEditor = ({ doc, setDoc, kb, skip = [] }: { doc: BehaviorDoc; setD
                 <p className="ry-note" style={{ margin: 0 }}>
                   {t("{k} turns off and on with {p}.", "{k}의 전원 끄기·켜기: {p}", { k: kb.name, p: kb.powerKey })}
                 </p>
+              )}
+              {(behavior === "mt" || behavior === "lt") && (
+                <BehaviorLab lab={{ kind: "holdTap",
+                  term: Number(cur["tapping-term-ms"] ?? spec.props["tapping-term-ms"]?.def ?? 200),
+                  quickTap: Number(cur["quick-tap-ms"] ?? spec.props["quick-tap-ms"]?.def ?? 0),
+                  flavor: String(cur.flavor ?? spec.props.flavor?.def ?? "hold-preferred"),
+                  tapLabel: behavior === "mt" ? "F" : "Space", holdLabel: behavior === "mt" ? "Shift" : t("Layer 1", "레이어 1") }} />
               )}
               {Object.entries(spec.props).map(([prop, ps]) => (
                 <Field key={prop} label={ps.label()} hint={ps.hint?.()}>

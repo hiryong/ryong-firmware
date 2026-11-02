@@ -373,7 +373,8 @@ function App() {
                     </button>
                   ))}
                   <LangToggle />
-                  <AccountBadge onOpen={() => setHubTab("firmware")} />
+                  {/* development copy: no GitHub sign-in anywhere */}
+                  {import.meta.env.VITE_RYONG_RUNTIME !== "1" && <AccountBadge onOpen={() => setHubTab("firmware")} />}
                 </nav>
               }
             />
