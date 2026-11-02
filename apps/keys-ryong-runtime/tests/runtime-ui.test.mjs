@@ -111,7 +111,7 @@ try {
   assert.deepEqual(mutations, []);
   await fs.writeFile(output + "/result.json", JSON.stringify({ passed: true,
     mode: "browser-only preview; no device attached", checks: ["original editor rendering", "combo edit/save/reload",
-      "macro text edit/save/reload", "no JavaScript page errors", "zero HTTP mutations"] }, null, 2));
+      "macro text edit/save/reload", "Tap Dance actions/save/reload", "Hold-Tap timing/save/reload", "dynamic backup download/import", "standalone file:// preview", "no JavaScript page errors", "zero HTTP mutations"] }, null, 2));
   console.log("PASS: original runtime editor browser preview, combo/macro saves and reload, zero remote mutations");
 } catch (error) {
   await page.screenshot({ path: output + "/failure.png", fullPage: true });

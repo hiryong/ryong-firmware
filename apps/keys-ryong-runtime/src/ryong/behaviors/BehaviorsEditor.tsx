@@ -108,7 +108,7 @@ export const BehaviorsEditor = ({ connectedName, onRuntimeSaved }: { connectedNa
   );
   if (import.meta.env.VITE_RYONG_RUNTIME === "1") {
     const runtimeIntro = <div className="ry-sec">
-      <h1 className="ry-h1">{t("Combos & Macros", "콤보·매크로")}</h1>
+      <h1 className="ry-h1">{t("Dynamic settings", "동적 설정")}</h1>
       <p className="ry-lead">{preview
         ? t("Preview · stored in this browser only. No keyboard is changed.", "미리보기 · 이 브라우저에만 저장하며 실제 키보드는 변경하지 않습니다.")
         : t("Runtime development · edit the connected keyboard without rebuilding.", "런타임 개발본 · 연결한 키보드에 재빌드 없이 저장합니다.")}</p>
