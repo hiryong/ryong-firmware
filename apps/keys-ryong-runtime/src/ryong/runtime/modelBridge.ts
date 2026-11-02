@@ -40,6 +40,8 @@ export async function loadRuntimeView(conn: RpcConnection): Promise<RuntimeView>
     }
   }
   if (!catalog.kp || !catalog.ref) throw new Error("Key Press / Runtime Macro behavior is unavailable.");
+  session.port.runtimeMacroBehaviorId = catalog.ref;
+  session.port.noneBehaviorId = catalog.none;
   const keymap = (await call_rpc(conn, { keymap: { getKeymap: true } })).keymap?.getKeymap;
   if (!keymap) throw new Error("Device keymap is unavailable.");
   return { session, snapshot, catalog, layerNames: keymap.layers.map(layer => layer.name) };
