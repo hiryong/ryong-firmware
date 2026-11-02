@@ -63,7 +63,7 @@ try {
   assert.equal(await page.locator(".ry-item.is-open input[type=number]").inputValue(), "65");
   await page.getByRole("button", { name: /^매크로/ }).click();
   await page.getByRole("button", { name: /Hello renamed/ }).first().waitFor();
-  await page.locator(".ry-item").first().getByRole("button", { name: "삭제", exact: true }).click();
+  await page.locator(".ry-item").first().getByRole("button", { name: /삭제$/ }).click();
   await page.getByRole("button", { name: "미리보기 저장", exact: true }).click();
   await page.getByText("미리보기를 이 브라우저에 저장했습니다.", { exact: true }).waitFor();
   assert.equal(await page.locator(".ry-item").count(), 0);
