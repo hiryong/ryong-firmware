@@ -1,17 +1,20 @@
 import type { BehaviorDoc, Binding } from "../behaviors/model";
 import { compileDocument, RuntimeView, viewDocument } from "./modelBridge";
 
+const compatibility = (view:RuntimeView) => ({
+  behaviors:Object.keys(view.catalog).sort(),layers:view.layerNames,positions:view.session.port.physicalKeyCount,
+});
 export function exportProfile(doc: BehaviorDoc, view: RuntimeView) {
-  return JSON.stringify({format:"ryong-runtime-backup",version:1,createdAt:new Date().toISOString(),
-    compatibility:{catalog:view.catalog,layers:view.layerNames,positions:view.session.port.physicalKeyCount},
+  return JSON.stringify({format:"ryong-runtime-backup",version:2,createdAt:new Date().toISOString(),
+    compatibility:compatibility(view),
     doc},null,2);
 }
 /** Restore by names, never trust slots/IDs from an imported file. No I/O. */
 export function importProfile(text: string, view: RuntimeView): BehaviorDoc {
   if (text.length > 262144) throw new Error("Backup exceeds 256 KiB.");
   const data = JSON.parse(text);
-  if (data?.format !== "ryong-runtime-backup" || data.version !== 1 ||
-      JSON.stringify(data.compatibility) !== JSON.stringify({catalog:view.catalog,layers:view.layerNames,positions:view.session.port.physicalKeyCount})) {
+  if (data?.format !== "ryong-runtime-backup" || data.version !== 2 ||
+      JSON.stringify(data.compatibility) !== JSON.stringify(compatibility(view))) {
     throw new Error("Backup format or firmware/layout compatibility differs. No settings changed.");
   }
   const doc = data.doc as BehaviorDoc;

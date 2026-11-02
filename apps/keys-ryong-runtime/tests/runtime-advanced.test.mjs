@@ -21,6 +21,9 @@ assert.equal(viewDocument(view).tapDances[0].id,id);
 assert.equal(viewDocument(view).tapDances[0].bindings.length,1);
 const text=exportProfile(viewDocument(view),view);const restored=importProfile(text,view);
 assert.equal(restored.tapDances[0].id,id);
+const changedIds={...view,catalog:{...view.catalog,kp:201,ref:202,mt:217,lt:218,rtd:219}};
+// Backup compatibility uses semantic behavior names, not firmware-local numbers.
+assert.equal(JSON.parse(exportProfile(viewDocument(view),changedIds)).version,2);
 const wrong=JSON.parse(text);wrong.compatibility.positions=62;
 assert.throws(()=>importProfile(JSON.stringify(wrong),view),/compatibility/);
 assert.throws(()=>importProfile("x".repeat(262145),view),/256/);

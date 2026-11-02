@@ -71,6 +71,9 @@ try {
   await page.getByRole("button", {name:"새 탭댄스",exact:true}).click();
   await page.locator(".ry-item.is-open input[type=text]").first().fill("Double test");
   await page.locator(".ry-item.is-open input[type=number]").fill("250");
+  const danceKeys=page.locator(".ry-item.is-open").getByRole("combobox",{name:"키",exact:true});
+  await danceKeys.nth(0).fill("A");await danceKeys.nth(0).press("Enter");
+  await danceKeys.nth(1).fill("B");await danceKeys.nth(1).press("Enter");
   await page.getByRole("button", {name:"미리보기 저장",exact:true}).click();
   await page.getByText("미리보기를 이 브라우저에 저장했습니다.",{exact:true}).waitFor();
   await page.getByRole("button", {name:/^설정/}).click();
