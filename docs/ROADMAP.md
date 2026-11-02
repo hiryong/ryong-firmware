@@ -59,3 +59,14 @@ no physical test is requested, and no production deployment is authorized.
 
 See RUNTIME_INTEGRATION.md for exact source/run evidence and
 FIRMWARE_UPDATES.ko.md for the Korean update/recovery guide.
+
+## Per-host Apple layout (new request)
+
+- [x] Host-only policy prototype and tests: Apple vs Windows-standard fallback,
+  per-profile separation, manual override, re-pair reset and held-key latching.
+- [ ] Pin/audit the external OS detector, debounce live BLE guesses and integrate
+  the actual ZMK binding/endpoint adapter.
+- [ ] Versioned settings, secured RPC, profile UI and backup integration.
+- [ ] BT60 firmware/native-event and real Mac/iOS/Windows verification.
+
+See HOST_OS_LAYOUT.ko.md. This is not yet a working firmware feature.
