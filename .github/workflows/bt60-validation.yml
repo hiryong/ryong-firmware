@@ -2,7 +2,7 @@ name: BT60 v2 test fixture compile
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['hardware/test-fixtures/bt60-v2/**', 'experiments/bt60-runtime/**', 'scripts/prepare_bt60.py', '.github/workflows/bt60-validation.yml']
+    paths: ['hardware/test-fixtures/bt60-v2/**', 'experiments/bt60-runtime/**', 'scripts/prepare_bt60.py', 'scripts/secure_runtime_rpc.py', 'modules/**', 'experiments/dya-runtime/**', '.github/workflows/bt60-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -46,7 +46,7 @@ jobs:
         run: |
           EXTRA=()
           if [ "$VARIANT" = runtime ]; then
-            EXTRA=("-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/bt60-runtime/runtime.overlay")
+            EXTRA=("-DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module;$GITHUB_WORKSPACE/modules/ryong-holdtap" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/bt60-runtime/runtime.overlay")
           fi
           west build -s zmk/app -d build -b bt60//zmk -S studio-rpc-usb-uart -- -DCONFIG_ZMK_STUDIO=y -DZMK_CONFIG=/tmp/bt60-build/config -DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module "${EXTRA[@]}"
       - name: Diagnostic reports only

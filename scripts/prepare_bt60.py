@@ -17,3 +17,14 @@ if "CONFIG_ZMK_RGB_UNDERGLOW=n" not in text:
     raise SystemExit("Re-audit underglow settings")
 unused = ("CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_USB=", "CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX=")
 conf.write_text("".join(line for line in text.splitlines(keepends=True) if not line.startswith(unused)))
+
+# Add only the pinned advanced module to the frozen dependency graph.
+import yaml
+manifest_path = dest / "config/west.yml"
+manifest = yaml.safe_load(manifest_path.read_text())
+manifest["manifest"]["projects"].append({
+    "name": "zmk-feature-runtime-tapdance",
+    "url": "https://github.com/cormoran/zmk-feature-runtime-tapdance",
+    "revision": "3ed2c36ed94b16601eeba2ed39a27cc93e9a53ee",
+})
+manifest_path.write_text(yaml.safe_dump(manifest, sort_keys=False))

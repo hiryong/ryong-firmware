@@ -1,0 +1,11 @@
+config ZMK_RUNTIME_HOLDTAP
+    bool "Ryong runtime hold-tap timing"
+    select SETTINGS
+    default n
+config ZMK_RUNTIME_HOLDTAP_SLOTS
+    int
+    default 8
+    range 1 8
+config ZMK_RUNTIME_HOLDTAP_STUDIO_RPC
+    bool
+    default y if ZMK_RUNTIME_HOLDTAP && ZMK_STUDIO

@@ -22,6 +22,7 @@ jobs:
         run: |
           mkdir -p generated-runtime-proto
           protoc --plugin=protoc-gen-ts_proto="$GITHUB_WORKSPACE/vendor/runtime-studio-client/node_modules/.bin/protoc-gen-ts_proto" --ts_proto_out=generated-runtime-proto --ts_proto_opt=env=browser,esModuleInterop=true --proto_path=experiments/runtime-client/proto experiments/runtime-client/proto/*.proto
+          cp generated-runtime-proto/{runtime_tapdance,holdtap}.ts apps/keys-ryong-runtime/src/ryong/runtime/proto/
       - uses: actions/upload-artifact@v4
         with:
           name: generated-runtime-protocol

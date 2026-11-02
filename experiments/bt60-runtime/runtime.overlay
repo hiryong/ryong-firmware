@@ -1,2 +1,7 @@
 /* Behavior definition only: no Ryong60 pins, partitions or power code. */
 #include <behaviors/runtime_macro.dtsi>
+
+#include <behaviors/runtime_tapdance.dtsi>
+/* Same mt/lt labels and child behavior bindings; only timing storage changes. */
+&mt { compatible = "zmk,behavior-runtime-hold-tap"; };
+&lt { compatible = "zmk,behavior-runtime-hold-tap"; };

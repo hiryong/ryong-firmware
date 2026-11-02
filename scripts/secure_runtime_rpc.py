@@ -5,6 +5,7 @@ import sys
 root = Path(sys.argv[1])
 handlers = [
     ("zmk-feature-runtime-combo", "src/studio/runtime_combo_handler.c"),
+    ("zmk-feature-runtime-tapdance", "src/studio/runtime_tapdance_handler.c"),
     ("zmk-feature-runtime-macro", "src/studio/runtime_macro_handler.c"),
     ("zmk-feature-custom-settings", "src/studio/custom_settings_handler.c"),
 ]

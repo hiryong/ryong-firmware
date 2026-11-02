@@ -16,6 +16,9 @@ manifest:
     - name: zmk-feature-runtime-macro
       remote: cormoran
       revision: 38530962eb7061b60efcb98e84585cfb1f0cb6de
+    - name: zmk-feature-runtime-tapdance
+      remote: cormoran
+      revision: 3ed2c36ed94b16601eeba2ed39a27cc93e9a53ee
     - name: zmk-feature-custom-settings
       remote: cormoran
       revision: c6a7fef3a3be3d3ace5de9a4b0628c6418cd1f3f
