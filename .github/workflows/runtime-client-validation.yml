@@ -2,7 +2,7 @@ name: Runtime client compatibility
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['experiments/runtime-client/**', 'apps/keys-ryong/vite.runtime.config.ts', 'apps/keys-ryong/tsconfig.runtime.json', '.github/workflows/runtime-client-validation.yml']
+    paths: ['experiments/runtime-client/**', 'apps/keys-ryong-runtime/**', 'apps/keys-ryong/vite.runtime.config.ts', 'apps/keys-ryong/tsconfig.runtime.json', '.github/workflows/runtime-client-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -35,8 +35,11 @@ jobs:
           python3 ../verify_baseline.py
           node tests/runtime-read.test.mjs
           bash scripts/ryong-build.sh
+      - name: Install editable runtime app
+        working-directory: apps/keys-ryong-runtime
+        run: npm ci
       - name: Build custom client variant without changing original app dependencies
-        working-directory: apps/keys-ryong
+        working-directory: apps/keys-ryong-runtime
         run: |
           npx tsc -p tsconfig.runtime.json
           npx vite build --config vite.runtime.config.ts --outDir dist-runtime
@@ -46,5 +49,5 @@ jobs:
           path: |
             vendor/runtime-studio-client/lib
             vendor/runtime-studio-client/LICENSE
-            apps/keys-ryong/dist-runtime
+            apps/keys-ryong-runtime/dist-runtime
 # No deployment, no production credentials, no firmware binaries.

@@ -1,5 +1,5 @@
 /**
- * Read-only custom RPC adapter. No save/edit operation is exposed yet.
+ * Custom RPC adapter for the isolated development app.
  * Uses the existing connection and call_rpc mutex; never opens another port.
  */
 import { Request, call_rpc } from "@zmkfirmware/zmk-studio-ts-client/index";
@@ -77,4 +77,17 @@ export async function readRuntimeCatalogs(conn: RpcConnection) {
   };
   // Serialize with the existing Studio queue. Never compete for its reader.
   return { combos: await read(comboIndex), macros: await read(macroIndex) };
+}
+
+/** Low-level payload exchange; device firmware still enforces Studio unlock. */
+export async function callRuntimePayload(conn: RpcConnection, index: number, payload: Uint8Array) {
+  if (!Number.isInteger(index) || index < 0 || index > 65535 || payload.length > 160) {
+    throw new Error("Runtime request exceeds the validated transport bounds.");
+  }
+  const encoded = btoa(Array.from(payload, byte => String.fromCharCode(byte)).join(""));
+  const response = await send(conn, { call: { subsystemIndex: index, payload: encoded } });
+  if (response.call?.subsystemIndex !== index || !(response.call.payload instanceof Uint8Array)) {
+    throw new Error("Mismatched runtime response.");
+  }
+  return response.call.payload;
 }
