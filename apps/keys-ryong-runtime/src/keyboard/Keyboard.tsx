@@ -1,3 +1,4 @@
+import { RuntimeBindingPicker } from "../ryong/runtime/RuntimeBindingPicker";
 import React, {
   SetStateAction,
   useCallback,
@@ -587,6 +588,7 @@ export default function Keyboard() {
       )}
       {keymap && selectedBinding && (
         <div className="p-2 col-start-2 row-start-2 bg-base-200">
+          {import.meta.env.VITE_RYONG_RUNTIME === "1" && <RuntimeBindingPicker binding={selectedBinding} onChange={doUpdateBinding} />}
           <BehaviorBindingPicker
             binding={selectedBinding}
             behaviors={Object.values(behaviors)}

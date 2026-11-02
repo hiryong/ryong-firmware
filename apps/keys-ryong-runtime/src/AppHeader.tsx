@@ -19,6 +19,7 @@ import { GenericModal } from "./GenericModal";
 import type { ReactNode } from "react";
 
 export interface AppHeaderProps {
+  editingKeymap?: boolean;
   connectedDeviceLabel?: string;
   onSave?: () => void | Promise<void>;
   onDiscard?: () => void | Promise<void>;
@@ -34,6 +35,7 @@ export interface AppHeaderProps {
 
 export const AppHeader = ({
   connectedDeviceLabel,
+  editingKeymap = true,
   canRedo,
   canUndo,
   onRedo,
@@ -131,7 +133,7 @@ export const AppHeader = ({
       </MenuTrigger>
       <div className="flex justify-end items-center gap-1 px-2">
         {extra}
-        {onUndo && (
+        {editingKeymap && onUndo && (
           <Tooltip label="Undo">
             <Button
               className="flex items-center justify-center p-1.5 rounded enabled:hover:bg-base-300 disabled:opacity-50"
@@ -143,7 +145,7 @@ export const AppHeader = ({
           </Tooltip>
         )}
 
-        {onRedo && (
+        {editingKeymap && onRedo && (
           <Tooltip label="Redo">
             <Button
               className="flex items-center justify-center p-1.5 rounded enabled:hover:bg-base-300 disabled:opacity-50"
@@ -154,7 +156,7 @@ export const AppHeader = ({
             </Button>
           </Tooltip>
         )}
-        <Tooltip label="Save">
+        {editingKeymap && <Tooltip label="Save">
           <Button
             className="flex items-center justify-center p-1.5 rounded enabled:hover:bg-base-300 disabled:opacity-50"
             isDisabled={!unsaved}
@@ -162,8 +164,8 @@ export const AppHeader = ({
           >
             <Save className="inline-block w-4 mx-1" aria-label="Save" />
           </Button>
-        </Tooltip>
-        <Tooltip label="Discard">
+        </Tooltip>}
+        {editingKeymap && <Tooltip label="Discard">
           <Button
             className="flex items-center justify-center p-1.5 rounded enabled:hover:bg-base-300 disabled:opacity-50"
             onPress={onDiscard}
@@ -171,7 +173,7 @@ export const AppHeader = ({
           >
             <Trash2 className="inline-block w-4 mx-1" aria-label="Discard" />
           </Button>
-        </Tooltip>
+        </Tooltip>}
       </div>
     </header>
   );

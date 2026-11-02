@@ -141,3 +141,26 @@ still require an upgrade/rollback test. Do not use settings reset as a shortcut.
 Ryong60 has a separate unresolved DCDC/LDO source discrepancy. Do not apply
 its electrical choices to BT60. No installable UF2/HEX/BIN/ELF is uploaded,
 no hardware test is requested, and no signed release/browser DFU is claimed.
+
+
+## Unified workspace implementation
+
+The standalone Runtime dialog was removed. The existing app shell now hosts one
+inline workspace with Keymap, Combo, Macro, Tap Dance and Hold-Tap sections.
+The connected keymap retains the original Keyboard component; offline Keymap
+is explicitly a layout preview, not a fake live keyboard. The dynamic editor
+remains mounted when switching sections. Saved macro/Tap Dance entries are
+available by name in the existing keymap picker, using only current readback IDs.
+
+A browser draft stores unsaved dynamic edits. Recovery is explicit, validated
+against current capabilities, review-only and never writes automatically.
+Studio lock changes retain drafts; Save is disabled while locked. Destructive
+reload asks before discarding edits. Separate committed Studio keymap edits can
+be rebased before a dynamic save; unsaved keymap edits and changed dynamic state
+are rejected without device writes. Keymap and dynamic saves remain explicit
+separate operations, not an atomic whole-profile transaction.
+
+Local validation: CMake/CTest 2 cases, Python 5 cases, TypeScript, runtime
+transaction/model/advanced tests, named-binding identity tests, Chromium
+navigation/draft recovery/mobile width and direct-file standalone checks passed.
+These are host/browser results, not a physical keyboard test or release approval.

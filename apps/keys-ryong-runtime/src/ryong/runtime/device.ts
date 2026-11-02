@@ -90,6 +90,19 @@ export class RuntimeSession {
    * Recovery journal remains pending on EVERY failure, including lost ACK.
    * Flash persistence is per module/item, not a profile-wide atomic commit.
    */
+  /** Rebase only committed Studio keymap changes, preserving staged dynamic edits. */
+  async refreshKeymap(before: RuntimeSnapshot): Promise<RuntimeSnapshot> {
+    const current = await this.read();
+    const dynamicOnly = ({ keymap: _keymap, ...runtime }: RuntimeSnapshot) => runtime;
+    if (canonical(dynamicOnly(current)) !== canonical(dynamicOnly(before))) {
+      throw new Error("Dynamic settings changed. Export your edits, reload, then review the backup.");
+    }
+    if (this.port.keymap && await this.port.keymap.isDirty()) {
+      throw new Error("Save or discard keymap changes in Keymap before saving dynamic settings.");
+    }
+    return { ...before, keymap: current.keymap };
+  }
+
   async save(before: RuntimeSnapshot, desired: DesiredProfile, journal: RecoveryJournal) {
     if (occupied.has(this.port)) throw new Error("Another runtime save is in progress.");
     occupied.add(this.port);

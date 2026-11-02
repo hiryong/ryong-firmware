@@ -70,3 +70,14 @@ FIRMWARE_UPDATES.ko.md for the Korean update/recovery guide.
 - [ ] BT60 firmware/native-event and real Mac/iOS/Windows verification.
 
 See HOST_OS_LAYOUT.ko.md. This is not yet a working firmware feature.
+
+
+## Unified workspace checkpoint — 2026-11-02
+
+- [x] Replace detached Runtime dialog with the existing application shell and inline Keymap/Combo/Macro/Tap Dance/Hold-Tap navigation.
+- [x] Keep dynamic edits mounted across navigation, guard destructive reloads and preserve review-only browser drafts across reload/disconnection.
+- [x] Populate the keymap picker with saved macro/Tap Dance names and current device-assigned IDs; no manual numeric-ID transfer.
+- [x] Preserve edits on Studio lock changes; disable Save while locked and freeze fields during a save.
+- [x] Rebase separately committed Studio keymap changes without discarding staged dynamic edits; reject unsaved keymaps/concurrent runtime edits.
+- [x] Local TypeScript, runtime models/fault tests, named-binding tests, Chromium desktop/mobile and offline file preview checks.
+- [ ] Physical USB/BLE, persistence, upgrade and power validation remains open. The latest UI does not change that release status.

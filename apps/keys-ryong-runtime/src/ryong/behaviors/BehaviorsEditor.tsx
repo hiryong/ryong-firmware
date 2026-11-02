@@ -47,7 +47,8 @@ const RUNTIME_BOARD: Board = {
 };
 
 type Section = "combos" | "macros" | "tapDances";
-type Tab = Section | "settings";
+export type RuntimeSection = Section | "settings";
+type Tab = RuntimeSection;
 
 const SECTIONS: { id: Tab; label: () => string; one: () => string; hint: () => string }[] = [
   {
@@ -90,7 +91,10 @@ interface Loaded {
   board: PowerDoc | null;
 }
 
-export const BehaviorsEditor = ({ connectedName, onRuntimeSaved }: { connectedName?: string; onRuntimeSaved?: () => void }) => {
+export const BehaviorsEditor = ({ connectedName, onRuntimeSaved, activeSection, embedded, onDirty, onView }: {
+  connectedName?: string; onRuntimeSaved?: () => void; activeSection?: RuntimeSection;
+  embedded?: boolean; onDirty?: (dirty: boolean) => void; onView?: (view: RuntimeView) => void;
+}) => {
   const me = useMe();
   const mine = useMyBoards(me);
   const { conn } = useContext(ConnectionContext);
@@ -118,7 +122,7 @@ export const BehaviorsEditor = ({ connectedName, onRuntimeSaved }: { connectedNa
       <button className="ry-primary" onClick={() => setPreview(true)}>{t("Explore preview", "연결 없이 미리보기")}</button>
     </div>;
     return <Editor key={preview ? "preview" : conn?.label} boards={[RUNTIME_BOARD]}
-      connectedName={connectedName} intro={runtimeIntro} runtimeConn={preview ? undefined : conn ?? undefined} preview={preview} onRuntimeSaved={onRuntimeSaved} />;
+      connectedName={connectedName} intro={embedded ? null : runtimeIntro} activeSection={activeSection} embedded={embedded} onDirty={onDirty} onView={onView} runtimeConn={preview ? undefined : conn ?? undefined} preview={preview} onRuntimeSaved={onRuntimeSaved} />;
   }
   if (me.loading) return intro;
   if (!me.user || me.repos.length === 0)
@@ -253,6 +257,9 @@ const Editor = ({
   onDirty,
   runtimeConn,
   preview = false,
+  activeSection,
+  embedded,
+  onView,
   onRuntimeSaved,
 }: {
   boards: Board[];
@@ -261,6 +268,9 @@ const Editor = ({
   onDirty?: (d: boolean) => void;
   runtimeConn?: RpcConnection;
   preview?: boolean;
+  activeSection?: RuntimeSection;
+  embedded?: boolean;
+  onView?: (view: RuntimeView) => void;
   onRuntimeSaved?: () => void;
 }) => {
   const lang = useLang();
@@ -275,7 +285,8 @@ const Editor = ({
   const liveKeys = useLiveKeys(matchesDevice(kb, connectedName));
   const liveLabels = useLiveLabels(matchesDevice(kb, connectedName));
   const comboKeys = liveKeys ?? LAYOUTS[kb.layout || "60-ansi"] ?? [];
-  const [section, setSection] = useState<Tab>("combos");
+  const [localSection, setSection] = useState<Tab>("combos");
+  const section = activeSection ?? localSection;
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [doc, setDoc] = useState<BehaviorDoc>(emptyDoc());
   const [error, setError] = useState<string | null>(null);
@@ -331,12 +342,32 @@ const Editor = ({
   }, [kb, jsonPath, runtimeConn, preview, runtime, runtimeConn ? runtimeLock : null]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    // Lock notifications must never replace an in-progress editor document.
+    if (runtime && runtimeConn && runtimeLock !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED) return;
+    if (runtime && loaded) return;
+    void load();
+  }, [load, runtimeLock]);
+
+  useEffect(() => { if (runtimeView) onView?.(runtimeView); }, [runtimeView, onView]);
 
   const rewake = !!loaded?.board && wakeNow !== null && wakeNow !== loaded.board.wake;
   const dirty = !!loaded && (JSON.stringify(doc) !== loaded.savedJson || movedKeymap !== null || Object.keys(confEdits).length > 0 || rewake);
-  useEffect(() => onDirty?.(dirty), [dirty]);
+  useEffect(() => onDirty?.(dirty), [dirty, onDirty]);
+  const draftKey = "ryong-runtime-editor-draft:" + (preview ? "preview" : runtimeConn?.label ?? "unknown");
+  const [draftWarning, setDraftWarning] = useState<string | null>(null);
+  useEffect(() => {
+    if (!runtime || !loaded || !runtimeView) return;
+    try {
+      if (dirty) localStorage.setItem(draftKey, exportProfile(doc, runtimeView));
+      // Keep the draft until a successful explicit save/discard, including unmount.
+    } catch { setDraftWarning(t("Browser draft storage is unavailable. Download a backup before leaving.", "임시 저장을 사용할 수 없습니다. 나가기 전에 백업을 다운로드하세요.")); }
+  }, [runtime, dirty, doc, runtimeView, draftKey]);
+  useEffect(() => {
+    if (!runtime || !dirty) return;
+    const guard = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, [runtime, dirty]);
   // what the keymap file defines by hand (not yet brought here)
   const scan: Scan | null = useMemo(
     () => (loaded ? scanKeymap(movedKeymap ?? loaded.keymap, allIds(doc), new Set((doc.settings ?? []).map((x) => x.behavior))) : null),
@@ -375,7 +406,8 @@ const Editor = ({
         if (!runtimeView) throw new Error("Runtime device has not loaded.");
         const desired = compileDocument(doc, runtimeView);
         const journalKey = "ryong-runtime-pending:" + (preview ? "preview" : runtimeConn!.label);
-        const result = await runtimeView.session.save(runtimeView.snapshot, desired, {
+        const before = await runtimeView.session.refreshKeymap(runtimeView.snapshot);
+        const result = await runtimeView.session.save(before, desired, {
           prepare(before, next) {
             const previous=localStorage.getItem(journalKey);
             if(previous){
@@ -399,6 +431,7 @@ const Editor = ({
         const nextDoc = viewDocument(view);
         setRuntimeView(view); setDoc(nextDoc);
         setLoaded({ ...loaded, doc: nextDoc, savedJson: JSON.stringify(nextDoc) });
+        localStorage.removeItem(draftKey);
         setSaved(preview ? "preview" : "runtime");
         if (!preview) onRuntimeSaved?.();
         return;
@@ -520,7 +553,15 @@ const Editor = ({
       {error && <p className="ry-note ry-danger">{error}</p>}
       {runtime && !loading && <div className="ry-row">
         <p className="ry-faint">{t("Existing firmware defaults remain active. This list edits additional runtime entries.", "기존 펌웨어 기본 동작은 유지됩니다. 이 목록에서는 추가 동적 설정을 편집합니다.")}</p>
-        <button className="ry-text" disabled={saving} onClick={load}>{t("Reload device", "다시 불러오기")}</button>
+        <button className="ry-text" disabled={saving || !runtimeView} onClick={() => {
+          try {
+            const savedDraft = localStorage.getItem(draftKey);
+            if (!savedDraft || !runtimeView) throw new Error(t("No saved editor draft.", "복원할 편집 내용이 없습니다."));
+            if (dirty && !confirm(t("Replace current edits with the saved draft?", "현재 편집 내용을 임시 저장본으로 바꿀까요?"))) return;
+            setDoc(importProfile(savedDraft, runtimeView)); setError(null);
+          } catch (error) { setError(String(error)); }
+        }}>{t("Recover editor draft", "편집 내용 복원")}</button>
+        <button className="ry-text" disabled={saving} onClick={() => { if (!dirty || confirm(t("Discard unsaved changes?", "저장하지 않은 변경을 버리고 다시 불러올까요?"))) void load(); }}>{t("Reload device", "다시 불러오기")}</button>
         <button className="ry-text" disabled={saving || !runtimeView} onClick={()=>runtimeView && downloadText("ryong-dynamic-backup.json",exportProfile(doc,runtimeView))}>{t("Export dynamic settings","동적 설정 백업")}</button>
         <label className="ry-text">{t("Import backup","백업 불러오기")}<input aria-label={t("Import runtime backup","동적 설정 백업 불러오기")} type="file" hidden accept=".json,application/json" disabled={saving} onChange={async e=>{
           const file=e.currentTarget.files?.[0];e.currentTarget.value="";
@@ -538,10 +579,11 @@ const Editor = ({
         }}>{t("Interrupted save recovery","중단된 저장 복구")}</button>
       </div>}
 
+      {draftWarning && <p role="alert" className="ry-note">{draftWarning}</p>}
       {loaded && (
-        <>
+        <fieldset className="ry-workspace-fields" disabled={saving}>
           <div className="ry-row" style={{ borderBottom: "1px solid var(--line)" }}>
-            <div className="ry-tabs">
+            <div className="ry-tabs" hidden={embedded}>
               {SECTIONS.filter(s => !runtime || s.id === "combos" || s.id === "macros" || !!runtimeView?.snapshot.advanced).map((s) => (
                 <button key={s.id} className="ry-tab" aria-pressed={section === s.id} onClick={() => setSection(s.id)}>
                   {s.label()}
@@ -549,10 +591,10 @@ const Editor = ({
                 </button>
               ))}
             </div>
-            <button className="ry-text" onClick={() => setShowCode((v) => !v)}>
+            {!runtime && <button className="ry-text" onClick={() => setShowCode((v) => !v)}>
               <Code style={{ width: 14, height: 14, display: "inline", marginRight: 6 }} />
               {showCode ? t("Hide code", "코드 숨기기") : t("Show code", "코드 보기")}
-            </button>
+            </button>}
           </div>
 
           {scan && scan.found.length > 0 && (
@@ -819,6 +861,7 @@ const Editor = ({
                   <button
                     className="ry-text"
                     onClick={() => {
+                      localStorage.removeItem(draftKey);
                       setDoc(JSON.parse(loaded.savedJson));
                       setMovedKeymap(null);
                       setConfEdits({});
@@ -828,13 +871,13 @@ const Editor = ({
                     {t("Discard", "변경 취소")}
                   </button>
                 )}
-                <button className="ry-primary" disabled={!dirty || issues.length > 0 || saving} onClick={save}>
+                <button className="ry-primary" disabled={!dirty || issues.length > 0 || saving || (!!runtimeConn && runtimeLock !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED)} onClick={save}>
                   {saving ? t("Saving…", "저장 중…") : runtime ? (preview ? t("Save preview", "미리보기 저장") : t("Save to keyboard", "키보드에 저장")) : t("Save & build firmware", "저장하고 펌웨어 빌드")}
                 </button>
               </div>
             </div>
           </div>
-        </>
+        </fieldset>
       )}
     </div>
   );

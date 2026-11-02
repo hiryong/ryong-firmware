@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import { buildSync } from "esbuild";
+import vm from "node:vm";
+import { createRequire } from "node:module";
+const js=buildSync({entryPoints:["src/ryong/runtime/bindings.ts"],bundle:true,platform:"node",format:"cjs",write:false}).outputFiles[0].text;
+const module={exports:{}};
+vm.runInNewContext(js,{module,exports:module.exports,require:createRequire(import.meta.url),process,console});
+const {namedRuntimeBindings}=module.exports;
+assert.equal(namedRuntimeBindings(null).length,0);
+const view={catalog:{ref:901,rtd:27},snapshot:{macros:[{slot:0,name:"Hello"},{slot:7,name:"Hello 2"}],advanced:{dances:[{index:61,name:"Double"}]}}};
+let c=namedRuntimeBindings(view);
+assert.equal(c.length,3);
+assert.equal(c[0].binding.behaviorId,901);assert.equal(c[0].binding.param1,0);
+assert.equal(c[2].binding.behaviorId,27);assert.equal(c[2].binding.param1,61);
+view.snapshot.macros.shift();view.snapshot.advanced.dances=[];
+c=namedRuntimeBindings(view);assert.equal(c.length,1);assert.equal(c[0].key,"macro:7");
+view.catalog={};assert.equal(namedRuntimeBindings(view).length,0);
+console.log("PASS: named keymap choices use only current readback behavior/slot IDs, including slot zero; removed entries vanish");

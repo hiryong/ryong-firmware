@@ -164,3 +164,19 @@ const dirty = await boundFixture(); dirty.state.dirty = true;
 await assert.rejects(dirty.session.save(await dirty.session.read(), renamePlan(), { prepare() {}, complete() {} }), /Studio keymap edits/);
 assert.equal(dirty.state.writes, 0);
 console.log("PASS: macro rename/delete migrate keymap and combo references; 20 interruption/ACK-loss points preserve durable references");
+
+
+const rebase = fixture();
+const staleKeymap = await rebase.session.read();
+rebase.state.ram.keymap.layers.push({id:1,name:"New layer",bindings:[]});
+const refreshed = await rebase.session.refreshKeymap(staleKeymap);
+assert.equal(refreshed.keymap.layers.length, 1);
+assert.equal(staleKeymap.keymap.layers.length, 0);
+assert.equal(rebase.state.writes, 0);
+rebase.state.dirty = true;
+await assert.rejects(rebase.session.refreshKeymap(staleKeymap), /Save or discard keymap/);
+rebase.state.dirty = false;
+rebase.state.ram.macros.push(M.MacroDetail.fromPartial({slot:0,name:"Another editor"}));
+await assert.rejects(rebase.session.refreshKeymap(staleKeymap), /Dynamic settings changed/);
+assert.equal(rebase.state.writes, 0);
+console.log("PASS: Studio keymap rebase accepts committed keymaps only; concurrent runtime changes rejected without writes");

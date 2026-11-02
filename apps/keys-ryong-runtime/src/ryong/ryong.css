@@ -760,3 +760,18 @@ dialog:focus, dialog:focus-visible { outline: none; }
 .ry-range-n { display: inline-flex; align-items: center; gap: 4px; }
 .ry-range-n .ry-num { width: 68px; padding: 0 10px; text-align: right; }
 @media (max-width: 640px) { .ry-feature-range { grid-template-columns: 1fr; } .ry-range input[type="range"] { flex: 1; width: auto; } }
+
+/* Runtime shares the original application shell; no second dialog or brand. */
+.ry-workspace { min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.ry-workspace-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 20px 24px 12px; }
+.ry-workspace-tabs { padding: 0 24px; border-bottom: 1px solid var(--line); flex-shrink: 0; overflow-x: auto; }
+.ry-workspace-keymap:not([hidden]) { flex: 1; min-height: 540px; display: grid; }
+.ry-workspace-dynamic { padding: 24px; max-width: 1180px; width: 100%; margin: 0 auto; }
+.ry-workspace [hidden] { display: none !important; }
+.ry-workspace-preview { padding: 32px; }
+.ry-workspace-preview svg { width: 100%; max-height: 400px; }
+.ry-workspace-preview rect { fill: #181818; stroke: #555; stroke-width: 1; }
+.ry-workspace-preview text { fill: #eee; font: 20px system-ui; }
+@media (max-width: 650px) { .ry-workspace-top { padding: 16px; flex-wrap: wrap; } .ry-workspace-dynamic { padding: 16px; } .ry-workspace-tabs { padding: 0 12px; } .ry-workspace-preview { padding: 16px; } }
+
+.ry-workspace-fields { display: flex; flex-direction: column; gap: 22px; border: 0; padding: 0; margin: 0; min-width: 0; }

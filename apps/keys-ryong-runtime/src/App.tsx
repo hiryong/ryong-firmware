@@ -179,6 +179,7 @@ function App() {
   const [showLicenseNotice, setShowLicenseNotice] = useState(false);
   const [connectionAbort, setConnectionAbort] = useState(new AbortController());
   const [hubTab, setHubTab] = useState<HubTab | null>(null);
+  const [runtimeSection, setRuntimeSection] = useState("keymap");
   const [runtimeOpen, setRuntimeOpen] = useState(
     import.meta.env.VITE_RYONG_RUNTIME === "1" && (new URLSearchParams(location.search).get("runtime") === "1" || import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1")
   );
@@ -317,9 +318,6 @@ function App() {
               </button>}
             </>}
           />
-          {import.meta.env.VITE_RYONG_RUNTIME === "1" && <RuntimePanel
-            open={runtimeOpen} onClose={() => setRuntimeOpen(false)} deviceName={connectedDeviceName}
-            onSaved={() => { reset(); setConn({ conn: conn.conn }); }} />}
           <Hub
             tab={hubTab}
             onTab={setHubTab}
@@ -345,6 +343,7 @@ function App() {
           <div className="ry-app bg-base-100 text-base-content h-full max-h-[100vh] w-full max-w-[100vw] inline-grid grid-cols-[auto] grid-rows-[auto_1fr_auto] overflow-hidden">
             <AppHeader
               connectedDeviceLabel={connectedDeviceName}
+              editingKeymap={import.meta.env.VITE_RYONG_RUNTIME !== "1" || runtimeSection === "keymap"}
               canUndo={canUndo}
               canRedo={canRedo}
               onUndo={undo}
@@ -360,15 +359,15 @@ function App() {
                       {tb.label()}
                     </button>
                   ))}
-                  {import.meta.env.VITE_RYONG_RUNTIME === "1" && <button className="ry-tab" onClick={() => { setHubTab(null); setRuntimeOpen(true); }}>
-                    {t("Runtime", "동적 설정")}
-                  </button>}
                   <LangToggle />
                   <AccountBadge onOpen={() => setHubTab("firmware")} />
                 </nav>
               }
             />
-            <Keyboard />
+            {import.meta.env.VITE_RYONG_RUNTIME === "1" ? <RuntimePanel
+              open={runtimeOpen || !!conn.conn} onClose={() => setRuntimeOpen(false)}
+              deviceName={connectedDeviceName} keymap={<Keyboard />} onSectionChange={setRuntimeSection}
+              onSaved={() => { reset(); setConn({ conn: conn.conn }); }} /> : <Keyboard />}
             <AppFooter
               onShowAbout={() => setShowAbout(true)}
               onShowLicenseNotice={() => setShowLicenseNotice(true)}
