@@ -1,0 +1,42 @@
+name: Runtime client compatibility
+on:
+  push:
+    branches: [dev/keys-ryong-runtime]
+    paths: ['experiments/runtime-client/**', 'apps/keys-ryong/vite.runtime.config.ts', 'apps/keys-ryong/tsconfig.runtime.json', '.github/workflows/runtime-client-validation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Build pinned custom client
+        run: bash experiments/runtime-client/prepare.sh "$GITHUB_WORKSPACE/vendor/runtime-studio-client"
+      - name: Install preserved web app
+        working-directory: apps/keys-ryong
+        run: npm ci
+      - name: Verify and build original client variant
+        working-directory: apps/keys-ryong
+        run: |
+          python3 ../verify_baseline.py
+          node tests/runtime-read.test.mjs
+          bash scripts/ryong-build.sh
+      - name: Build custom client variant without changing original app dependencies
+        working-directory: apps/keys-ryong
+        run: |
+          npx tsc -p tsconfig.runtime.json
+          npx vite build --config vite.runtime.config.ts --outDir dist-runtime
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-client-compatibility
+          path: |
+            vendor/runtime-studio-client/lib
+            vendor/runtime-studio-client/LICENSE
+            apps/keys-ryong/dist-runtime
+# No deployment, no production credentials, no firmware binaries.

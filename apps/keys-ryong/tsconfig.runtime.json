@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@zmkfirmware/zmk-studio-ts-client/*": [
+        "../../vendor/runtime-studio-client/lib/*"
+      ]
+    }
+  }
+}
