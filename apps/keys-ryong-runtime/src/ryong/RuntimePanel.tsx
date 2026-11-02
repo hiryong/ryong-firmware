@@ -26,7 +26,7 @@ export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSec
     { id: "macros", label: t("Macros", "매크로") },
     { id: "tapDances", label: t("Tap Dance", "탭댄스") },
     { id: "settings", label: "Hold-Tap" },
-    { id: "host", label: t("Host layout", "호스트 배치") },
+    { id: "host", label: t("Bluetooth", "Bluetooth 기기") },
   ];
   return <main className="ry-workspace" aria-label={t("Keyboard settings", "키보드 설정")}>
     <div className="ry-workspace-top">
