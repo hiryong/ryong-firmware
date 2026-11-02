@@ -16,7 +16,7 @@ The entire 26-file original firmware tree (from the user's `hiryong/zmk-config-r
 
 ## Files
 - `west.yml`: pinned project references for an isolated trial build.
-- `ryong60-runtime.conf`: experimental Kconfig overlay. These settings have **not** been compiled.
+- `ryong60-runtime.conf`: experimental Kconfig overlay. The corrected overlay has now compiled on the exact Ryong60 target (see the checkpoint below).
 - `hardware/ryong60/`: original source. Never change it in-place for trials; copy into a disposable build workspace.
 
 ## Next gated work
@@ -38,3 +38,23 @@ The entire 26-file original firmware tree (from the user's `hiryong/zmk-config-r
 - https://github.com/cormoran/zmk-feature-runtime-combo
 - https://github.com/cormoran/zmk-feature-runtime-macro
 - https://github.com/qtrnmr/zmk-module-runtime-config
+
+
+
+## Build checkpoint (2026-11-02)
+
+Actual Ryong60 baseline and runtime builds passed:
+https://github.com/hiryong/ryong-firmware/actions/runs/41367230450
+
+Baseline uses 248,888 B flash / 72,274 B static RAM.
+Runtime uses 286,128 B flash / 100,292 B static RAM.
+The runtime build requires Studio unlock for all three external RPC subsystems;
+it is not the unmodified public example configuration.
+
+The isolated board copy drops two inactive underglow Kconfig assignments.
+The runtime overlay explicitly bounds macro storage and includes its behavior DTS.
+Original imported board files remain unchanged.
+
+Native event snapshots, actual RPC authorization, browser editing, interrupted
+saves and physical-board validation are separate gates. See
+../../docs/RUNTIME_INTEGRATION.md. No installation file is published.

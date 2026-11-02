@@ -15,7 +15,8 @@ row counts: 14 + 14 + 13 + 12 + 8 = 61.
 **IMPORTANT:** This file documents *source-reported* values; independent PCB-to-pad auditing found no obvious mismatch in an earlier report, but the actual firmware has not been built and verified on a board in this repository.
 
 ## Firmware import
-At present, this GitHub repository contains the runtime profile prototype, not a completed import of the legacy board module. Preserve the original ZIP, license notices, and source exactly. Bring the complete original board module in before attempting any real Ryong60 Zephyr build.
+The complete imported board module now exists at hardware/ryong60, with original notices preserved. Actual baseline and runtime builds have passed. Source verification and compilation do not establish compatibility with an unverified physical PCB or installed bootloader.
 
 ## Hardware safety
 The original design audit raised two blockers for prototype ordering: (1) wrong battery polarity when USB is attached and physical switch ON; (2) USB current allocation with LEDs and charging simultaneously. Correct physical electrical design before manufacturing; a keyboard firmware change cannot guarantee this.
+

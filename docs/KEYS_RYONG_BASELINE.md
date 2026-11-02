@@ -13,7 +13,7 @@
 
 ## Copied reference (this separate repository only)
 `reference/keys-ryong/` contains **12 exact text files** from the reference commit, including core web UI entrypoints, the advanced behavior model/editor, API integration context, original license and notice.
-It is a **partial reference copy, NOT a runnable full website**. Remaining Studio code, backend, binary assets, configs and dependencies have not been copied.
+It is a **partial immutable reference copy, NOT a runnable full website**. A separate complete buildable source/assets copy now exists at apps/keys-ryong; see apps/README.md and apps/baseline-manifest.json. The independent copy includes Studio, backend source, assets, config and lockfile; prebuilt DMG/EXE installers are intentionally excluded.
 Do not deploy or overwrite keys.ryong.com from this repository. All additions should be developed separately and feature gated.
 
 ## Target behavior
@@ -21,3 +21,4 @@ Keep current Studio and Firmware experiences unchanged. Reuse existing `ryong-be
 
 ## Validation gate
 Before staging UI changes, obtain a full independent development checkout (never mutate original); perform baseline build and UI regression tests. Customer production deployment is forbidden without renewed explicit authorization.
+

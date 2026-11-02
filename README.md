@@ -20,6 +20,8 @@ Build a VIA-like runtime configuration experience on top of **ZMK**, retaining i
 
 Host-testable C prototype covers bounded profile validation, RAM edit transactions and pure combo matching. It does NOT implement live ZMK key-event interception, HID output, flash persistence, USB settings RPC or browser firmware updating.
 
+Actual isolated Ryong60 baseline and external-module builds now pass; this does not establish safe installation or functioning browser runtime editing. The original app source/assets copy also builds independently. See [integration checkpoint](docs/RUNTIME_INTEGRATION.md) for exact limitations.
+
 See [AGENTS.md](AGENTS.md), [docs/ROADMAP.md](docs/ROADMAP.md), and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Do not claim a ZMK/Zephyr build or hardware test unless one has actually passed.
 
 ## Host tests
@@ -37,4 +39,5 @@ Ryong60 reference design includes nRF52840, 61 switches, 5 row × 14 column matr
 This repository is private, but external dependencies and their licenses must still be respected.
 
 ## Protect the existing web application
-**Keys · ryong is already working.** It has ZMK Studio-based live configuration and a separate Firmware tab. Do **not** replace it. Integrate new runtime behavior editing into an isolated development copy of `hiryong/keys-ryong` after obtaining repository permission, tagging an immutable baseline and mapping the deployed version. No production deployments without user approval.
+**Keys · ryong is already working.** It has ZMK Studio-based live configuration and a separate Firmware tab. Do **not** replace it. Integrate new runtime behavior editing into an isolated development copy of `hiryong/keys-ryong` using a pinned immutable source baseline recorded in this repository and mapping the deployed version. Never create a tag or any other write in the original repository. No production deployments without user approval.
+
