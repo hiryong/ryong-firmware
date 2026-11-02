@@ -41,7 +41,7 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 function Dot({ run }: { run: { status: string; conclusion: string | null } }) {
   const s = run.status !== "completed" && run.status !== "none" ? "busy" : run.conclusion === "success" ? "ok" : run.conclusion ? "bad" : "none";
   const label = { busy: "진행 중", ok: "성공", bad: "실패", none: "기록 없음" }[s];
-  return <span className={`ad-dot is-${s}`} role="img" aria-label={label} title={label} />;
+  return <span className={`kc-dot is-${s}`} role="img" aria-label={label} title={label} />;
 }
 
 export function AdminApp() {
@@ -57,21 +57,21 @@ export function AdminApp() {
     else setError((e as Error).message);
   }, [refreshMe]);
 
-  if (!me) return <div className="ad-shell"><p className="ry-faint ad-center">{error ?? "불러오는 중…"}</p></div>;
+  if (!me) return <div className="kc-shell"><p className="ry-faint kc-center">{error ?? "불러오는 중…"}</p></div>;
   if (!me.signedIn) return <Login me={me} onDone={refreshMe} />;
 
   const go = (t: typeof tab, id?: number) => { setTab(t); if (id) setFocus(id); window.scrollTo(0, 0); };
   return (
-    <div className="ad-shell">
-      <header className="ad-top">
-        <a className="ad-brand" href="/"><RyongMark size={20} /> Keys <span className="ry-faint">관리자</span></a>
-        <nav className="ad-tabs" aria-label="관리 메뉴">
+    <div className="kc-shell">
+      <header className="kc-top">
+        <a className="kc-brand" href="/"><RyongMark size={20} /> Keys <span className="ry-faint">관리자</span></a>
+        <nav className="kc-tabs" aria-label="관리 메뉴">
           {([["status", "현황"], ["build", "빌드"], ["test", "실기 검증"], ["release", "배포"]] as const).map(([id, label]) =>
             <button key={id} className="ry-tab" aria-pressed={tab === id} onClick={() => go(id)}>{label}</button>)}
         </nav>
         <button className="ry-text" onClick={() => api("/logout", { method: "POST" }).finally(refreshMe)}>로그아웃</button>
       </header>
-      <main className="ad-main">
+      <main className="kc-main">
         {!me.setup.github && <p className="ry-note ry-danger" role="alert">GitHub 토큰(ADMIN_GITHUB_TOKEN)이 아직 설정되지 않아서 빌드·검증·배포를 쓸 수 없어요.</p>}
         {error && <p className="ry-note ry-danger" role="alert">{error} <button className="ry-text" onClick={() => setError(null)}>닫기</button></p>}
         {tab === "status" && <Status onError={onAuthError} go={go} me={me} />}
@@ -100,9 +100,9 @@ function Login({ me, onDone }: { me: Me; onDone: () => Promise<Me | null> }) {
   };
   const blocked = me.setup.password !== "ok";
   return (
-    <div className="ad-shell ad-login">
-      <form className="ry-card ad-login-card" onSubmit={submit}>
-        <div className="ad-brand"><RyongMark size={24} /> Keys <span className="ry-faint">관리자</span></div>
+    <div className="kc-shell kc-login">
+      <form className="ry-card kc-login-card" onSubmit={submit}>
+        <div className="kc-brand"><RyongMark size={24} /> Keys <span className="ry-faint">관리자</span></div>
         {blocked ? <p className="ry-note">{me.setup.password === "no-password" ? "관리자 비밀번호가 아직 설정되지 않았어요." : "설정된 비밀번호가 너무 짧아요. 10자 이상으로 바꿔 주세요."} GitHub 저장소 Secrets의 ADMIN_PASSWORD를 설정하고 keysbeta를 다시 배포하면 열려요.</p>
           : <>
             <label className="ry-field"><span className="ry-label">비밀번호</span>
@@ -129,16 +129,16 @@ function useLoad<T>(path: string | null, onError: (e: unknown) => void, deps: un
 }
 
 const Section = ({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) =>
-  <section className="ad-sec"><div className="ad-sec-h"><h2>{title}</h2>{action}</div>{children}</section>;
+  <section className="kc-sec"><div className="kc-sec-h"><h2>{title}</h2>{action}</div>{children}</section>;
 
 function ChannelCards({ channels }: { channels: Channels }) {
-  return <div className="ad-grid">
+  return <div className="kc-grid">
     {Object.keys(TARGET_LABEL).map((t) => <div key={t} className="ry-card">
       <div className="ry-card-t">{TARGET_LABEL[t]}</div>
       {(["stable", "beta"] as const).map((ch) => {
         const c = channels[t]?.[ch];
-        return <div key={ch} className="ad-row">
-          <span className="ad-chan">{ch === "stable" ? "정식" : "베타"}</span>
+        return <div key={ch} className="kc-row">
+          <span className="kc-chan">{ch === "stable" ? "정식" : "베타"}</span>
           {c ? <><a href={c.url} target="_blank" rel="noreferrer">r{c.run_id}</a><span className="ry-faint">{ago(c.released_at)}</span></>
             : <span className="ry-faint">아직 없음</span>}
         </div>;
@@ -154,9 +154,9 @@ function Status({ onError, go, me }: { onError: (e: unknown) => void; go: (t: "b
       <ChannelCards channels={data?.channels ?? {}} />
     </Section>
     <Section title={`자동 검사 · ${me.ref}`}>
-      <div className="ad-list">
-        {(data?.checks ?? []).map((c) => <div key={c.file} className="ad-item">
-          <Dot run={c} /><span className="ad-item-t">{c.label}</span>
+      <div className="kc-list">
+        {(data?.checks ?? []).map((c) => <div key={c.file} className="kc-item">
+          <Dot run={c} /><span className="kc-item-t">{c.label}</span>
           <span className="ry-faint">{c.sha ?? ""} {ago(c.at)}</span>
           {c.url && <a className="ry-text" href={c.url} target="_blank" rel="noreferrer">기록</a>}
         </div>)}
@@ -171,9 +171,9 @@ function Status({ onError, go, me }: { onError: (e: unknown) => void; go: (t: "b
 
 function BuildList({ rows, go }: { rows: BuildRow[]; go: (t: "test", id?: number) => void }) {
   if (!rows.length) return <p className="ry-faint">아직 빌드가 없어요.</p>;
-  return <div className="ad-list">{rows.map((b) => <div key={b.id} className="ad-item">
+  return <div className="kc-list">{rows.map((b) => <div key={b.id} className="kc-item">
     <Dot run={b} />
-    <span className="ad-item-t">{TARGET_LABEL[b.target ?? ""] ?? "?"} · {b.label} <span className="ry-faint">r{b.id}</span></span>
+    <span className="kc-item-t">{TARGET_LABEL[b.target ?? ""] ?? "?"} · {b.label} <span className="ry-faint">r{b.id}</span></span>
     <span className="ry-faint">{b.validated ? "검증 기록 있음 · " : ""}{ago(b.at)}</span>
     {b.conclusion === "success" && <a className="ry-text" href={`/api/admin/builds/${b.id}/download`}>파일 받기</a>}
     {b.conclusion === "success" && <button className="ry-text" onClick={() => go("test", b.id)}>검증</button>}
@@ -211,27 +211,27 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (t: "test",
   };
   return <>
     <Section title="새 펌웨어 빌드">
-      <form className="ry-card ad-form" onSubmit={start}>
-        <div className="ad-field"><span className="ry-label">보드</span>
-          <div className="ad-seg" role="radiogroup" aria-label="보드">
+      <form className="ry-card kc-form" onSubmit={start}>
+        <div className="kc-field"><span className="ry-label">보드</span>
+          <div className="kc-seg" role="radiogroup" aria-label="보드">
             {Object.entries(TARGET_LABEL).map(([id, l]) => <button type="button" key={id} role="radio" aria-checked={target === id} onClick={() => setTarget(id)}>{l}</button>)}
           </div>
           {target === "ryong60" && <p className="ry-faint">Ryong60 실물 보드는 아직 검증 전이에요. 빌드는 되지만, 실물에서 검증 기록을 남기기 전에는 배포할 수 없어요.</p>}
         </div>
-        <label className="ad-field"><span className="ry-label">이름</span>
+        <label className="kc-field"><span className="ry-label">이름</span>
           <input type="text" maxLength={40} placeholder="예: 절전 10분 테스트" value={label} onChange={(e) => setLabel(e.target.value)} /></label>
-        <div className="ad-grid">
-          {FIELDS.map((f) => <label key={f.id} className="ad-field"><span className="ry-label">{f.label}</span>
-            <span className="ad-num"><input type="number" min={f.min} max={f.max} value={vals[f.id]} required
+        <div className="kc-grid">
+          {FIELDS.map((f) => <label key={f.id} className="kc-field"><span className="ry-label">{f.label}</span>
+            <span className="kc-num"><input type="number" min={f.min} max={f.max} value={vals[f.id]} required
               onChange={(e) => setVals({ ...vals, [f.id]: Number(e.target.value) })} /><span className="ry-faint">{f.unit}</span></span>
             {f.hint && <span className="ry-faint">{f.hint}</span>}</label>)}
-          <label className="ad-field"><span className="ry-label">Bluetooth 신호 세기</span>
+          <label className="kc-field"><span className="ry-label">Bluetooth 신호 세기</span>
             <select value={tx} onChange={(e) => setTx(e.target.value)}>
               <option value="default">기본 (0 dBm)</option><option value="plus4">강하게 (+4 dBm)</option><option value="plus8">가장 강하게 (+8 dBm)</option>
             </select><span className="ry-faint">멀리 닿지만 배터리를 더 써요</span></label>
         </div>
         <p className="ry-faint">조명·절전처럼 키보드에서 바로 바꿀 수 있는 설정은 여기 없어요. 사용자가 keysbeta 설정 화면에서 바꿔요.</p>
-        <div className="ad-actions"><button className="ry-primary" disabled={busy}>{busy ? "시작하는 중…" : "빌드 시작"}</button></div>
+        <div className="kc-actions"><button className="ry-primary" disabled={busy}>{busy ? "시작하는 중…" : "빌드 시작"}</button></div>
         {started && <p className="ry-note" role="status">{started}</p>}
       </form>
     </Section>
@@ -246,7 +246,7 @@ function BuildPicker({ focus, setFocus, onError, filter }: { focus: number | nul
   const { data } = useLoad<{ builds: BuildRow[] }>("/builds", onError);
   const rows = (data?.builds ?? []).filter((b) => b.conclusion === "success").filter(filter ?? (() => true));
   useEffect(() => { if (!focus && rows[0]) setFocus(rows[0].id); }, [rows, focus, setFocus]);
-  return <label className="ad-field"><span className="ry-label">빌드</span>
+  return <label className="kc-field"><span className="ry-label">빌드</span>
     <select value={focus ?? ""} onChange={(e) => setFocus(Number(e.target.value))}>
       {!rows.length && <option value="">성공한 빌드가 없어요</option>}
       {rows.map((b) => <option key={b.id} value={b.id}>r{b.id} · {TARGET_LABEL[b.target ?? ""]} · {b.label} {b.validated ? "· 기록 있음" : ""}</option>)}
@@ -277,33 +277,33 @@ function Test({ onError, focus, setFocus, go }: { onError: (e: unknown) => void;
   };
   return <>
     <Section title="실기 검증 기록">
-      <div className="ry-card ad-form">
+      <div className="ry-card kc-form">
         <BuildPicker focus={focus} setFocus={setFocus} onError={onError} />
         {d && <>
-          <div className="ad-kv">
+          <div className="kc-kv">
             <span>대상</span><b>{TARGET_LABEL[d.target]}</b>
-            <span>파일</span><span>{d.artifact ? <><code className="ad-hash" title={d.artifact.uf2_sha256}>SHA-256 {d.artifact.uf2_sha256.slice(0, 16)}…</code>
+            <span>파일</span><span>{d.artifact ? <><code className="kc-hash" title={d.artifact.uf2_sha256}>SHA-256 {d.artifact.uf2_sha256.slice(0, 16)}…</code>
               {d.artifact.expired ? <span className="ry-danger"> 보관 기간 지남</span> : <a className="ry-text" href={`/api/admin/builds/${d.id}/download`}>받기</a>}</> : "없음"}</span>
             <span>코드</span><span><code>{d.sha.slice(0, 7)}</code> · {ago(d.at)}</span>
           </div>
           <p className="ry-faint">이 파일을 키보드에 직접 올려 아래 항목을 하나씩 확인하세요. 기록은 이 파일(SHA-256)에만 적용돼요.</p>
-          <label className="ad-field"><span className="ry-label">테스트한 보드</span>
+          <label className="kc-field"><span className="ry-label">테스트한 보드</span>
             <select value={board} onChange={(e) => setBoard(e.target.value)}>
               {checklist.boards.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
             </select></label>
-          <ol className="ad-checks">
-            {checklist.items.map((i) => <li key={i.id} className={"ad-check is-" + (items[i.id] ?? "none")}>
-              <span className="ad-check-t">{i.label}{!i.required && <span className="ry-faint">{(i as { stable?: boolean }).stable ? " · 정식 배포 때 필요" : " · 선택"}</span>}</span>
-              <span className="ad-seg ad-seg-sm" role="radiogroup" aria-label={i.label}>
+          <ol className="kc-checks">
+            {checklist.items.map((i) => <li key={i.id} className={"kc-check is-" + (items[i.id] ?? "none")}>
+              <span className="kc-check-t">{i.label}{!i.required && <span className="ry-faint">{(i as { stable?: boolean }).stable ? " · 정식 배포 때 필요" : " · 선택"}</span>}</span>
+              <span className="kc-seg kc-seg-sm" role="radiogroup" aria-label={i.label}>
                 {(["pass", "fail", "skip"] as ItemState[]).map((s) => <button key={s} type="button" role="radio" aria-checked={items[i.id] === s}
                   onClick={() => setItems({ ...items, [i.id]: s })}>{{ pass: "통과", fail: "실패", skip: "안 함" }[s]}</button>)}
               </span>
             </li>)}
           </ol>
-          <label className="ad-field"><span className="ry-label">메모</span>
+          <label className="kc-field"><span className="ry-label">메모</span>
             <textarea rows={3} maxLength={2000} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="테스트 환경, 이상한 점…" /></label>
-          <div className="ad-actions">
-            <span className={"ad-verdict is-" + preview.result}>{{ pass: preview.stable_ready ? "정식 배포 가능" : "베타 배포 가능", fail: "실패 항목 있음", incomplete: "아직 확인할 항목이 남았어요" }[preview.result]}</span>
+          <div className="kc-actions">
+            <span className={"kc-verdict is-" + preview.result}>{{ pass: preview.stable_ready ? "정식 배포 가능" : "베타 배포 가능", fail: "실패 항목 있음", incomplete: "아직 확인할 항목이 남았어요" }[preview.result]}</span>
             <button className="ry-primary" onClick={save} disabled={busy || !d.artifact}>{busy ? "저장 중…" : "검증 기록 저장"}</button>
           </div>
           {saved && <p className="ry-note" role="status">{saved} {preview.result === "pass" && <button className="ry-text" onClick={() => go("release", d.id)}>배포하러 가기</button>}</p>}
@@ -338,16 +338,16 @@ function Release({ onError, focus, setFocus }: { onError: (e: unknown) => void; 
       <ChannelCards channels={overview.data?.channels ?? {}} />
     </Section>
     <Section title="빌드 배포">
-      <div className="ry-card ad-form">
+      <div className="ry-card kc-form">
         <BuildPicker focus={focus} setFocus={setFocus} onError={onError} filter={(b) => !!b.validated} />
         {d && (["beta", "stable"] as const).map((ch) => {
           const why = d.blockers[ch];
           const done = d.released.includes(ch);
-          return <div key={ch} className="ad-release">
+          return <div key={ch} className="kc-release">
             <div><b>{ch === "beta" ? "베타 채널" : "정식 채널"}</b>
               <span className="ry-faint"> {ch === "beta" ? "· 미리 써 보는 사람용" : "· 모든 사용자용 (베타를 거친 빌드만)"}</span></div>
-            {done ? <span className="ad-verdict is-pass">배포됨</span> : why.length ? <ul className="ad-why">{why.map((w) => <li key={w}>{w}</li>)}</ul>
-              : confirm === ch ? <div className="ad-actions">
+            {done ? <span className="kc-verdict is-pass">배포됨</span> : why.length ? <ul className="kc-why">{why.map((w) => <li key={w}>{w}</li>)}</ul>
+              : confirm === ch ? <div className="kc-actions">
                 <span>r{d.id}({TARGET_LABEL[d.target]})를 {ch === "beta" ? "베타" : "정식"}로 배포할까요?</span>
                 <button className="ry-text" onClick={() => setConfirm(null)}>취소</button>
                 <button className="ry-primary" disabled={busy} onClick={() => go(ch)}>{busy ? "요청 중…" : "배포하기"}</button>
