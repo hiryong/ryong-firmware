@@ -775,3 +775,20 @@ dialog:focus, dialog:focus-visible { outline: none; }
 @media (max-width: 650px) { .ry-workspace-top { padding: 16px; flex-wrap: wrap; } .ry-workspace-dynamic { padding: 16px; } .ry-workspace-tabs { padding: 0 12px; } .ry-workspace-preview { padding: 16px; } }
 
 .ry-workspace-fields { display: flex; flex-direction: column; gap: 22px; border: 0; padding: 0; margin: 0; min-width: 0; }
+
+/* Virtual keyboard controls (development copy only) */
+.ry-virtual { position: fixed; right: 16px; bottom: 16px; z-index: 40; width: min(360px, calc(100vw - 32px)); border: 1px solid var(--line-strong); border-radius: 12px; background: #0D0D0D; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55); }
+.ry-virtual-head { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 14px; border: 0; background: none; color: var(--ink); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; }
+.ry-virtual-head .ry-faint { margin-left: auto; }
+.ry-virtual-dot { width: 8px; height: 8px; border-radius: 9999px; background: #7CD992; box-shadow: 0 0 0 3px rgba(124, 217, 146, 0.18); }
+.ry-virtual-body { display: flex; flex-direction: column; gap: 10px; padding: 0 14px 14px; }
+.ry-virtual-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ry-virtual .ry-label { font-size: 12px; color: var(--mute); margin: 0; }
+.ry-beh .ry-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ry-beh .ry-label { font-size: 12px; color: var(--mute); }
+.ry-beh input[type="text"], .ry-beh select { min-height: 40px; margin: 0; padding: 0 12px; border-radius: 6px; border: 1px solid var(--line-strong); background: #000; color: var(--ink); font-size: 13px; min-width: 0; }
+.ry-beh select { -webkit-appearance: none; appearance: none; padding: 0 40px 0 14px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A1A4A5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 16px center; background-size: 12px; }
+.ry-beh select option { background: #141414; color: var(--ink); }
+.ry-beh input:focus, .ry-beh select:focus { outline: none; border-color: var(--ink); }

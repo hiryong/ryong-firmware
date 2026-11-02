@@ -10,9 +10,9 @@ import { t } from "./i18n";
 type Section = "keymap" | "host" | RuntimeSection;
 
 /** One workspace and connection. Switching sections never unmounts either editor. */
-export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSectionChange }: {
+export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSectionChange, onVirtual }: {
   open: boolean; onClose: () => void; deviceName?: string; onSaved?: () => void;
-  keymap: ReactNode; onSectionChange?: (section: Section) => void;
+  keymap: ReactNode; onSectionChange?: (section: Section) => void; onVirtual?: () => void;
 }) {
   const { conn } = useContext(ConnectionContext);
   const [section, setSection] = useState<Section>("keymap");
@@ -36,6 +36,9 @@ export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSec
       {!conn && import.meta.env.VITE_RYONG_PREVIEW_ONLY !== "1" && <button className="ry-text" onClick={() => {
         if (!dirty || confirm(t("Discard unsaved preview edits and connect?", "저장하지 않은 미리보기 변경을 버리고 연결할까요?"))) onClose();
       }}>{t("Connect keyboard", "키보드 연결")}</button>}
+      {!conn && onVirtual && <button className="ry-primary" onClick={() => {
+        if (!dirty || confirm(t("Discard unsaved preview edits and connect?", "저장하지 않은 미리보기 변경을 버리고 연결할까요?"))) onVirtual();
+      }}>{t("Try with a virtual keyboard", "가상 키보드로 체험하기")}</button>}
     </div>
     <nav className="ry-tabs ry-workspace-tabs" aria-label={t("Keyboard settings sections", "키보드 설정 메뉴")}>
       {tabs.map(tab => <button key={tab.id} className="ry-tab" aria-pressed={section === tab.id}

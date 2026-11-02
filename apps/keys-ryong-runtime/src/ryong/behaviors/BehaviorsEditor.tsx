@@ -98,7 +98,9 @@ export const BehaviorsEditor = ({ connectedName, onRuntimeSaved, activeSection, 
   const me = useMe();
   const mine = useMyBoards(me);
   const { conn } = useContext(ConnectionContext);
-  const [preview, setPreview] = useState(import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1");
+  const [previewChoice, setPreview] = useState(import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1");
+  // A connected keyboard (real or the virtual one) always wins over the offline preview.
+  const preview = previewChoice && !conn;
   const intro = (
     <div className="ry-sec">
       <h1 className="ry-h1">{t("Combos & Macros", "콤보·매크로")}</h1>

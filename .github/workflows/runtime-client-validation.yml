@@ -46,6 +46,7 @@ jobs:
           node tests/backup-dynamic.test.mjs
           node tests/host-device.test.mjs
           node tests/ble-profiles.test.mjs
+          node tests/virtual-keyboard.test.mjs
           node tests/runtime-bindings.test.mjs
           node tests/runtime-device.test.mjs
           node tests/runtime-model.test.mjs

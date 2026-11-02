@@ -39,6 +39,8 @@ import { UnlockHelp } from "./ryong/UnlockHelp";
 import { ConnectLead, FirstRun } from "./ryong/FirstRun";
 import { useLang } from "./ryong/i18n";
 import { LangToggle } from "./ryong/LangToggle";
+import { virtualConnect } from "./ryong/virtual/virtualKeyboard";
+import { VirtualPanel, VirtualUnlockButton } from "./ryong/virtual/VirtualPanel";
 
 declare global {
   interface Window {
@@ -46,7 +48,9 @@ declare global {
   }
 }
 
-const TRANSPORTS: TransportFactory[] = import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1" ? [] : [
+// Development copy only: a simulated keyboard so every screen can be tried without hardware.
+const VIRTUAL: TransportFactory[] = import.meta.env.VITE_RYONG_RUNTIME === "1" ? [{ label: "Virtual", connect: virtualConnect }] : [];
+const TRANSPORTS: TransportFactory[] = import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1" ? VIRTUAL : [...VIRTUAL,
   navigator.serial && { label: "USB", connect: serial_connect },
   ...(navigator.bluetooth && navigator.userAgent.indexOf("Linux") >= 0
     ? [{ label: "BLE", connect: gatt_connect }]
@@ -315,7 +319,7 @@ function App() {
     <ConnectionContext.Provider value={conn}>
       <LockStateContext.Provider value={lockState}>
         <UndoRedoContext.Provider value={doIt}>
-          <UnlockModal extra={<UnlockHelp deviceName={connectedDeviceName} onTab={setHubTab} onApp={openApp} />} />
+          <UnlockModal extra={<>{import.meta.env.VITE_RYONG_RUNTIME === "1" && <VirtualUnlockButton />}<UnlockHelp deviceName={connectedDeviceName} onTab={setHubTab} onApp={openApp} /></>} />
           <ConnectModal
             open={!conn.conn && !runtimeOpen && !updating}
             transports={TRANSPORTS}
@@ -376,6 +380,7 @@ function App() {
             {import.meta.env.VITE_RYONG_RUNTIME === "1" ? <RuntimePanel
               open={runtimeOpen || !!conn.conn} onClose={() => setRuntimeOpen(false)}
               deviceName={connectedDeviceName} keymap={<Keyboard />} onSectionChange={setRuntimeSection}
+              onVirtual={() => { void virtualConnect().then(onConnect); }}
               onSaved={() => { reset(); setConn({ conn: conn.conn }); }} /> : <Keyboard />}
             <AppFooter
               onShowAbout={() => setShowAbout(true)}
@@ -385,6 +390,7 @@ function App() {
         </UndoRedoContext.Provider>
       </LockStateContext.Provider>
     </ConnectionContext.Provider>
+      {import.meta.env.VITE_RYONG_RUNTIME === "1" && <VirtualPanel onDisconnect={disconnect} />}
     </UpdateConnectionContext.Provider>
   );
 }
