@@ -1,0 +1,6 @@
+description: Physical key with Windows-standard and Apple usages, latched on press
+compatible: "ryong,host-key"
+include: two_param.yaml
+binding-cells:
+  - param1
+  - param2

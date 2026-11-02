@@ -2,7 +2,7 @@ name: BT60 v2 test fixture compile
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['hardware/test-fixtures/bt60-v2/**', 'experiments/bt60-runtime/**', 'scripts/prepare_bt60.py', 'scripts/secure_runtime_rpc.py', 'modules/**', 'experiments/dya-runtime/**', '.github/workflows/bt60-validation.yml']
+    paths: ['hardware/test-fixtures/bt60-v2/**', 'experiments/bt60-runtime/**', 'scripts/prepare_bt60.py', 'scripts/secure_runtime_rpc.py', 'modules/**', 'experiments/host-layout/**', 'experiments/dya-runtime/**', '.github/workflows/bt60-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -13,10 +13,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [baseline, runtime]
+        variant: [baseline, runtime, host-layout]
     steps:
       - uses: actions/checkout@v4
-      - run: python3 scripts/prepare_bt60.py /tmp/bt60-build
+      - shell: bash
+        run: |
+          EXTRA=()
+          if [ "${{ matrix.variant }}" = host-layout ]; then EXTRA=(--host-layout); fi
+          python3 scripts/prepare_bt60.py /tmp/bt60-build "${EXTRA[@]}"
       - uses: actions/cache@v4
         with:
           path: |
@@ -37,7 +41,7 @@ jobs:
           west forall -c 'git restore --source=HEAD --worktree --staged .'
           west zephyr-export
       - name: Secure runtime RPC
-        if: matrix.variant == 'runtime'
+        if: matrix.variant != 'baseline'
         run: python3 scripts/secure_runtime_rpc.py /tmp/bt60-build
       - name: Compile BT60 only
         shell: bash
@@ -46,8 +50,11 @@ jobs:
           VARIANT: ${{ matrix.variant }}
         run: |
           EXTRA=()
-          if [ "$VARIANT" = runtime ]; then
+          if [ "$VARIANT" != baseline ]; then
             EXTRA=("-DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module;$GITHUB_WORKSPACE/modules/ryong-holdtap" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/bt60-runtime/runtime.overlay")
+          fi
+          if [ "$VARIANT" = host-layout ]; then
+            EXTRA=("-DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module;$GITHUB_WORKSPACE/modules/ryong-holdtap;$GITHUB_WORKSPACE/modules/ryong-host-layout" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf;$GITHUB_WORKSPACE/experiments/host-layout/host-layout.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/bt60-runtime/runtime.overlay;$GITHUB_WORKSPACE/experiments/host-layout/host-layout.overlay")
           fi
           west build -s zmk/app -d build -b bt60//zmk -S studio-rpc-usb-uart -- -DCONFIG_ZMK_STUDIO=y -DZMK_CONFIG=/tmp/bt60-build/config -DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module "${EXTRA[@]}"
       - name: Diagnostic reports only

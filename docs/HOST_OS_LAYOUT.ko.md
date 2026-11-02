@@ -45,3 +45,15 @@ UI와 백업은 아직 연결하지 않았다. 자동 감지가 실물에서 작
 평소 펌웨어 업데이트는 버튼 한 번, 자동 백업/검증/전송, 진행률과 전원 유지 안내,
 자동 재연결과 결과 확인을 목표로 한다. Fn+Enter/폴더/UF2 복사를 평상시 제품
 업데이트 UX로 채택하지 않는다. 기존 수동 절차는 개발/비상 경로로 구분한다.
+
+
+## ZMK adapter experiment
+
+`modules/ryong-host-layout` now implements an opt-in two-parameter physical
+binding with Windows/Apple usages, a debounce and press/release latching.
+`experiments/host-layout` adds a separate BT60 compile variant. The actual
+host-layout state source is also compiled by CMake and tested on the host.
+The detector is pinned to 3052679f645b8fc1997275c2eaa6b86bdd55ca01; its custom
+Studio handler is secured by the fail-closed source patch.
+Do not call this real-device verified. Bond-identity reset, integrated OS UI,
+physical classification and native ZMK event snapshots remain open.

@@ -9,6 +9,8 @@ handlers = [
     ("zmk-feature-runtime-macro", "src/studio/runtime_macro_handler.c"),
     ("zmk-feature-custom-settings", "src/studio/custom_settings_handler.c"),
 ]
+if (root / "zmk-feature-os-detection").exists():
+    handlers.append(("zmk-feature-os-detection", "src/studio/os_detection_handler.c"))
 old = ".security = ZMK_STUDIO_RPC_HANDLER_UNSECURED,"
 new = ".security = ZMK_STUDIO_RPC_HANDLER_SECURED,"
 # Validate every file before touching any source.
@@ -22,3 +24,4 @@ for module, relative in handlers:
 for path, text in sources:
     path.write_text(text.replace(old, new))
     print(f"Studio unlock required: {path}")
+

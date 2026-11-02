@@ -25,3 +25,13 @@ endif()
 add_executable(ryong_host_policy_tests tests/test_host_policy.c)
 target_link_libraries(ryong_host_policy_tests PRIVATE ryong_host_policy)
 add_test(NAME ryong_host_policy_tests COMMAND ryong_host_policy_tests)
+
+
+add_library(ryong_host_layout STATIC modules/ryong-host-layout/src/host_layout.c)
+target_include_directories(ryong_host_layout PUBLIC modules/ryong-host-layout/include)
+if(NOT MSVC)
+  target_compile_options(ryong_host_layout PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+add_executable(ryong_host_layout_tests tests/test_host_layout.c)
+target_link_libraries(ryong_host_layout_tests PRIVATE ryong_host_layout)
+add_test(NAME ryong_host_layout_tests COMMAND ryong_host_layout_tests)

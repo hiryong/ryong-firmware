@@ -81,3 +81,10 @@ See HOST_OS_LAYOUT.ko.md. This is not yet a working firmware feature.
 - [x] Rebase separately committed Studio keymap changes without discarding staged dynamic edits; reject unsaved keymaps/concurrent runtime edits.
 - [x] Local TypeScript, runtime models/fault tests, named-binding tests, Chromium desktop/mobile and offline file preview checks.
 - [ ] Physical USB/BLE, persistence, upgrade and power validation remains open. The latest UI does not change that release status.
+
+## OS-adaptive binding experiment
+
+- [x] Implement opt-in ZMK physical Windows/Apple binding, endpoint fallback, debounce and exact press/release latching.
+- [x] Host-test the same state source compiled into the ZMK module.
+- [x] Pin external detector, secure its RPC and add a separate BT60 host-layout build variant.
+- [ ] Confirm the new variant builds in Actions; re-pair identity reset and integrated OS control remain pending.

@@ -1,0 +1,1 @@
+/ { behaviors { ry_host: ry_host { compatible = "ryong,host-key"; #binding-cells = <2>; display-name = "OS Adaptive Key"; }; }; };

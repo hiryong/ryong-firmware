@@ -27,4 +27,22 @@ manifest["manifest"]["projects"].append({
     "url": "https://github.com/cormoran/zmk-feature-runtime-tapdance",
     "revision": "3ed2c36ed94b16601eeba2ed39a27cc93e9a53ee",
 })
+manifest["manifest"]["projects"].append({
+    "name": "zmk-feature-os-detection",
+    "url": "https://github.com/cormoran/zmk-feature-os-detection",
+    "revision": "3052679f645b8fc1997275c2eaa6b86bdd55ca01",
+})
 manifest_path.write_text(yaml.safe_dump(manifest, sort_keys=False))
+
+if "--host-layout" in sys.argv[2:]:
+    keymap = dest / "config/bt60.keymap"
+    text = keymap.read_text()
+    start = text.index("    base {")
+    end = text.index("    os {", start)
+    base = text[start:end]
+    if base.count("&kp LGUI") != 1 or base.count("&kp LALT") != 1:
+        raise SystemExit("Re-audit BT60 base modifier positions")
+    base = base.replace("&kp LGUI", "&ry_host LALT LGUI").replace("&kp LALT", "&ry_host LGUI LALT")
+    keymap.write_text(text[:start] + base + text[end:])
+
+
