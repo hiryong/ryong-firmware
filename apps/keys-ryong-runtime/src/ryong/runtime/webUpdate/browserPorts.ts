@@ -14,6 +14,12 @@ export async function storeUpdateBackup(record:unknown){
  const db=await database(),id=crypto.randomUUID();
  try{await new Promise<void>((resolve,reject)=>{const tx=db.transaction("backups","readwrite",{durability:"strict"});tx.objectStore("backups").add({backup:record,createdAt:Date.now()},id);tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error??Error("Backup transaction aborted."));tx.onerror=()=>reject(tx.error);});return id;}finally{db.close();}
 }
+export async function readUpdateBackup(id:string){
+ const db=await database();try{return await new Promise<string>((resolve,reject)=>{
+  const tx=db.transaction("backups","readonly"),request=tx.objectStore("backups").get(id);
+  request.onsuccess=()=>request.result?.backup?resolve(JSON.stringify(request.result.backup,null,2)):reject(Error("Update backup is missing."));request.onerror=()=>reject(request.error);
+ });}finally{db.close();}
+}
 async function recordOutcome(id:string,result:unknown){
  const db=await database();try{await new Promise<void>((resolve,reject)=>{const tx=db.transaction("backups","readwrite",{durability:"strict"}),store=tx.objectStore("backups"),read=store.get(id);read.onsuccess=()=>{if(!read.result){tx.abort();return;}store.put({...read.result,result},id);};tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error??Error("Update record missing."));tx.onerror=()=>reject(tx.error);});}finally{db.close();}
 }
@@ -66,7 +72,7 @@ export async function browserUpdatePorts(conn:RpcConnection,chooseBootloader:(fi
      const next=await create_rpc_connection({label:before.model,abortController:abort,readable:p.readable,writable:p.writable},{signal:abort.signal});
      const identity=await (await firmwareDevice(next)).identity();
      if(identity.unit!==before.unit||identity.model!==before.model)throw Error("Reconnected keyboard identity differs.");
-     adopt(next,before.model,abort);return identity;
+     adopt(next,identity.name??before.model,abort);return identity;
     }catch(error){abort.abort();await p.close().catch(()=>{});throw error;}
    }
    throw Error("Keyboard reconnection timed out. Keep the backup and inspect recovery; no retry was sent.");

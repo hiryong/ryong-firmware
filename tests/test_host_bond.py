@@ -30,6 +30,9 @@ bt_addr_le_t *zmk_ble_profile_address(uint8_t);
 const struct zmk_custom_setting *zmk_custom_setting_find_array_element(const char *,const char *,uint8_t);
 int zmk_custom_setting_read(const struct zmk_custom_setting *,struct zmk_custom_setting_value *);
 int zmk_custom_setting_write(const struct zmk_custom_setting *,const struct zmk_custom_setting_value *,int);
+int zmk_custom_setting_read_array_by_key(const char *,const char *,uint32_t,struct zmk_custom_setting_value *);
+int zmk_custom_setting_write_array_by_key(const char *,const char *,uint32_t,const struct zmk_custom_setting_value *,int);
+
 '''
 HARNESS=r'''
 #include <assert.h>
@@ -46,6 +49,12 @@ const struct zmk_custom_setting *zmk_custom_setting_find_array_element(const cha
 int zmk_custom_setting_read(const struct zmk_custom_setting *s,struct zmk_custom_setting_value *v){*v=ram[s->kind][s->index];return 0;}
 int zmk_custom_setting_write(const struct zmk_custom_setting *s,const struct zmk_custom_setting_value *v,int mode){
  assert(mode==1);if(++writes==fail_at)return -EIO;ram[s->kind][s->index]=*v;flash[s->kind][s->index]=*v;return 0;
+}
+int zmk_custom_setting_read_array_by_key(const char *sub,const char *key,uint32_t i,struct zmk_custom_setting_value *v){
+ const struct zmk_custom_setting *s=zmk_custom_setting_find_array_element(sub,key,i);return s?zmk_custom_setting_read(s,v):-ENODEV;
+}
+int zmk_custom_setting_write_array_by_key(const char *sub,const char *key,uint32_t i,const struct zmk_custom_setting_value *v,int mode){
+ const struct zmk_custom_setting *s=zmk_custom_setting_find_array_element(sub,key,i);return s?zmk_custom_setting_write(s,v,mode):-ENODEV;
 }
 static void setup(void){
  memset(ram,0,sizeof ram);memset(flash,0,sizeof flash);memset(peers,0,sizeof peers);memset(reset_pending,0,sizeof reset_pending);

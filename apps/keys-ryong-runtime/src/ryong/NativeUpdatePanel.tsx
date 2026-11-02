@@ -6,7 +6,8 @@ import {LockState} from "@zmkfirmware/zmk-studio-ts-client/core";
 import {firmwareDevice,FirmwareIdentity} from "./runtime/updateDevice";
 import {FirmwareUpdateMachine,UpdateProgress} from "./runtime/updateMachine";
 import {UpdateConnectionContext} from "./runtime/updateContext";
-import {browserUpdatePorts} from "./runtime/webUpdate/browserPorts";
+import {downloadText} from "./runtime/profileFile";
+import {browserUpdatePorts,readUpdateBackup} from "./runtime/webUpdate/browserPorts";
 import {APPROVED_WEB_DFU_POLICIES} from "./runtime/webUpdate/package";
 import {t} from "./i18n";
 type BootloaderInfo={board_id:string;info:string};
@@ -21,6 +22,7 @@ const stageLabel=(stage:UpdateProgress["stage"])=>({
 export function NativeUpdatePanel(){
  const {conn}=useContext(ConnectionContext),lock=useContext(LockStateContext),connection=useContext(UpdateConnectionContext);
  const [identity,setIdentity]=useState<FirmwareIdentity|null>(null),[info,setInfo]=useState<BootloaderInfo[]>([]);
+ const [backupId,setBackupId]=useState<string|null>(null);
  const [running,setRunning]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);
  const [progress,setProgress]=useState<UpdateProgress|null>(null),[permission,setPermission]=useState<Permission|null>(null);
  const pending=useRef<Permission|null>(null);pending.current=permission;
@@ -40,7 +42,7 @@ export function NativeUpdatePanel(){
    if(!response.ok||Number(response.headers.get("Content-Length")??0)>3*1024*1024)throw Error("Update download failed or exceeds bounds.");
    const text=await response.text();if(text.length>3*1024*1024)throw Error("Update package exceeds bounds.");
    const ports=await browserUpdatePorts(conn,filters=>new Promise((resolve,reject)=>setPermission({filters,resolve,reject})),connection.adopt);
-   await new FirmwareUpdateMachine(ports).run(text,setProgress);
+   await new FirmwareUpdateMachine(ports).run(text,p=>{setProgress(p);if(p.backupId)setBackupId(p.backupId);});
   }catch(e){setError(String(e));setProgress({stage:"needs-review",message:String(e)});}
   finally{setRunning(false);connection.setUpdating(false);}
  };
@@ -56,6 +58,8 @@ export function NativeUpdatePanel(){
    <button className="ry-primary" onClick={async()=>{const p=permission;try{p.resolve(await navigator.serial.requestPort({filters:p.filters}));}catch(e){p.reject(e instanceof Error?e:Error(String(e)));}finally{setPermission(null);}}}>{t("Choose update device","업데이트 장치 선택")}</button>
    <button className="ry-text" onClick={()=>{permission.reject(Error("Device permission cancelled."));setPermission(null);}}>{t("Cancel","취소")}</button>
   </div>}
+  {backupId&&<button className="ry-text" onClick={async()=>{try{downloadText("ryong-update-backup.json",await readUpdateBackup(backupId));}catch(e){setError(String(e));}}}>{t("Download update backup","업데이트 백업 다운로드")}</button>}
+  {backupId&&<p className="ry-note">{t("If recovery is needed, import this file into Dynamic settings first and save, then import it in Backup to restore key assignments. Each restore requires your explicit Save.","복구가 필요하면 이 파일을 동적 설정에서 먼저 불러와 저장한 뒤, 백업 탭에서 불러와 키 배치를 복원하세요. 복원은 각각 저장을 눌러야 적용됩니다.")}</p>}
   {error&&<p role="alert">{error}</p>}
   {native&&<details><summary>{t("Bootloader information (optional)","부트로더 정보 확인 (선택)")}</summary>
    <button className="ry-outline" disabled={busy||running} onClick={async()=>{setBusy(true);setError(null);try{setInfo(await invoke<BootloaderInfo[]>("firmware_bootloader_inventory"));}catch(e){setError(String(e));}finally{setBusy(false);}}}>{t("Read bootloader information","부트로더 정보 읽기")}</button>

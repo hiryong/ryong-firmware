@@ -33,6 +33,18 @@ class BuildTools(unittest.TestCase):
             result = subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_zmk.py'), str(dest)], capture_output=True)
             self.assertNotEqual(result.returncode, 0)
 
+    def test_bt60_adaptive_keys_keep_windows_and_apple_physical_order(self):
+        with tempfile.TemporaryDirectory() as temp:
+            dest = Path(temp) / 'workspace'
+            subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_bt60.py'), str(dest), '--host-layout'], check=True)
+            generated = (dest / 'config/bt60.keymap').read_text()
+            base = generated.split('    base {', 1)[1].split('    os {', 1)[0]
+            self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE', base)
+            self.assertEqual(base.count('&ry_host'), 2)
+            original = (ROOT / 'hardware/test-fixtures/bt60-v2/config/bt60.keymap').read_text()
+            self.assertEqual(generated.split('    os {', 1)[1], original.split('    os {', 1)[1])
+            self.assertNotIn('&ry_host', original)
+
     def test_simulation_requires_hardened_metadata(self):
         spec = importlib.util.spec_from_file_location("sim_runner", ROOT / "scripts/run_module_simulations.py")
         module = importlib.util.module_from_spec(spec)

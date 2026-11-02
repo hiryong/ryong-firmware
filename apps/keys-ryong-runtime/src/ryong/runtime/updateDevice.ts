@@ -7,7 +7,7 @@ async function bounded<T>(promise:Promise<T>):Promise<T>{
  try{return await Promise.race([promise,new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(Error("Update RPC timed out. Inspect device state; no retry was sent.")),6000);})]);}
  finally{clearTimeout(timer);}
 }
-export type FirmwareIdentity={model:string;buildId:string;version:number;unit:string;bootloaderAllowed:boolean};
+export type FirmwareIdentity={model:string;buildId:string;version:number;unit:string;name?:string;bootloaderAllowed:boolean};
 export async function firmwareDevice(conn:RpcConnection,io={
  discover:discoverRuntime,payload:callRuntimePayload,core:call_rpc,
  random:()=>crypto.getRandomValues(new Uint8Array(16)),
@@ -21,7 +21,7 @@ export async function firmwareDevice(conn:RpcConnection,io={
    const identity=(await rpc(read.index,U.Request.fromPartial({identity:{}}))).identity;
    const core=(await bounded(io.core(conn,{core:{getDeviceInfo:true}}))).core?.getDeviceInfo;
    if(!identity?.model||identity.model.length>39||!identity.buildId||identity.buildId.length>64||!Number.isInteger(identity.version)||identity.version<0||identity.version>0x7fffffff||!core?.serialNumber.length||core.serialNumber.length>32)throw Error("Incomplete firmware/unit identity.");
-   return {...identity,unit:Array.from(core.serialNumber,b=>b.toString(16).padStart(2,"0")).join("")};
+   return {...identity,name:core.name||identity.model,unit:Array.from(core.serialNumber,b=>b.toString(16).padStart(2,"0")).join("")};
   },
   async enterBootloader(before:FirmwareIdentity){
    if(!before.bootloaderAllowed)throw Error("Automatic update is not approved for this firmware.");

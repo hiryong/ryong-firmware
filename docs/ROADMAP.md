@@ -107,3 +107,11 @@ See HOST_OS_LAYOUT.ko.md. This is not yet a working firmware feature.
 - [x] Backup-before-reboot/update state machine and same-unit/build reconnection checks.
 - [x] Firmware read-only identity plus separate secured two-phase bootloader bridge; real bootloader entry defaults off.
 - [ ] Validate latest bridge in actual ZMK build; no actual BT60 bootloader identity/CDC/range/recovery approval exists yet.
+
+## Recovery and layout hardening
+
+- [x] Combined update backup download/import through the existing editors, with semantic macro/dance keymap references.
+- [x] Reject changed/reused runtime action slots before named key assignment.
+- [x] Verify BT60 Windows Ctrl/Win/Alt vs Apple Ctrl/Option/Command physical positions in preparation tests.
+- [x] Use indexed settings access without retaining borrowed array-view pointers across other lookups.
+- [ ] Real board/bootloader identification, approved recovery image, BLE bond retention and live write/power-loss tests remain open.

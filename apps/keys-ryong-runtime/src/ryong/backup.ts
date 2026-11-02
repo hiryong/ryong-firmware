@@ -10,6 +10,7 @@ export interface BackupBinding {
   behavior: string;
   param1: number;
   param2: number;
+  dynamicReference?: {kind: "macro" | "dance"; name: string};
 }
 
 export interface KeymapBackup {
@@ -70,11 +71,33 @@ export async function createBackup(conn: RpcConnection, device: string): Promise
 }
 
 export function parseBackup(text: string): KeymapBackup {
-  const data = JSON.parse(text);
+  let data = JSON.parse(text);
+  if(data?.format === "ryong-update-backup"){
+    if(data.version !== 1)throw new Error("Unsupported update backup version.");
+    data=data.keymap;
+  }
   if (data?.format !== "ryong-keymap-backup" || !Array.isArray(data.layers)) {
     throw new Error("This is not a keys.ryong.com backup file.");
   }
   return data as KeymapBackup;
+}
+
+export function resolveBackupBinding(binding:BackupBinding,byName:Record<string,number>,runtime:import("./runtime/modelBridge").RuntimeView|null){
+ const ref=binding.dynamicReference;
+ if(ref){
+  if(!runtime||typeof ref.name!=="string")return undefined;
+  if(ref.kind==="macro"){
+   const matches=runtime.snapshot.macros.filter(m=>m.name===ref.name);
+   return matches.length===1&&runtime.catalog.ref?{behaviorId:runtime.catalog.ref,param1:matches[0].slot,param2:0}:undefined;
+  }
+  if(ref.kind==="dance"){
+   const matches=(runtime.snapshot.advanced?.dances??[]).filter(d=>d.name===ref.name);
+   return matches.length===1&&runtime.catalog.rtd?{behaviorId:runtime.catalog.rtd,param1:matches[0].index,param2:0}:undefined;
+  }
+  return undefined;
+ }
+ const behaviorId=byName[binding.behavior];
+ return behaviorId===undefined?undefined:{behaviorId,param1:binding.param1,param2:binding.param2};
 }
 
 export interface RestoreResult {
@@ -88,6 +111,10 @@ export async function restoreBackup(
   backup: KeymapBackup,
   onProgress?: (done: number, total: number) => void
 ): Promise<RestoreResult> {
+  // Load runtime names before changing layers. Restoring dynamic settings
+  // first may have assigned different slots/IDs; never guess them.
+  const needsRuntime=backup.layers.some(l=>l.bindings.some(b=>b.dynamicReference));
+  const runtime=needsRuntime?await (await import("./runtime/modelBridge")).loadRuntimeView(conn):null;
   const names = await fetchBehaviorNames(conn);
   const byName: Record<string, number> = {};
   for (const [id, n] of Object.entries(names)) byName[n] = Number(id);
@@ -125,16 +152,17 @@ export async function restoreBackup(
       done++;
       if (pos >= target.bindings.length) continue;
       const b = src.bindings[pos];
-      const behaviorId = byName[b.behavior];
+      const resolved=resolveBackupBinding(b,byName,runtime);
+      const behaviorId=resolved?.behaviorId;
       if (behaviorId === undefined) {
-        unknown.add(b.behavior);
+        unknown.add(b.dynamicReference ? `${b.dynamicReference.kind}: ${b.dynamicReference.name}` : b.behavior);
         continue;
       }
       const cur = target.bindings[pos];
-      if (cur.behaviorId === behaviorId && cur.param1 === b.param1 && cur.param2 === b.param2) continue;
+      if (cur.behaviorId === behaviorId && cur.param1 === resolved!.param1 && cur.param2 === resolved!.param2) continue;
 
       const r = await call_rpc(conn, {
-        keymap: { setLayerBinding: { layerId: target.id, keyPosition: pos, binding: { behaviorId, param1: b.param1, param2: b.param2 } } },
+        keymap: { setLayerBinding: { layerId: target.id, keyPosition: pos, binding: resolved! } },
       });
       if (r.keymap?.setLayerBinding === SetLayerBindingResponse.SET_LAYER_BINDING_RESP_OK) changed++;
       if (done % 8 === 0) onProgress?.(done, total);

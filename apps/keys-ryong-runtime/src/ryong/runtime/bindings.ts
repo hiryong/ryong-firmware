@@ -17,3 +17,14 @@ export function namedRuntimeBindings(view: RuntimeView | null): NamedRuntimeBind
   }
   return choices;
 }
+
+/** Re-read before assigning a saved action; a stale slot must not select a
+ * different macro/dance after another editor changed the device. No writes. */
+export async function checkedRuntimeBinding(view:RuntimeView,key:string):Promise<BehaviorBinding>{
+  const choice=namedRuntimeBindings(view).find(c=>c.key===key);
+  if(!choice)throw Error("Dynamic action is no longer available. Reload settings.");
+  const current=await view.session.read();
+  const stable=(snapshot:RuntimeView["snapshot"])=>JSON.stringify({macros:snapshot.macros,dances:snapshot.advanced?.dances});
+  if(stable(current)!==stable(view.snapshot))throw Error("Dynamic actions changed. Reload before assigning a key.");
+  return {...choice.binding};
+}

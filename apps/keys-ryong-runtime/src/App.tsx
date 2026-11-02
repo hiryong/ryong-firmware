@@ -202,9 +202,10 @@ function App() {
   });
 
   useEffect(() => {
-    if (!conn) {
+    if (!conn.conn) {
       reset();
       setLockState(LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED);
+      return;
     }
 
     async function updateLockState() {

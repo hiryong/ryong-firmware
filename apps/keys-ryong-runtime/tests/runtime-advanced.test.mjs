@@ -21,6 +21,8 @@ assert.equal(viewDocument(view).tapDances[0].id,id);
 assert.equal(viewDocument(view).tapDances[0].bindings.length,1);
 const text=exportProfile(viewDocument(view),view);const restored=importProfile(text,view);
 assert.equal(restored.tapDances[0].id,id);
+assert.equal(importProfile(JSON.stringify({format:"ryong-update-backup",version:1,dynamic:JSON.parse(text)}),view).tapDances[0].id,id);
+assert.throws(()=>importProfile(JSON.stringify({format:"ryong-update-backup",version:2,dynamic:JSON.parse(text)}),view),/version/);
 const changedIds={...view,catalog:{...view.catalog,kp:201,ref:202,mt:217,lt:218,rtd:219}};
 // Backup compatibility uses semantic behavior names, not firmware-local numbers.
 assert.equal(JSON.parse(exportProfile(viewDocument(view),changedIds)).version,2);

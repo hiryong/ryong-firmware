@@ -1,7 +1,7 @@
 import type {FirmwareIdentity} from "./updateDevice";
 export type VerifiedManifest={model:string;board_id:string;build_id:string;version:number};
 export type UpdateStage="checking"|"backing-up"|"entering-bootloader"|"waiting-for-bootloader"|"transferring"|"reconnecting"|"complete"|"needs-review";
-export type UpdateProgress={stage:UpdateStage;written?:number;total?:number;message?:string};
+export type UpdateProgress={stage:UpdateStage;written?:number;total?:number;message?:string;backupId?:string};
 export interface UpdatePorts {
  identity():Promise<FirmwareIdentity>;
  verify(packageJson:string,before:FirmwareIdentity):Promise<VerifiedManifest>;
@@ -32,7 +32,7 @@ export class FirmwareUpdateMachine {
    if(!backupId)throw Error("No durable backup acknowledgement.");
    const current=await this.ports.identity();
    if(current.unit!==before.unit||current.model!==before.model||current.buildId!==before.buildId||current.version!==before.version)throw Error("Device changed after backup.");
-   report({stage:"entering-bootloader"});await this.ports.enterBootloader(before);
+   report({stage:"entering-bootloader",backupId});await this.ports.enterBootloader(before);
    report({stage:"waiting-for-bootloader"});await this.ports.waitForBootloader(expected);
    report({stage:"transferring"});const receipt=await this.ports.transfer(packageJson,before,(written,total)=>{
     if(Number.isSafeInteger(written)&&Number.isSafeInteger(total)&&total>0&&written>=0&&written<=total)report({stage:"transferring",written,total});

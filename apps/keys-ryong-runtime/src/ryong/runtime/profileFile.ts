@@ -12,7 +12,11 @@ export function exportProfile(doc: BehaviorDoc, view: RuntimeView) {
 /** Restore by names, never trust slots/IDs from an imported file. No I/O. */
 export function importProfile(text: string, view: RuntimeView): BehaviorDoc {
   if (text.length > 262144) throw new Error("Backup exceeds 256 KiB.");
-  const data = JSON.parse(text);
+  let data = JSON.parse(text);
+  if(data?.format === "ryong-update-backup"){
+    if(data.version !== 1)throw new Error("Unsupported update backup version.");
+    data=data.dynamic;
+  }
   if (data?.format !== "ryong-runtime-backup" || data.version !== 2 ||
       JSON.stringify(data.compatibility) !== JSON.stringify(compatibility(view))) {
     throw new Error("Backup format or firmware/layout compatibility differs. No settings changed.");

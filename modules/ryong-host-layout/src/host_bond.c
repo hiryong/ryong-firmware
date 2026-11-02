@@ -22,19 +22,19 @@ ZMK_CUSTOM_SETTING_ARRAY_DEFINE(ryong_host_owner, "ryong__host_layout", "bond_ow
 static K_MUTEX_DEFINE(owner_lock);
 static bool reset_pending[ZMK_BLE_PROFILE_COUNT];
 static int clear_setting(uint8_t index, const char *name) {
-    const struct zmk_custom_setting *setting = zmk_custom_setting_find_array_element("cormoran__os_detection", name, index);
-    if (!setting) return -ENODEV;
     struct zmk_custom_setting_value value = {.type = ZMK_CUSTOM_SETTING_VALUE_TYPE_INT32, .int32_value = 0};
-    return zmk_custom_setting_write(setting, &value, ZMK_CUSTOM_SETTING_WRITE_MODE_PERSIST);
+    return zmk_custom_setting_write_array_by_key("cormoran__os_detection", name, index,
+                                                &value, ZMK_CUSTOM_SETTING_WRITE_MODE_PERSIST);
 }
 int ryong_host_guard_profile(uint8_t index) {
     if (index >= ZMK_BLE_PROFILE_COUNT) return -EINVAL;
     k_mutex_lock(&owner_lock, K_FOREVER);
     const bt_addr_le_t *peer = zmk_ble_profile_address(index);
-    const struct zmk_custom_setting *setting = zmk_custom_setting_find_array_element("ryong__host_layout", "bond_owner_v1", index);
+    bt_addr_le_t peer_copy;
+    if (peer) memcpy(&peer_copy, peer, sizeof(peer_copy));
     struct zmk_custom_setting_value old;
-    int rc = !peer || !setting ? -ENODEV : zmk_custom_setting_read(setting, &old);
-    if (!rc && (old.type != ZMK_CUSTOM_SETTING_VALUE_TYPE_BYTES || old.size != sizeof(*peer) || memcmp(old.bytes_value, peer, sizeof(*peer)))) {
+    int rc = !peer ? -ENODEV : zmk_custom_setting_read_array_by_key("ryong__host_layout", "bond_owner_v1", index, &old);
+    if (!rc && (old.type != ZMK_CUSTOM_SETTING_VALUE_TYPE_BYTES || old.size != sizeof(*peer) || memcmp(old.bytes_value, &peer_copy, sizeof(peer_copy)))) {
         reset_pending[index] = true;
         // Clear both records durably before adopting a new identity. Any failure
         // leaves the old owner tag, so the next operation retries the reset.
@@ -42,8 +42,8 @@ int ryong_host_guard_profile(uint8_t index) {
         if (!rc) rc = clear_setting(index, "ble_detected");
         if (!rc) {
             struct zmk_custom_setting_value next = {.type = ZMK_CUSTOM_SETTING_VALUE_TYPE_BYTES, .size = sizeof(*peer)};
-            memcpy(next.bytes_value, peer, sizeof(*peer));
-            rc = zmk_custom_setting_write(setting, &next, ZMK_CUSTOM_SETTING_WRITE_MODE_PERSIST);
+            memcpy(next.bytes_value, &peer_copy, sizeof(peer_copy));
+            rc = zmk_custom_setting_write_array_by_key("ryong__host_layout", "bond_owner_v1", index, &next, ZMK_CUSTOM_SETTING_WRITE_MODE_PERSIST);
         }
     }
     k_mutex_unlock(&owner_lock);

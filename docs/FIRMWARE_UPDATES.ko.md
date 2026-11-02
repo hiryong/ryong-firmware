@@ -121,3 +121,16 @@ behavior names plus named macro/dance references, and host profile choices.
 No record is restored automatically after a failure. All live paths remain
 closed because the approved browser/native policy registries are empty and
 firmware bootloader entry defaults off. This wiring is not a real-device test.
+
+
+### Update backup recovery (no automatic restore)
+
+The update transaction exposes its durable backup ID before bootloader entry,
+so its backup file remains downloadable on success or failure. The combined
+file can be imported into the dynamic editor, reviewed and explicitly saved;
+then the same file can be imported in the existing Backup tab for keymap
+review/restore and explicit Save. Named macro/Tap Dance references are resolved
+against current saved entries after a dynamic restore, never reused as stale
+numeric slots. Missing/ambiguous names are skipped with a report. Host-profile
+choices are retained in the backup for review; they are not blindly copied to
+different BLE bonds. No settings reset or automatic downgrade occurs.

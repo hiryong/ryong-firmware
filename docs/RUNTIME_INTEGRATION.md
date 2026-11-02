@@ -164,3 +164,30 @@ Local validation: CMake/CTest 2 cases, Python 5 cases, TypeScript, runtime
 transaction/model/advanced tests, named-binding identity tests, Chromium
 navigation/draft recovery/mobile width and direct-file standalone checks passed.
 These are host/browser results, not a physical keyboard test or release approval.
+
+## Web-first update and recovery checkpoint
+
+Web Serial is now the primary update transport; native Mac software is optional.
+The browser validates an Ed25519-signed package and exact application range,
+backs up keymap/dynamic/host settings in a strict IndexedDB transaction,
+requests secured two-phase bootloader entry, transfers only the application,
+and verifies the same unit/model/build/version after reconnect. A browser
+permission gesture may be required on first use. No synthetic transfer progress,
+automatic retry after uncertain ACK, settings reset or automatic downgrade is used.
+
+The public identity subsystem is intentionally read-only so reboot can be
+verified before Studio is unlocked. Mutation remains in a separate secured
+subsystem. Firmware bootloader entry and browser/native release policies remain
+disabled until the real bootloader, application offset, rollback and migration
+are validated. Do not distribute an installable image on build success alone.
+
+Combined update backups can be downloaded and explicitly imported first in the
+dynamic editor, then in the existing keymap Backup tab. Dynamic references are
+resolved by saved names after restore, not stale numeric slots. Missing or
+ambiguous entries are reported rather than silently assigned. The named-action
+picker re-reads runtime state before assignment to reject a reused macro slot.
+
+Verified prior CI source 6459f3ad836dd5bf817ea507f6a6df7b227b8a4b includes the
+new update bridge and passes BT60 baseline/runtime/OS-layout compile; earlier
+885830d browser checks include actual Chromium WebCrypto and file preview.
+Subsequent recovery/layout changes require their own CI confirmation.

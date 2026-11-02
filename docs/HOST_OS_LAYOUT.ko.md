@@ -73,3 +73,9 @@ old owner tag and fails closed. The firmware guard source passes a compiled
 host shim test including reboot after each of its three write failure points.
 The upstream adapter patch validates every anchor before changing any source.
 Hardware pairing and flash behavior remain unverified.
+
+
+BT60 physical order is verified from the imported keymap: Windows is
+Ctrl / GUI(Win) / Alt / Space; Apple is Ctrl / Alt(Option) / GUI(Command) /
+Space. A preparation regression test checks these exact positions and that
+the manual OS layer and imported source bytes remain unchanged.

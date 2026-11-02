@@ -10,7 +10,7 @@ Its unsecured Studio handler is hardened by scripts/secure_runtime_rpc.py.
 `&ry_host <Windows usage> <Apple usage>` changes only explicitly participating
 physical bindings. It does not rewrite saved keymaps, macro outputs or every
 HID modifier. The BT60 experiment modifies only the disposable base-layer copy:
-left outer position Alt/Option, left inner position GUI/Command. Existing OS
+Windows: outer GUI/Win, inner Alt; Apple: outer Option/Alt, inner Command/GUI. Existing OS
 layer and its manual bindings remain available, so users should leave that
 manual layer off while evaluating automatic layout.
 

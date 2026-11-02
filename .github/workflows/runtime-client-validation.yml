@@ -43,6 +43,7 @@ jobs:
           node tests/web-update.test.mjs
           node tests/update-machine.test.mjs
           node tests/update-device.test.mjs
+          node tests/backup-dynamic.test.mjs
           node tests/host-device.test.mjs
           node tests/runtime-bindings.test.mjs
           node tests/runtime-device.test.mjs

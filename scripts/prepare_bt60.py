@@ -42,7 +42,7 @@ if "--host-layout" in sys.argv[2:]:
     base = text[start:end]
     if base.count("&kp LGUI") != 1 or base.count("&kp LALT") != 1:
         raise SystemExit("Re-audit BT60 base modifier positions")
-    base = base.replace("&kp LGUI", "&ry_host LALT LGUI").replace("&kp LALT", "&ry_host LGUI LALT")
+    base = base.replace("&kp LGUI", "&ry_host LGUI LALT").replace("&kp LALT", "&ry_host LALT LGUI")
     keymap.write_text(text[:start] + base + text[end:])
 
 
