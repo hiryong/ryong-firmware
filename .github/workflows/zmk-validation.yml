@@ -18,6 +18,18 @@ jobs:
       - uses: actions/checkout@v4
       - name: Prepare isolated workspace
         run: python3 scripts/prepare_zmk.py /tmp/ryong-build
+      - uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/ryong-build/zmk
+            /tmp/ryong-build/zephyr
+            /tmp/ryong-build/modules
+            /tmp/ryong-build/tools
+            /tmp/ryong-build/bootloader
+            /tmp/ryong-build/zmk-feature-runtime-combo
+            /tmp/ryong-build/zmk-feature-runtime-macro
+            /tmp/ryong-build/zmk-feature-custom-settings
+          key: zmk-deps-${{ runner.os }}-${{ hashFiles('experiments/dya-runtime/west.yml') }}
       - name: Resolve pinned dependencies
         working-directory: /tmp/ryong-build
         run: |
@@ -49,11 +61,12 @@ jobs:
         run: |
           mkdir -p reports
           cp resolved-manifest.yml reports/ || true
-          for f in .config zephyr.dts zephyr.map; do
-            if [ -f "build/zephyr/$f" ]; then cp "build/zephyr/$f" reports/; fi
+          for f in .config zephyr.dts zmk.map; do
+            if [ -f "build/zephyr/$f" ]; then cp "build/zephyr/$f" "reports/${f#.}"; fi
           done
-          if [ -f build/zephyr/zephyr.elf ]; then
-            arm-zephyr-eabi-size build/zephyr/zephyr.elf > reports/size.txt
+          if [ -f build/zephyr/zmk.elf ]; then
+            west build -d build -t rom_report > reports/rom.txt
+            west build -d build -t ram_report > reports/ram.txt
           fi
       - uses: actions/upload-artifact@v4
         if: always()
