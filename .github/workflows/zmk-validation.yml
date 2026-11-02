@@ -48,7 +48,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
         run: |
           EXTRA=()
-          if [ "$VARIANT" = runtime ]; then EXTRA=("-DZMK_EXTRA_MODULES=/tmp/ryong-build/board;$GITHUB_WORKSPACE/modules/ryong-holdtap" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.overlay"); fi
+          if [ "$VARIANT" = runtime ]; then EXTRA=("-DZMK_EXTRA_MODULES=/tmp/ryong-build/board;$GITHUB_WORKSPACE/modules/ryong-holdtap;$GITHUB_WORKSPACE/modules/ryong-ble-profiles" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf;$GITHUB_WORKSPACE/experiments/host-layout/ble-profiles.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.overlay"); fi
           west build -s zmk/app -d build -b ryong60//zmk -S studio-rpc-usb-uart -- -DZMK_CONFIG=/tmp/ryong-build/config -DZMK_EXTRA_MODULES=/tmp/ryong-build/board "${EXTRA[@]}"
       - name: Install native simulator compiler
         if: matrix.variant == 'runtime'

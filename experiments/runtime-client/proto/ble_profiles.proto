@@ -1,0 +1,41 @@
+syntax = "proto3";
+package ryong.ble_profiles;
+
+// Keyboard-side Bluetooth slot management. Never carries peer addresses or keys.
+message Empty {}
+
+message Profile {
+    uint32 index = 1;
+    bool bonded = 2;      // a host is registered in this keyboard slot
+    bool connected = 3;   // live link right now (only meaningful while powered)
+    string name = 4;      // user label; empty when unnamed
+    uint32 token = 5;     // per-boot opaque bond token, 0 when empty; not stable across reboots
+}
+
+message State {
+    repeated Profile profiles = 1;
+    uint32 active_index = 2;
+    uint32 name_max_bytes = 3;
+    uint32 protocol_version = 4;
+}
+
+message Select { uint32 index = 1; }
+message Rename { uint32 index = 1; uint32 token = 2; string name = 3; }
+message Clear { uint32 index = 1; uint32 token = 2; }
+message Status { bool ok = 1; uint32 error = 2; }
+
+message Request {
+    oneof request_type {
+        Empty get_state = 1;
+        Select select = 2;
+        Rename rename = 3;
+        Clear clear = 4;
+    }
+}
+
+message Response {
+    oneof response_type {
+        State state = 1;
+        Status status = 2;
+    }
+}

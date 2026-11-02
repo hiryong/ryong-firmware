@@ -1,0 +1,9 @@
+config RYONG_BLE_PROFILES
+    bool "Ryong Bluetooth profile manager RPC (Easy-Switch style)"
+    depends on ZMK_STUDIO && ZMK_BLE && SETTINGS && !ZMK_SPLIT
+    default n
+    help
+      Secured Studio RPC listing keyboard-side BLE slots with user names,
+      switching the selected slot and removing the keyboard-side bond plus
+      its stored name and per-profile OS preference. Peer addresses and keys
+      are never exposed. Physical behaviour is unverified until tested.
