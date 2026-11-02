@@ -1,0 +1,1 @@
+MIT test fixtures adapted from cormoran/zmk@1fc72aaff7a42bd533c1f4c9b3f23c5317c745f4 app/tests/hold-tap/balanced, Copyright The ZMK Contributors. Only compatible changed to the selected runtime driver; expected HID/decision snapshots are unchanged. Three cases cover tap, timeout hold and interrupt hold. They do not prove real hardware, concurrent writes or NVS power-loss safety.

@@ -69,7 +69,7 @@ for (const after of [false,true]) for(let failurePoint=1;failurePoint<=25;failur
   for(const [target,key] of [[v.session.port,"macro"],[v.session.port,"combo"],[v.session.port.advanced,"dance"],[v.session.port.advanced,"hold"]]) {
     const original=target[key];target[key]=async request=>{
       if(disconnected)throw new Error("disconnected");
-      const mutation=!Object.keys(request).every(k=>/^(get|list|count)/.test(k));
+      const mutation=!Object.entries(request).filter(([,v])=>v!==undefined).every(([k])=>/^(get|list|count)/.test(k));
       const hit=mutation && ++count===failurePoint;
       if(hit && !after){disconnected=true;throw new Error("disconnected before write");}
       const result=await original(request);

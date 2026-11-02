@@ -20,15 +20,17 @@ def secured_snapshot(text):
 def main():
     workspace = Path(sys.argv[1]).resolve()
     modules = ["zmk-feature-runtime-combo", "zmk-feature-runtime-macro", "zmk-feature-custom-settings", "zmk-feature-runtime-tapdance"]
-    extra = ";".join(str(workspace / name) for name in modules)
+    module_root = Path(__file__).resolve().parents[1] / "modules/ryong-holdtap"
+    extra = ";".join([*(str(workspace / name) for name in modules), str(module_root)])
     cases = {
         "zmk-feature-runtime-combo": ["test", "studio", "overrides", "defaults", "discard"],
         "zmk-feature-runtime-macro": ["test", "studio"],
         "zmk-feature-runtime-tapdance": ["runtime-tapdance", "studio"],
+        "ryong-holdtap": ["balanced/1-dn-up", "balanced/2-dn-timer-up", "balanced/4c-dn-kcdn-kcup-up"],
     }
     for module, names in cases.items():
         for name in names:
-            fixture = workspace / module / "tests" / name
+            fixture = (module_root if module == "ryong-holdtap" else workspace / module) / "tests" / name
             build = workspace / "sim-build" / module / name
             print(f"Build native_sim: {module}/{name}", flush=True)
             subprocess.run([
