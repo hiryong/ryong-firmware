@@ -61,3 +61,5 @@ jobs:
           mkdir -p /tmp/deploy && cp -r apps/keys-ryong-runtime/dist-runtime /tmp/deploy/site && cd /tmp/deploy
           npx --yes wrangler@3 pages project list | grep -q " $PROJECT " || npx --yes wrangler@3 pages project create "$PROJECT" --production-branch=main
           npx --yes wrangler@3 pages deploy site --project-name="$PROJECT" --branch=main --commit-hash="$GITHUB_SHA" --commit-dirty=true
+          echo "### keysbeta deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pages project: \`$PROJECT\` · https://$PROJECT.pages.dev (custom domain keysbeta.ryong.com once connected)" >> "$GITHUB_STEP_SUMMARY"
