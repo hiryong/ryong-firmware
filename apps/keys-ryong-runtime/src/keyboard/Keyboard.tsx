@@ -179,6 +179,9 @@ export default function Keyboard() {
 
   // keys.ryong.com: flat (2D) or keycaps seen from slightly above (3D)
   const [keymapView, setKeymapView] = useLocalStorageState<"2d" | "3d">("keymapView", "2d");
+  // Runtime copy: the VIA-style grid is the main picker; Studio's detailed editor opens on request.
+  const [detailPicker, setDetailPicker] = useLocalStorageState<boolean>("ryong.detailPicker", false);
+  const viaFirst = import.meta.env.VITE_RYONG_RUNTIME === "1";
   const [keymapScale, setKeymapScale] = useLocalStorageState<LayoutZoom>("keymapScale", "auto", {
     deserialize: deserializeLayoutZoom,
   });
@@ -589,10 +592,11 @@ export default function Keyboard() {
       )}
       {keymap && selectedBinding && (
         <div className="p-2 col-start-2 row-start-2 bg-base-200">
-          {import.meta.env.VITE_RYONG_RUNTIME === "1" && <ViaKeyGrid behaviors={Object.values(behaviors)} binding={selectedBinding}
-            layers={keymap.layers.map(({ id, name }) => ({ id, name }))} onChange={doUpdateBinding} />}
-          {import.meta.env.VITE_RYONG_RUNTIME === "1" && <RuntimeBindingPicker binding={selectedBinding} onChange={doUpdateBinding} />}
-          <BehaviorBindingPicker
+          {viaFirst && <ViaKeyGrid behaviors={Object.values(behaviors)} binding={selectedBinding}
+            layers={keymap.layers.map(({ id, name }) => ({ id, name }))} onChange={doUpdateBinding}
+            detail={detailPicker} onDetail={setDetailPicker} />}
+          {viaFirst && detailPicker && <RuntimeBindingPicker binding={selectedBinding} onChange={doUpdateBinding} />}
+          {(!viaFirst || detailPicker) && <BehaviorBindingPicker
             binding={selectedBinding}
             behaviors={Object.values(behaviors)}
             layers={keymap.layers.map(({ id, name }, li) => ({
@@ -600,7 +604,7 @@ export default function Keyboard() {
               name: name || li.toLocaleString(),
             }))}
             onBindingChanged={doUpdateBinding}
-          />
+          />}
         </div>
       )}
     </div>

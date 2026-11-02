@@ -25,9 +25,10 @@ const MODS: [string, string][] = [["L Ctrl", "LCTRL"], ["L Shift", "LSHFT"], ["L
 const NAV: [string, string][] = [["↑", "UP"], ["↓", "DOWN"], ["←", "LEFT"], ["→", "RIGHT"], ["Home", "HOME"], ["End", "END"], ["PgUp", "PG_UP"], ["PgDn", "PG_DN"], ["Ins", "INS"], ["Del", "DEL"], ["PrtSc", "PSCRN"], ["Menu", "C_MENU"]];
 const MEDIA: [string, string][] = [["Vol +", "C_VOL_UP"], ["Vol −", "C_VOL_DN"], ["Mute", "C_MUTE"], ["Play", "C_PLAY_PAUSE"], ["Next", "C_NEXT"], ["Prev", "C_PREV"], ["Bright +", "C_BRI_INC"], ["Bright −", "C_BRI_DEC"], ["Search", "C_AC_SEARCH"]];
 
-export function ViaKeyGrid({ behaviors, layers, binding, onChange }: {
+export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDetail }: {
   behaviors: GetBehaviorDetailsResponse[]; layers: { id: number; name: string }[];
   binding: BehaviorBinding; onChange: (binding: BehaviorBinding) => void;
+  detail: boolean; onDetail: (open: boolean) => void;
 }) {
   const view = useContext(RuntimeBindingsContext);
   const [tab, setTab] = useState("basic");
@@ -59,6 +60,9 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange }: {
       ...simple("outputselection", "USB↔BLE", t("Toggle output", "출력 전환"), codes.__out_OUT_TOG),
     ];
     const special = [
+      ...simple("graveescape", "Esc · `", t("Esc, or ` with Shift/GUI", "Esc, Shift·GUI와 함께면 `")),
+      ...simple("osadaptivekey", t("OS Alt/Cmd", "OS Alt/Cmd"), t("Alt on Windows, Command on Apple", "Windows는 Alt, Apple은 Command"), usage("LALT"), usage("LGUI")),
+      ...simple("osadaptivekey", t("OS Win/Opt", "OS Win/Opt"), t("Win on Windows, Option on Apple", "Windows는 Win, Apple은 Option"), usage("LGUI"), usage("LALT")),
       ...simple("transparent", "▽", t("Transparent: use the layer below", "투명: 아래 레이어 키 사용")),
       ...simple("none", "✕", t("Do nothing", "아무 동작 없음")),
       ...simple("capsword", "Caps Word", "Caps Word"),
@@ -85,9 +89,15 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange }: {
   const current = tabs.find(x => x.id === tab) ?? tabs[0];
   if (!current) return null;
   const same = (b: BehaviorBinding) => b.behaviorId === binding.behaviorId && b.param1 === binding.param1 && b.param2 === binding.param2;
+  const onGrid = tabs.some(x => x.tiles.some(tile => same(tile.binding)));
+  const currentName = behaviors.find(b => b.id === binding.behaviorId)?.displayName ?? t("Unknown action", "알 수 없는 동작");
   return <div className="ry-via">
-    <div className="ry-via-tabs" role="tablist" aria-label={t("Key categories", "키 종류")}>
-      {tabs.map(x => <button key={x.id} role="tab" className="ry-chip" aria-pressed={x.id === current.id} aria-selected={x.id === current.id} onClick={() => setTab(x.id)}>{x.label}</button>)}
+    <div className="ry-via-tabs">
+      <div className="ry-via-tablist" role="tablist" aria-label={t("Key categories", "키 종류")}>
+        {tabs.map(x => <button key={x.id} role="tab" className="ry-chip" aria-pressed={x.id === current.id} aria-selected={x.id === current.id} onClick={() => setTab(x.id)}>{x.label}</button>)}
+      </div>
+      <button className="ry-text" aria-expanded={detail} onClick={() => onDetail(!detail)}>
+        {detail ? t("Hide detailed settings", "세부 설정 닫기") : t("Detailed settings", "세부 설정")}</button>
     </div>
     <div className="ry-via-grid" role="tabpanel" aria-label={current.label}>
       {current.tiles.map((tile, i) => <button key={i} className={"ry-via-key" + (tile.wide ? " is-wide" : "")} title={tile.title} aria-pressed={same(tile.binding)}
@@ -98,6 +108,10 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange }: {
           catch (e) { setError(e instanceof Error ? e.message : String(e)); }
         }}>{tile.label}</button>)}
     </div>
+    {/* always present with a fixed height, so the area below never jumps */}
+    <p className="ry-via-current" aria-live="polite">{!onGrid && !detail && <>
+      {t("Current: {name}. Its options are in detailed settings.", "현재 할당: {name}. 세부 옵션은 세부 설정에서 바꿀 수 있습니다.", { name: currentName })}
+      <button className="ry-text" onClick={() => onDetail(true)}>{t("Open", "열기")}</button></>}</p>
     {error && <p role="alert" className="ry-note ry-danger">{error}</p>}
   </div>;
 }
