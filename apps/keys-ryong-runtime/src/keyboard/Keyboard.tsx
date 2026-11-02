@@ -198,7 +198,7 @@ export default function Keyboard() {
       frame = requestAnimationFrame(() => {
         const board = canvas.querySelector(".ry-tilt > *"), menu = layerMenuRef.current;
         if (!board || !menu) return;
-        const reserve = menu.offsetWidth + 16 + "px";
+        const reserve = menu.offsetLeft + menu.offsetWidth + "px";
         if (canvas.style.getPropertyValue("--ry-menu") !== reserve) { canvas.style.setProperty("--ry-menu", reserve); place(); return; }
         const c = canvas.getBoundingClientRect(), b = board.getBoundingClientRect();
         const left = 16, top = Math.max(8, b.top - c.top);
@@ -629,13 +629,20 @@ export default function Keyboard() {
           </div>
         </div>
       )}
-      {keymap && selectedBinding && (
-        <div className={"p-2 " + (viaFirst ? "col-start-1" : "col-start-2") + " row-start-2 bg-base-200"}>
-          {viaFirst && <ViaKeyGrid behaviors={Object.values(behaviors)} binding={selectedBinding}
+      {keymap && selectedBinding && (viaFirst ? (
+        <div className="ry-picker-panel col-start-1 row-start-2">
+          <ViaKeyGrid behaviors={Object.values(behaviors)} binding={selectedBinding}
             layers={keymap.layers.map(({ id, name }) => ({ id, name }))} onChange={doUpdateBinding}
-            detail={detailPicker} onDetail={setDetailPicker} />}
-          {viaFirst && detailPicker && <RuntimeBindingPicker binding={selectedBinding} onChange={doUpdateBinding} />}
-          {(!viaFirst || detailPicker) && <BehaviorBindingPicker
+            detail={detailPicker} onDetail={setDetailPicker}>
+            <RuntimeBindingPicker binding={selectedBinding} onChange={doUpdateBinding} />
+            <BehaviorBindingPicker binding={selectedBinding} behaviors={Object.values(behaviors)}
+              layers={keymap.layers.map(({ id, name }, li) => ({ id, name: name || li.toLocaleString() }))}
+              onBindingChanged={doUpdateBinding} />
+          </ViaKeyGrid>
+        </div>
+      ) : (
+        <div className="p-2 col-start-2 row-start-2 bg-base-200">
+          <BehaviorBindingPicker
             binding={selectedBinding}
             behaviors={Object.values(behaviors)}
             layers={keymap.layers.map(({ id, name }, li) => ({
@@ -643,9 +650,9 @@ export default function Keyboard() {
               name: name || li.toLocaleString(),
             }))}
             onBindingChanged={doUpdateBinding}
-          />}
+          />
         </div>
-      )}
+      ))}
     </div>
   );
 }

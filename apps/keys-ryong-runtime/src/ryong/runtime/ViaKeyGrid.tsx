@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from "react";
+import { ReactNode, useContext, useMemo, useState } from "react";
 import type { BehaviorBinding } from "@zmkfirmware/zmk-studio-ts-client/keymap";
 import type { GetBehaviorDetailsResponse } from "@zmkfirmware/zmk-studio-ts-client/behaviors";
 import values from "./keycode-values.json";
@@ -25,10 +25,10 @@ const MODS: [string, string][] = [["L Ctrl", "LCTRL"], ["L Shift", "LSHFT"], ["L
 const NAV: [string, string][] = [["↑", "UP"], ["↓", "DOWN"], ["←", "LEFT"], ["→", "RIGHT"], ["Home", "HOME"], ["End", "END"], ["PgUp", "PG_UP"], ["PgDn", "PG_DN"], ["Ins", "INS"], ["Del", "DEL"], ["PrtSc", "PSCRN"], ["Menu", "C_MENU"]];
 const MEDIA: [string, string][] = [["Vol +", "C_VOL_UP"], ["Vol −", "C_VOL_DN"], ["Mute", "C_MUTE"], ["Play", "C_PLAY_PAUSE"], ["Next", "C_NEXT"], ["Prev", "C_PREV"], ["Bright +", "C_BRI_INC"], ["Bright −", "C_BRI_DEC"], ["Search", "C_AC_SEARCH"]];
 
-export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDetail }: {
+export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDetail, children }: {
   behaviors: GetBehaviorDetailsResponse[]; layers: { id: number; name: string }[];
   binding: BehaviorBinding; onChange: (binding: BehaviorBinding) => void;
-  detail: boolean; onDetail: (open: boolean) => void;
+  detail: boolean; onDetail: (open: boolean) => void; children?: ReactNode;
 }) {
   const view = useContext(RuntimeBindingsContext);
   const [tab, setTab] = useState("basic");
@@ -91,27 +91,33 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
   const same = (b: BehaviorBinding) => b.behaviorId === binding.behaviorId && b.param1 === binding.param1 && b.param2 === binding.param2;
   const onGrid = tabs.some(x => x.tiles.some(tile => same(tile.binding)));
   const currentName = behaviors.find(b => b.id === binding.behaviorId)?.displayName ?? t("Unknown action", "알 수 없는 동작");
+  const size = (label: string) => label.length > 7 ? " is-2u" : label.length > 3 ? " is-15u" : "";
   return <div className="ry-via">
-    <div className="ry-via-tabs">
-      <div className="ry-via-tablist" role="tablist" aria-label={t("Key categories", "키 종류")}>
-        {tabs.map(x => <button key={x.id} role="tab" className="ry-chip" aria-pressed={x.id === current.id} aria-selected={x.id === current.id} onClick={() => setTab(x.id)}>{x.label}</button>)}
+    <nav className="ry-via-cats" aria-label={t("Key categories", "키 종류")}>
+      <div role="tablist" className="ry-via-catlist">
+        {tabs.map(x => <button key={x.id} role="tab" className="ry-via-cat" aria-selected={!detail && x.id === current.id}
+          onClick={() => { setTab(x.id); onDetail(false); }}>{x.label}</button>)}
       </div>
-      <button className="ry-text" aria-expanded={detail} onClick={() => onDetail(!detail)}>
-        {detail ? t("Hide detailed settings", "세부 설정 닫기") : t("Detailed settings", "세부 설정")}</button>
+      <button className="ry-via-cat ry-via-detail-toggle" aria-pressed={detail} onClick={() => onDetail(!detail)}>
+        {t("Detailed settings", "세부 설정")}</button>
+    </nav>
+    <div className="ry-via-body">
+      {detail ? <div className="ry-via-detail">{children}</div>
+        : <div className="ry-via-grid" role="tabpanel" aria-label={current.label}>
+          {current.tiles.map((tile, i) => <button key={i} className={"ry-via-key" + size(tile.label)} title={tile.title} aria-pressed={same(tile.binding)}
+            onClick={async () => {
+              setError(null);
+              const key = (tile as Tile & { key?: string }).key;
+              try { onChange(key && view ? await checkedRuntimeBinding(view, key) : tile.binding); }
+              catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+            }}>{tile.label}</button>)}
+        </div>}
+      {/* fixed-height status line: the panel never changes size */}
+      <p className="ry-via-current" aria-live="polite">
+        {error ? <span className="ry-danger">{error}</span>
+          : !onGrid && !detail ? <>{t("Current: {name}. Change its options in detailed settings.", "현재 할당: {name} · 세부 옵션은 세부 설정에서 바꿉니다.", { name: currentName })}
+            <button className="ry-text" onClick={() => onDetail(true)}>{t("Open", "열기")}</button></> : null}
+      </p>
     </div>
-    <div className="ry-via-grid" role="tabpanel" aria-label={current.label}>
-      {current.tiles.map((tile, i) => <button key={i} className={"ry-via-key" + (tile.wide ? " is-wide" : "")} title={tile.title} aria-pressed={same(tile.binding)}
-        onClick={async () => {
-          setError(null);
-          const key = (tile as Tile & { key?: string }).key;
-          try { onChange(key && view ? await checkedRuntimeBinding(view, key) : tile.binding); }
-          catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-        }}>{tile.label}</button>)}
-    </div>
-    {/* always present with a fixed height, so the area below never jumps */}
-    <p className="ry-via-current" aria-live="polite">{!onGrid && !detail && <>
-      {t("Current: {name}. Its options are in detailed settings.", "현재 할당: {name}. 세부 옵션은 세부 설정에서 바꿀 수 있습니다.", { name: currentName })}
-      <button className="ry-text" onClick={() => onDetail(true)}>{t("Open", "열기")}</button></>}</p>
-    {error && <p role="alert" className="ry-note ry-danger">{error}</p>}
   </div>;
 }
