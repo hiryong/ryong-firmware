@@ -740,7 +740,7 @@ const Editor = ({
           <div className="ry-savebar">
             {(saved === "runtime" || saved === "preview") && !dirty && <p className="ry-note">
               {saved === "preview" ? t("Preview saved in this browser.", "미리보기를 이 브라우저에 저장했습니다.") : t("Saved to the keyboard. No firmware rebuild was requested.", "키보드에 저장했습니다. 펌웨어 재빌드는 요청하지 않았습니다.")}
-            </p>
+            </p>}
             {issues.length > 0 && (
               <ul className="ry-issues">
                 {issues.map((p) => (
