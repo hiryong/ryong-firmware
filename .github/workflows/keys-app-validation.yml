@@ -22,5 +22,6 @@ jobs:
       - name: Verify imported baseline
         run: python3 ../verify_baseline.py
       - run: npm ci
+      - run: node tests/runtime-read.test.mjs
       - run: bash scripts/ryong-build.sh
 # Build only. No Cloudflare credentials, deployment, GitHub login or firmware writes.
