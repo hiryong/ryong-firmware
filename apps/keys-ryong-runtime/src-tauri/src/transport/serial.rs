@@ -51,7 +51,11 @@ pub async fn serial_connect(
                 use tauri::Manager;
 
                 while let Some(data) = recv.next().await {
-                    let _res = writer.write(&data).await;
+                    // A serial write may accept only a prefix. Never drop the
+                    // remainder of a Studio frame or silently continue after I/O failure.
+                    if writer.write_all(&data).await.is_err() {
+                        break;
+                    }
                 }
 
                 let state = ahc.state::<super::commands::ActiveConnection>();

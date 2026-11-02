@@ -1,0 +1,7 @@
+{
+  "productName": "Keys Ryong Development",
+  "mainBinaryName": "keys-ryong-development",
+  "identifier": "com.ryong.keys.development",
+  "build": {"beforeBuildCommand":"npx vite build --config vite.runtime.config.ts --outDir dist"},
+  "bundle": {"targets":["app"],"macOS":{"signingIdentity":"-"}}
+}

@@ -6,6 +6,7 @@ use std::env;
 use futures::lock::Mutex;
 
 mod transport;
+mod firmware_update;
 use transport::commands::{transport_close, transport_send_data, ActiveConnection};
 
 use transport::gatt::{gatt_connect, gatt_list_devices};
@@ -18,6 +19,10 @@ fn main() {
             conn: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
+            firmware_update::firmware_update_capabilities,
+            firmware_update::firmware_bootloader_inventory,
+            firmware_update::firmware_verify_package,
+            firmware_update::firmware_transfer_package,
             transport_send_data,
             transport_close,
             gatt_list_devices,

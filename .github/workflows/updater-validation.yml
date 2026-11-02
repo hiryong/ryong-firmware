@@ -1,0 +1,16 @@
+name: Verified firmware updater tests
+on:
+  push:
+    branches: [dev/keys-ryong-runtime]
+    paths: ['tools/ryong-updater/**', '.github/workflows/updater-validation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test --locked --manifest-path tools/ryong-updater/Cargo.toml
+# Tests use synthetic UF2 blocks, test-only keys and temporary directories.
+# No bootloader access, signing keys, installable firmware or deployment.

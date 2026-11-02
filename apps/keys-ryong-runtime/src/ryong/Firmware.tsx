@@ -1,3 +1,4 @@
+import { NativeUpdatePanel } from "./NativeUpdatePanel";
 import { useContext, useEffect, useState } from "react";
 import {
   Check,
@@ -241,6 +242,7 @@ export const Firmware = ({ deviceName, onWide }: { deviceName?: string; onWide?:
     <>
       <div className="ry-sec">
         <h1 className="ry-h1">{t("Firmware", "펌웨어")}</h1>
+        {import.meta.env.VITE_RYONG_RUNTIME === "1" && <NativeUpdatePanel />}
         <p className="ry-lead">
           {t(
             import.meta.env.VITE_RYONG_RUNTIME === "1" ? "Runtime development firmware is not released. Back up keymaps and dynamic settings separately; upgrade compatibility is still under test." : "The latest firmware for each keyboard. Your keymap stays the same after an update.",

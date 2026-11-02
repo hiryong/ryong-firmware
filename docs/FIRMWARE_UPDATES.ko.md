@@ -65,3 +65,23 @@ SWD·GitHub·컴파일·UF2 복사를 요구하지 않는 것이 제품 목표�
 부트로더만으로 브라우저 자동 업데이트가 완성됐다고 주장하지 않습니다.
 실제 부트로더 사양과 복구 검증에 맞춰 웹 또는 기존 데스크톱 앱의 전송 경로를
 선택합니다. 아직 자동 업데이트·서명된 릴리스·실물 복구를 구현 완료하지 않았습니다.
+
+
+## Native updater implementation checkpoint
+
+`tools/ryong-updater` now implements Ed25519 manifest validation, exact model and
+bootloader Board-ID matching, SHA-256 payload validation, downgrade rejection,
+UF2 family/block/range checks and exclusive-create transfer with byte progress.
+A transfer receipt does not mean reboot success. Identity/build confirmation
+and bond/settings migration still need an end-to-end hardware test.
+
+The independent Tauri copy now has a native adapter and read-only bootloader
+inventory. Its embedded release-policy list is empty: no real keyboard can be
+flashed through this path. Real Board-ID, application partition ranges, recovery
+image and approved signing policy must be established before enabling it.
+The development Mac app has a distinct bundle ID and ad-hoc signature; it is
+not a production deployment or a firmware release. The web preview does not
+access volumes or pretend to perform updates.
+
+The native serial sender now uses write_all and stops on error, preventing a
+short serial write from silently truncating a Studio request.

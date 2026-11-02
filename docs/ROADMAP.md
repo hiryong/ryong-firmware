@@ -88,3 +88,11 @@ See HOST_OS_LAYOUT.ko.md. This is not yet a working firmware feature.
 - [x] Host-test the same state source compiled into the ZMK module.
 - [x] Pin external detector, secure its RPC and add a separate BT60 host-layout build variant.
 - [ ] Confirm the new variant builds in Actions; re-pair identity reset and integrated OS control remain pending.
+
+## Verified update transport checkpoint
+
+- [x] Implement and locally test signed package/hash/model/version/UF2 range checks and exclusive-create transfer against synthetic temporary volumes.
+- [x] Add separate native adapter, read-only bootloader inventory and an empty-by-default release policy.
+- [x] Fix native serial short-write handling with write_all and error termination.
+- [ ] Native Mac development app build, real unit/recovery identity and complete backup/reboot/reconnect flow remain to be verified.
+- [ ] No production board policy or installable firmware is enabled.
