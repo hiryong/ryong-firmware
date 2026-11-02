@@ -17,7 +17,7 @@ type Detail = {
   released: ("beta" | "stable")[]; blockers: { beta: string[]; stable: string[] };
 };
 
-const TARGET_LABEL: { [k: string]: string } = { bt60: "BT60 v2", ryong60: "Ryong60" };
+const TARGET_LABEL: { [k: string]: string } = { bt60: "BT60 Cheeto", "bt60-oreo": "BT60 Oreo", ryong60: "Ryong60" };
 const ago = (iso?: string | null) => {
   if (!iso) return "";
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -227,7 +227,7 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (t: "test",
               onChange={(e) => setVals({ ...vals, [f.id]: Number(e.target.value) })} /><span className="ry-faint">{f.unit}</span></span>
             {f.hint && <span className="ry-faint">{f.hint}</span>}</label>)}
           <label className="kc-field"><span className="ry-label">Bluetooth 이름</span>
-            <input type="text" maxLength={16} placeholder={target === "bt60" ? "비우면 BT60 V2" : "비우면 Ryong60"} value={kbName}
+            <input type="text" maxLength={16} placeholder={target === "ryong60" ? "비우면 Ryong60" : "비우면 BT60 V2 (예: Cheeto, Oreo)"} value={kbName}
               onChange={(e) => setKbName(e.target.value)} pattern="[A-Za-z0-9][A-Za-z0-9 _\-]{0,15}" />
             <span className="ry-faint">컴퓨터·폰에 보이는 이름. 영문·숫자 16자 (예: Cheeto)</span></label>
           <label className="kc-field"><span className="ry-label">Bluetooth 신호 세기</span>

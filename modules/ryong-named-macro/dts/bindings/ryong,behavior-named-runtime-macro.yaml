@@ -1,0 +1,14 @@
+description: |
+  A key that plays the runtime macro with the given name (looked up when pressed).
+  Used to turn firmware-built macros into editable runtime macros without
+  changing the keymap: the old macro label keeps working.
+
+compatible: "ryong,behavior-named-runtime-macro"
+
+include: zero_param.yaml
+
+properties:
+  macro-name:
+    type: string
+    required: true
+    description: Name of the runtime macro to play (as shown in the web app).

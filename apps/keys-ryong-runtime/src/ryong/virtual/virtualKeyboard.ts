@@ -21,7 +21,7 @@ import values from "../runtime/keycode-values.json";
 import { LAYOUTS } from "../behaviors/layouts";
 
 const codes = values as Record<string, number>;
-const STORAGE = "ryong.virtualKeyboard.v1";
+const STORAGE = "ryong.virtualKeyboard.v2"; // v2: firmware combo/macros as runtime defaults
 export const VIRTUAL_NAME = "Ryong60 (virtual)";
 
 type Binding = { behaviorId: number; param1: number; param2: number };
@@ -71,7 +71,17 @@ const BEHAVIORS: { id: number; name: string; metadata: object[] }[] = [
   { id: 20, name: "Runtime Macro", metadata: [{ param1: [P("Macro", { range: { min: 0, max: 7 } })], param2: [] }] },
   { id: 21, name: "Runtime Tap Dance", metadata: [{ param1: [P("Tap Dance", { range: { min: 0, max: 7 } })], param2: [] }] },
   { id: 22, name: "OS Adaptive Key", metadata: [{ param1: [P("Windows", { hidUsage: HID })], param2: [P("Apple", { hidUsage: HID })] }] },
+  // Firmware-built macros turned into runtime defaults: keys call them by name (modules/ryong-named-macro).
+  { id: 23, name: "BT_PROFILE0", metadata: [] },
+  { id: 24, name: "BT_PROFILE1", metadata: [] },
+  { id: 25, name: "BT_PROFILE2", metadata: [] },
+  { id: 26, name: "BT_PROFILE3", metadata: [] },
+  { id: 27, name: "BLE Update", metadata: [] },
 ];
+/* Runtime defaults seeded from the firmware's own combos/macros (scripts/runtime_defaults.py). */
+const btProfileMacros = (): Macro[] => [0, 1, 2, 3].map((n) => ({ slot: n, name: `BT_PROFILE${n}`,
+  steps: [M.MacroStep.fromPartial({ tap: { behaviorId: 11, param1: 3, param2: n } }),
+    ...[0, 1, 2, 3].filter((x) => x !== n).map((x) => M.MacroStep.fromPartial({ tap: { behaviorId: 11, param1: 5, param2: x } }))] }));
 
 /* ---- Default keymap (BT60 / Ryong60 61-key ANSI, from the imported keymap) ---- */
 const HEX: Record<string, number> = { LBKT: 0x7002f, RBKT: 0x70030, C_BRI_DEC: 0xc0070, C_BRI_INC: 0xc006f, C_AC_DESKTOP_SHOW_ALL_WINDOWS: 0xc029f };
@@ -96,7 +106,7 @@ function parse(row: string): Binding[] {
       case "&ry_host": b(22, key(next()), key(next())); break;
       default: {
         const m = /^&BT_Profile(\d)$/.exec(tok);
-        if (m) b(11, 3, Number(m[1])); else throw new Error("virtual keymap token " + tok);
+        if (m) b(23 + Number(m[1])); else throw new Error("virtual keymap token " + tok);
       }
     }
   }
@@ -130,9 +140,9 @@ function factory(): State {
     ({ bonded, connected, name, host, detected, override: O.Os.OS_UNKNOWN, gen });
   return {
     layers, nextLayerId: layers.length,
-    combos: [C.Combo.fromPartial({ index: 0, name: "Esc", keyPositions: [15, 16], behavior: { behaviorId: 1, param1: key("ESC") }, layerMask: 0, enabled: true, source: C.ComboSource.COMBO_SOURCE_RUNTIME })],
+    combos: [C.Combo.fromPartial({ index: 0, name: "Studio Unlock (Esc + Backspace)", keyPositions: [0, 13], behavior: { behaviorId: 17 }, layerMask: 0, enabled: true, timeoutMs: 80, source: C.ComboSource.COMBO_SOURCE_DEFAULT })],
     comboTimeout: 50,
-    macros: [],
+    macros: btProfileMacros(),
     tapMs: 30,
     dances: [{ index: 0, name: "Q/Esc", config: T.Config.fromPartial({ singleBinding: { behaviorId: 1, param1: key("Q") }, doubleBinding: { behaviorId: 1, param1: key("ESC") } }) }],
     nextDance: 1, interval: 200,
@@ -451,9 +461,10 @@ class VirtualDevice {
   /* -- Keyboard-side settings (mirrors modules/ryong-runtime-settings) -- */
   private settings(q: S.Request): S.Response {
     const d = this.device, status = (error: number) => S.Response.fromPartial({ status: { ok: false, error } });
-    const state = () => S.Response.fromPartial({ state: { settings: d.settings, caps: { backlight: true, underglow: true, sleepMaxMinutes: 1440 },
+    const state = () => S.Response.fromPartial({ state: { settings: d.settings, caps: { backlight: true, underglow: true, sleepMaxMinutes: 1440, bleUpdate: true },
       backlightOn: d.blOn, underglowOn: d.ugOn, usbPowered: this.flash.usb, protocolVersion: 1 } });
     if (q.getState) return state();
+    if (q.bleUpdate) return state(); // a real keyboard restarts into the bootloader right after replying
     if (q.set) {
       const n = S.Settings.fromPartial(q.set), ok = (v: number, lo: number, hi: number) => Number.isInteger(v) && v >= lo && v <= hi;
       if (!n.backlight || !n.underglow || !ok(n.sleepMinutes, 1, 1440) || !ok(n.backlight.brightness, 0, 100) || !ok(n.underglow.brightness, 0, 100)) return status(22);

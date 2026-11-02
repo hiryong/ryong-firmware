@@ -723,9 +723,13 @@ const Editor = ({
                     onToggle={() => setOpenId(openId === m.id ? null : m.id)}
                     onDelete={() => remove("macros", m.id)}
                     onCopy={() => duplicate("macros", m.id)}
+                    keep={runtimeView?.behaviorNames?.includes(m.name) ? t(
+                      "Built into the firmware and played by keys that call it by this name, so it can't be renamed or deleted. Its steps can be changed.",
+                      "펌웨어에 들어 있던 매크로예요. 키가 이 이름으로 불러서 쓰기 때문에 이름 변경과 삭제는 막아 두었어요. 단계는 바꿀 수 있어요.") : undefined}
                   >
-                    <Field label={t("Name", "이름")} hint={t("Name in the behavior list.", "동작 목록에 보이는 이름.")}>
-                      <input type="text" value={m.name} onChange={(e) => update("macros", m.id, { name: e.target.value })} />
+                    <Field label={t("Name", "이름")} hint={runtimeView?.behaviorNames?.includes(m.name) ? t("Keys use this name.", "키가 이 이름을 써요.") : t("Name in the behavior list.", "동작 목록에 보이는 이름.")}>
+                      <input type="text" value={m.name} disabled={!!runtimeView?.behaviorNames?.includes(m.name) && loaded?.doc.macros.some((x) => x.id === m.id && x.name === m.name)}
+                        onChange={(e) => update("macros", m.id, { name: e.target.value })} />
                     </Field>
                     <Field label={t("Steps", "단계")}>
                       <MacroSteps

@@ -17,3 +17,6 @@ int ry_rs_set(const struct ry_settings *s);
 /* Turn a light on/off now. -ENOTSUP if not built in, -EPERM if its rules keep it dark. */
 int ry_rs_power(unsigned which, bool on);
 void ry_rs_live(struct ry_rs_live *out);
+
+/* Restart into the bootloader's Bluetooth update mode (CONFIG_RYONG_BLE_DFU_ENTRY only). */
+int ry_rs_enter_ble_dfu(void);

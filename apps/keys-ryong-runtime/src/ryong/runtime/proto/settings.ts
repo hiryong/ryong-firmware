@@ -37,6 +37,8 @@ export interface Capabilities {
   backlight: boolean;
   underglow: boolean;
   sleepMaxMinutes: number;
+  /** can restart into the bootloader's Bluetooth update mode (development) */
+  bleUpdate: boolean;
 }
 
 export interface State {
@@ -62,7 +64,11 @@ export interface Status {
 export interface Request {
   getState?: Empty | undefined;
   set?: Settings | undefined;
-  power?: LightPower | undefined;
+  power?:
+    | LightPower
+    | undefined;
+  /** restart into Bluetooth update mode (reply first, then restart) */
+  bleUpdate?: Empty | undefined;
 }
 
 export interface Response {
@@ -326,7 +332,7 @@ export const Settings = {
 };
 
 function createBaseCapabilities(): Capabilities {
-  return { backlight: false, underglow: false, sleepMaxMinutes: 0 };
+  return { backlight: false, underglow: false, sleepMaxMinutes: 0, bleUpdate: false };
 }
 
 export const Capabilities = {
@@ -339,6 +345,9 @@ export const Capabilities = {
     }
     if (message.sleepMaxMinutes !== 0) {
       writer.uint32(24).uint32(message.sleepMaxMinutes);
+    }
+    if (message.bleUpdate !== false) {
+      writer.uint32(32).bool(message.bleUpdate);
     }
     return writer;
   },
@@ -371,6 +380,13 @@ export const Capabilities = {
 
           message.sleepMaxMinutes = reader.uint32();
           continue;
+        case 4:
+          if (tag !== 32) {
+            break;
+          }
+
+          message.bleUpdate = reader.bool();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -385,6 +401,7 @@ export const Capabilities = {
       backlight: isSet(object.backlight) ? globalThis.Boolean(object.backlight) : false,
       underglow: isSet(object.underglow) ? globalThis.Boolean(object.underglow) : false,
       sleepMaxMinutes: isSet(object.sleepMaxMinutes) ? globalThis.Number(object.sleepMaxMinutes) : 0,
+      bleUpdate: isSet(object.bleUpdate) ? globalThis.Boolean(object.bleUpdate) : false,
     };
   },
 
@@ -399,6 +416,9 @@ export const Capabilities = {
     if (message.sleepMaxMinutes !== 0) {
       obj.sleepMaxMinutes = Math.round(message.sleepMaxMinutes);
     }
+    if (message.bleUpdate !== false) {
+      obj.bleUpdate = message.bleUpdate;
+    }
     return obj;
   },
 
@@ -410,6 +430,7 @@ export const Capabilities = {
     message.backlight = object.backlight ?? false;
     message.underglow = object.underglow ?? false;
     message.sleepMaxMinutes = object.sleepMaxMinutes ?? 0;
+    message.bleUpdate = object.bleUpdate ?? false;
     return message;
   },
 };
@@ -708,7 +729,7 @@ export const Status = {
 };
 
 function createBaseRequest(): Request {
-  return { getState: undefined, set: undefined, power: undefined };
+  return { getState: undefined, set: undefined, power: undefined, bleUpdate: undefined };
 }
 
 export const Request = {
@@ -721,6 +742,9 @@ export const Request = {
     }
     if (message.power !== undefined) {
       LightPower.encode(message.power, writer.uint32(26).fork()).ldelim();
+    }
+    if (message.bleUpdate !== undefined) {
+      Empty.encode(message.bleUpdate, writer.uint32(34).fork()).ldelim();
     }
     return writer;
   },
@@ -753,6 +777,13 @@ export const Request = {
 
           message.power = LightPower.decode(reader, reader.uint32());
           continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.bleUpdate = Empty.decode(reader, reader.uint32());
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -767,6 +798,7 @@ export const Request = {
       getState: isSet(object.getState) ? Empty.fromJSON(object.getState) : undefined,
       set: isSet(object.set) ? Settings.fromJSON(object.set) : undefined,
       power: isSet(object.power) ? LightPower.fromJSON(object.power) : undefined,
+      bleUpdate: isSet(object.bleUpdate) ? Empty.fromJSON(object.bleUpdate) : undefined,
     };
   },
 
@@ -780,6 +812,9 @@ export const Request = {
     }
     if (message.power !== undefined) {
       obj.power = LightPower.toJSON(message.power);
+    }
+    if (message.bleUpdate !== undefined) {
+      obj.bleUpdate = Empty.toJSON(message.bleUpdate);
     }
     return obj;
   },
@@ -795,6 +830,9 @@ export const Request = {
     message.set = (object.set !== undefined && object.set !== null) ? Settings.fromPartial(object.set) : undefined;
     message.power = (object.power !== undefined && object.power !== null)
       ? LightPower.fromPartial(object.power)
+      : undefined;
+    message.bleUpdate = (object.bleUpdate !== undefined && object.bleUpdate !== null)
+      ? Empty.fromPartial(object.bleUpdate)
       : undefined;
     return message;
   },

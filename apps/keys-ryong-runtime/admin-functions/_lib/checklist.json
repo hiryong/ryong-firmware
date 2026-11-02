@@ -16,7 +16,8 @@
     { "id": "battery", "label": "배터리 잔량이 보고된다", "required": false, "stable": true }
   ],
   "boards": [
-    { "id": "bt60", "label": "BT60 v2 (개발용 테스트 보드)" },
+    { "id": "bt60", "label": "BT60 v2 Cheeto (LED 없음)" },
+    { "id": "bt60-oreo", "label": "BT60 v2 Oreo (백라이트·언더글로우)" },
     { "id": "ryong60", "label": "Ryong60" }
   ]
 }

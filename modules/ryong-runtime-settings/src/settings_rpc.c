@@ -52,6 +52,7 @@ static void fill_state(ryong_settings_Response *response) {
     st->caps.backlight = live.has_backlight;
     st->caps.underglow = live.has_underglow;
     st->caps.sleep_max_minutes = IS_ENABLED(CONFIG_ZMK_SLEEP) ? RY_RS_SLEEP_MAX_MIN : 0;
+    st->caps.ble_update = IS_ENABLED(CONFIG_RYONG_BLE_DFU_ENTRY);
     st->backlight_on = live.backlight_on;
     st->underglow_on = live.underglow_on;
     st->usb_powered = live.usb_powered;
@@ -87,6 +88,13 @@ static bool handle(const zmk_custom_CallRequest *raw, pb_callback_t *encoded) {
         if (!rc) rc = ry_rs_set(&s);
         break;
     }
+    case ryong_settings_Request_ble_update_tag:
+#if IS_ENABLED(CONFIG_RYONG_BLE_DFU_ENTRY)
+        rc = ry_rs_enter_ble_dfu();
+#else
+        rc = -ENOTSUP;
+#endif
+        break;
     case ryong_settings_Request_power_tag:
         rc = ry_rs_power(request.request_type.power.which, request.request_type.power.on);
         break;

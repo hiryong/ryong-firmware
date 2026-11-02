@@ -24,3 +24,13 @@ config RYONG_RUNTIME_SETTINGS_LIGHTS_DEFAULT_USE
       Off by default so the same image is safe on boards without LEDs.
 
 endif
+
+config RYONG_BLE_DFU_ENTRY
+    bool "Enter the bootloader's Bluetooth update mode (development, unsigned)"
+    depends on SOC_SERIES_NRF52X
+    default n
+    help
+      Adds a key behavior (ryong,behavior-ble-dfu) and an RPC call that restart
+      into the Adafruit nRF52 bootloader's Bluetooth (legacy Nordic) DFU mode by
+      writing 0xA8 to GPREGRET. The bootloader keeps its USB/UF2 recovery path.
+      No signature check: development boards only.

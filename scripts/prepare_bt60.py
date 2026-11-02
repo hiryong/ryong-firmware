@@ -11,6 +11,12 @@ source = root / "hardware/test-fixtures/bt60-v2"
 shutil.copytree(source, dest / "bt60-module")
 shutil.copytree(source / "config", dest / "config")
 shutil.copy2(root / "docs/build-evidence/34a0f3d-baseline-west.yml", dest / "config/west.yml")
+# Owner's LED board ("Oreo"): same fixture, only its Mac-based keymap differs (variants/oreo/README.md).
+VARIANT = sys.argv[sys.argv.index("--variant") + 1] if "--variant" in sys.argv else "cheeto"
+if VARIANT not in ("cheeto", "oreo"):
+    raise SystemExit("Unknown BT60 variant")
+if VARIANT == "oreo":
+    shutil.copy2(source / "variants/oreo/bt60.keymap", dest / "config/bt60.keymap")
 conf = dest / "config/bt60.conf"
 text = conf.read_text()
 if "CONFIG_ZMK_RGB_UNDERGLOW=n" not in text:
@@ -42,7 +48,14 @@ if "--host-layout" in sys.argv[2:]:
     base = text[start:end]
     if base.count("&kp LGUI") != 1 or base.count("&kp LALT") != 1:
         raise SystemExit("Re-audit BT60 base modifier positions")
-    base = base.replace("&kp LGUI", "&ry_host LGUI LALT").replace("&kp LALT", "&ry_host LALT LGUI")
+    if VARIANT == "oreo":
+        # Oreo's base is Mac order (Option, Command). OS-adaptive keys keep exactly that on Apple hosts
+        # and give Windows hosts the standard Win, Alt: (Windows, Apple) parameters per key.
+        if base.count("&kp LCTRL &kp LALT &kp LGUI") != 1:
+            raise SystemExit("Re-audit Oreo base modifier positions")
+        base = base.replace("&kp LCTRL &kp LALT &kp LGUI", "&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI")
+    else:
+        base = base.replace("&kp LGUI", "&ry_host LGUI LALT").replace("&kp LALT", "&ry_host LALT LGUI")
     keymap.write_text(text[:start] + base + text[end:])
 
 

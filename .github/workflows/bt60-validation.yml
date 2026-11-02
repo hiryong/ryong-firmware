@@ -2,7 +2,7 @@ name: BT60 v2 test fixture compile
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['hardware/test-fixtures/bt60-v2/**', 'experiments/bt60-runtime/**', 'scripts/prepare_bt60.py', 'scripts/secure_runtime_rpc.py', 'modules/**', 'experiments/host-layout/**', 'experiments/dya-runtime/**', '.github/workflows/bt60-validation.yml']
+    paths: ['hardware/test-fixtures/bt60-v2/**', 'experiments/bt60-runtime/**', 'scripts/prepare_bt60.py', 'scripts/runtime_defaults.py', 'scripts/secure_runtime_rpc.py', 'modules/**', 'experiments/host-layout/**', 'experiments/dya-runtime/**', '.github/workflows/bt60-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -54,9 +54,10 @@ jobs:
             EXTRA=("-DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module;$GITHUB_WORKSPACE/modules/ryong-holdtap" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/bt60-runtime/runtime.overlay")
           fi
           if [ "$VARIANT" = host-layout ]; then
-            EXTRA=("-DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module;$GITHUB_WORKSPACE/modules/ryong-holdtap;$GITHUB_WORKSPACE/modules/ryong-host-layout;$GITHUB_WORKSPACE/modules/ryong-update;$GITHUB_WORKSPACE/modules/ryong-ble-profiles;$GITHUB_WORKSPACE/modules/ryong-runtime-settings" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf;$GITHUB_WORKSPACE/experiments/host-layout/host-layout.conf;$GITHUB_WORKSPACE/experiments/host-layout/update.conf;$GITHUB_WORKSPACE/experiments/host-layout/ble-profiles.conf;$GITHUB_WORKSPACE/experiments/host-layout/runtime-settings.conf;$GITHUB_WORKSPACE/experiments/bt60-runtime/lights.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/bt60-runtime/runtime.overlay;$GITHUB_WORKSPACE/experiments/host-layout/host-layout.overlay")
+            EXTRA=("-DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module;$GITHUB_WORKSPACE/modules/ryong-holdtap;$GITHUB_WORKSPACE/modules/ryong-host-layout;$GITHUB_WORKSPACE/modules/ryong-update;$GITHUB_WORKSPACE/modules/ryong-ble-profiles;$GITHUB_WORKSPACE/modules/ryong-runtime-settings;$GITHUB_WORKSPACE/modules/ryong-named-macro" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf;$GITHUB_WORKSPACE/experiments/host-layout/host-layout.conf;$GITHUB_WORKSPACE/experiments/host-layout/update.conf;$GITHUB_WORKSPACE/experiments/host-layout/ble-profiles.conf;$GITHUB_WORKSPACE/experiments/host-layout/runtime-settings.conf;$GITHUB_WORKSPACE/experiments/bt60-runtime/lights.conf;$GITHUB_WORKSPACE/experiments/bt60-runtime/ble-dfu.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/bt60-runtime/runtime.overlay;$GITHUB_WORKSPACE/experiments/host-layout/host-layout.overlay;/tmp/bt60-build/runtime-defaults.overlay;$GITHUB_WORKSPACE/experiments/bt60-runtime/ble-dfu.overlay")
           fi
           if [ "$VARIANT" = host-layout ]; then EXTRA+=("-DCONFIG_RYONG_UPDATE_BUILD_ID=\"${GITHUB_SHA}\""); fi
+          if [ "$VARIANT" = host-layout ]; then python3 "$GITHUB_WORKSPACE/scripts/runtime_defaults.py" config/ryong-behaviors.dtsi runtime-defaults.overlay config/ryong-behaviors.json; fi
           west build -s zmk/app -d build -b bt60//zmk -S studio-rpc-usb-uart -- -DCONFIG_ZMK_STUDIO=y -DZMK_CONFIG=/tmp/bt60-build/config -DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module "${EXTRA[@]}"
       - name: Diagnostic reports only
         if: always()

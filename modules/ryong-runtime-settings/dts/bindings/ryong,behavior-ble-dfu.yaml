@@ -1,0 +1,3 @@
+description: Restart into the bootloader's Bluetooth update (OTA DFU) mode.
+compatible: "ryong,behavior-ble-dfu"
+include: zero_param.yaml

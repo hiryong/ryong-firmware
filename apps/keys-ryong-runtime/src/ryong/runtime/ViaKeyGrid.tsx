@@ -71,6 +71,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       ...simple("bootloader", "Boot", t("Bootloader (firmware update drive)", "부트로더(펌웨어 드라이브)")),
       ...simple("reset", "Reset", t("Restart keyboard", "키보드 재시작")),
       ...simple("softoff", t("Power off", "전원 끄기"), "Soft Off"),
+      ...simple("bleupdate", t("BT update", "BT 업데이트"), t("Restart into Bluetooth firmware update mode (development)", "Bluetooth 펌웨어 업데이트 모드로 다시 시작 (개발용)")),
     ];
     const dynamic: Tile[] = namedRuntimeBindings(view).map(c => ({ label: c.label, title: c.kind === "macro" ? t("Macro", "매크로") : t("Tap Dance", "탭댄스"),
       binding: c.binding, wide: true, key: c.key } as Tile & { key: string }));

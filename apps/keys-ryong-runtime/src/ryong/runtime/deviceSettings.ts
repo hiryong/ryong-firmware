@@ -79,6 +79,14 @@ export class DeviceSettingsClient {
     return this.once(S.Request.fromPartial({ set: next }), (s) => JSON.stringify(s.settings) === JSON.stringify(S.Settings.fromPartial(next)));
   }
 
+  /** Restarts the keyboard into the bootloader's Bluetooth update mode. The connection then drops. */
+  async bleUpdate() {
+    if (this.busy) throw new Error(t("Another change is in progress.", "다른 변경을 처리하는 중이에요."));
+    this.busy = true;
+    try { await this.rpc(S.Request.fromPartial({ bleUpdate: {} })); }
+    finally { this.busy = false; }
+  }
+
   power(which: number, on: boolean) {
     return this.once(S.Request.fromPartial({ power: { which, on } }), (s) => (which === BACKLIGHT ? s.backlightOn : s.underglowOn) === on);
   }

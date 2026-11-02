@@ -45,7 +45,7 @@ async function open(viewport, { fresh } = {}) {
   const ctx = await browser.newContext({ viewport, hasTouch: viewport.width < 600, isMobile: viewport.width < 600 });
   await ctx.addInitScript((fresh) => {
     localStorage.setItem("ryong.lang", "ko");
-    if (fresh && !sessionStorage.getItem("e2e.started")) { localStorage.removeItem("ryong.virtualKeyboard.v1"); sessionStorage.setItem("e2e.started", "1"); }
+    if (fresh && !sessionStorage.getItem("e2e.started")) { localStorage.removeItem("ryong.virtualKeyboard.v2"); sessionStorage.setItem("e2e.started", "1"); }
   }, !!fresh);
   page = await ctx.newPage();
   errors = [];
@@ -214,15 +214,31 @@ await step("combo: assign by pressing a key on the computer keyboard", async () 
 });
 
 /* macros */
+await step("firmware-built macros and unlock combo are listed; name-bound macro can't be renamed", async () => {
+  await tab("콤보");
+  await page.locator(".ry-item-head", { hasText: "Studio Unlock (Esc + Backspace)" }).waitFor({ timeout: 5000 });
+  await tab("매크로");
+  const head = page.locator(".ry-item-head", { hasText: "BT_PROFILE0" });
+  await head.waitFor({ timeout: 5000 });
+  assert.equal(await page.getByRole("button", { name: "BT_PROFILE0 삭제" }).count(), 0, "no delete for a name-bound macro");
+  await head.click();
+  const item = page.locator(".ry-item.is-open");
+  assert.equal(await item.locator("input[type=text]").first().isDisabled(), true, "name locked");
+  await head.click(); // close again
+});
+
 await step("macro: type text macro and save", async () => {
   await tab("매크로");
+  const before = (await flash()).macros.length;
   await page.getByRole("button", { name: "새 매크로" }).click();
   const item = page.locator(".ry-item.is-open");
   await item.getByPlaceholder("입력할 글자 (영문, 숫자, 기호)").last().fill("Hi! [ok]?");
   await saveBehaviors();
   const f = await flash();
-  assert.equal(f.macros.length, 1, "macro stored");
-  const taps = JSON.stringify(f.macros[0]).match(/"param1":\d+/g)?.map((x) => Number(x.split(":")[1])) ?? [];
+  assert.equal(f.macros.length, before + 1, "macro stored");
+  const created = f.macros.find((m) => !/^BT_PROFILE/.test(m.name));
+  globalThis.createdMacro = created.name;
+  const taps = JSON.stringify(created).match(/"param1":\d+/g)?.map((x) => Number(x.split(":")[1])) ?? [];
   const SHIFT = 0x02000000;
   // H(shifted) i !(shift+1) space [ o k ] ?(shift+/)
   for (const v of [0x7000b | SHIFT, 0x7000c, 0x7001e | SHIFT, 0x7002c, 0x7002f, 0x70012, 0x7000e, 0x70030, 0x70038 | SHIFT])
@@ -235,10 +251,10 @@ await step("keymap: put the macro on Z from the 매크로·탭댄스 tab", async
   await tab("키맵");
   await key(42).click();
   await page.getByRole("tab", { name: "매크로·탭댄스" }).click();
-  await page.locator(".ry-via-key", { hasText: "Macro 1" }).first().click();
+  await page.locator(".ry-via-key", { hasText: globalThis.createdMacro }).first().click();
   await page.locator("button:has([aria-label=Save])").click();
   await page.waitForFunction(() => window.__ryongVirtual.flash.layers[0].bindings[42].behaviorId !== 1, null, { timeout: 3000 });
-  assert.match(await key(42).innerText(), /Macro 1/);
+  assert.ok((await key(42).innerText()).includes(globalThis.createdMacro));
 });
 
 await step("tap dance: new dance with 1× A, 2× B and save", async () => {

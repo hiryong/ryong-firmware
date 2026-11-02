@@ -22,6 +22,7 @@ message Capabilities {
     bool backlight = 1;        // compiled in (the board may still have no LEDs)
     bool underglow = 2;
     uint32 sleep_max_minutes = 3;
+    bool ble_update = 4;       // can restart into the bootloader's Bluetooth update mode (development)
 }
 
 message State {
@@ -45,6 +46,7 @@ message Request {
         Empty get_state = 1;
         Settings set = 2;
         LightPower power = 3;
+        Empty ble_update = 4;   // restart into Bluetooth update mode (reply first, then restart)
     }
 }
 

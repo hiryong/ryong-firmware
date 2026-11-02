@@ -39,12 +39,12 @@ jobs:
           [[ "$RUN" =~ ^[0-9]{1,20}$ ]] || { echo "::error::bad run id"; exit 1; }
           mkdir -p /tmp/rel/art
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN" > /tmp/rel/run.json
-          name=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/artifacts" --jq '[.artifacts[] | select(.name | test("^firmware-(bt60|ryong60)-[0-9a-f]{64}$")) | select(.expired | not)][0].name')
+          name=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/artifacts" --jq '[.artifacts[] | select(.name | test("^firmware-(bt60|bt60-oreo|ryong60)-[0-9a-f]{64}$")) | select(.expired | not)][0].name')
           [ -n "$name" ] && [ "$name" != null ] || { echo "::error::build file missing or expired"; exit 1; }
           gh run download "$RUN" -n "$name" -D /tmp/rel/art
           target=$(python3 -c 'import json;print(json.load(open("/tmp/rel/art/build-info.json"))["target"])')
           uf2=$(python3 -c 'import json;print(json.load(open("/tmp/rel/art/build-info.json"))["uf2"])')
-          [[ "$target" =~ ^(bt60|ryong60)$ && "$uf2" =~ ^[a-z0-9-]+\.uf2$ ]] || { echo "::error::bad build-info"; exit 1; }
+          [[ "$target" =~ ^(bt60|bt60-oreo|ryong60)$ && "$uf2" =~ ^[a-z0-9-]+\.uf2$ ]] || { echo "::error::bad build-info"; exit 1; }
           git fetch --depth=1 origin firmware-registry
           git show "FETCH_HEAD:validation/$RUN.json" > /tmp/rel/record.json 2>/dev/null || rm -f /tmp/rel/record.json
           released=""

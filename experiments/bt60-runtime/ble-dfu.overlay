@@ -1,0 +1,11 @@
+/* Development only: a key behavior that restarts into the bootloader's Bluetooth update mode.
+ * Not bound by default; put it on a key from keysbeta (Special → BLE Update) if you need it. */
+/ {
+    behaviors {
+        ry_ble_dfu: ry_ble_dfu {
+            compatible = "ryong,behavior-ble-dfu";
+            #binding-cells = <0>;
+            display-name = "BLE Update";
+        };
+    };
+};

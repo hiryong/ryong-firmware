@@ -2,7 +2,7 @@ name: Ryong60 compile validation
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['hardware/ryong60/**', 'modules/**', 'experiments/host-layout/runtime-settings.conf', 'experiments/dya-runtime/**', 'scripts/prepare_zmk.py', 'scripts/secure_runtime_rpc.py', 'scripts/run_module_simulations.py', '.github/workflows/zmk-validation.yml']
+    paths: ['hardware/ryong60/**', 'modules/**', 'experiments/host-layout/runtime-settings.conf', 'experiments/dya-runtime/**', 'scripts/prepare_zmk.py', 'scripts/runtime_defaults.py', 'scripts/secure_runtime_rpc.py', 'scripts/run_module_simulations.py', '.github/workflows/zmk-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -48,7 +48,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
         run: |
           EXTRA=()
-          if [ "$VARIANT" = runtime ]; then EXTRA=("-DZMK_EXTRA_MODULES=/tmp/ryong-build/board;$GITHUB_WORKSPACE/modules/ryong-holdtap;$GITHUB_WORKSPACE/modules/ryong-ble-profiles;$GITHUB_WORKSPACE/modules/ryong-runtime-settings" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf;$GITHUB_WORKSPACE/experiments/host-layout/ble-profiles.conf;$GITHUB_WORKSPACE/experiments/host-layout/runtime-settings.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.overlay"); fi
+          if [ "$VARIANT" = runtime ]; then EXTRA=("-DZMK_EXTRA_MODULES=/tmp/ryong-build/board;$GITHUB_WORKSPACE/modules/ryong-holdtap;$GITHUB_WORKSPACE/modules/ryong-ble-profiles;$GITHUB_WORKSPACE/modules/ryong-runtime-settings;$GITHUB_WORKSPACE/modules/ryong-named-macro" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf;$GITHUB_WORKSPACE/experiments/host-layout/ble-profiles.conf;$GITHUB_WORKSPACE/experiments/host-layout/runtime-settings.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.overlay;/tmp/ryong-build/runtime-defaults.overlay"); python3 "$GITHUB_WORKSPACE/scripts/runtime_defaults.py" "$GITHUB_WORKSPACE/hardware/ryong60/boards/ryong/ryong60/ryong-behaviors.dtsi" /tmp/ryong-build/runtime-defaults.overlay "$GITHUB_WORKSPACE/hardware/ryong60/boards/ryong/ryong60/ryong-behaviors.json"; fi
           west build -s zmk/app -d build -b ryong60//zmk -S studio-rpc-usb-uart -- -DZMK_CONFIG=/tmp/ryong-build/config -DZMK_EXTRA_MODULES=/tmp/ryong-build/board "${EXTRA[@]}"
       - name: Install native simulator compiler
         if: matrix.variant == 'runtime'

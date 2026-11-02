@@ -76,7 +76,7 @@ for (const viewport of [{ width: 1280, height: 860 }, { width: 390, height: 844 
   });
   await step("start a build with the chosen settings", async () => {
     await page.getByRole("button", { name: "빌드", exact: true }).click();
-    await page.getByRole("radio", { name: "BT60 v2" }).click();
+    await page.getByRole("radio", { name: "BT60 Cheeto" }).click();
     await page.getByLabel("이름", { exact: true }).fill("Oreo 조명 테스트");
     await page.getByLabel("Bluetooth 이름").fill("Cheeto");
     await page.getByRole("button", { name: "빌드 시작" }).click();

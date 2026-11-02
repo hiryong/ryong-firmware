@@ -1,0 +1,9 @@
+config RYONG_NAMED_MACRO
+    bool "Keys bound to a runtime macro by its name"
+    default y
+    depends on ZMK_RUNTIME_MACRO && DT_HAS_RYONG_BEHAVIOR_NAMED_RUNTIME_MACRO_ENABLED
+    help
+      Lets a keymap keep `&BT_Profile0` style bindings while the macro itself
+      is a runtime macro (editable in the web app). The key looks the macro up
+      by name when pressed, so adding or removing other macros never changes
+      which macro the key plays.

@@ -11,7 +11,7 @@ on:
     paths: ['.github/workflows/firmware-build.yml']
   workflow_dispatch:
     inputs:
-      target: { description: "bt60 | ryong60", required: true, type: choice, options: [bt60, ryong60] }
+      target: { description: "bt60 (Cheeto layout) | bt60-oreo (Oreo: Mac layout, LEDs) | ryong60", required: true, type: choice, options: [bt60, bt60-oreo, ryong60] }
       label: { description: "Short name", required: false, default: build }
       idle_timeout_s: { description: "Idle after (s)", required: false, default: "30" }
       sleep_min: { description: "Default deep sleep (min, 0 = off); users change it on the keyboard", required: false, default: "15" }
@@ -47,7 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           int() { [[ "$1" =~ ^[0-9]{1,5}$ ]] && (( 10#$1 >= $2 && 10#$1 <= $3 )) || { echo "::error::$4 out of range ($2-$3): $1"; exit 1; }; }
-          [[ "$TARGET" == bt60 || "$TARGET" == ryong60 ]] || { echo "::error::bad target"; exit 1; }
+          [[ "$TARGET" == bt60 || "$TARGET" == bt60-oreo || "$TARGET" == ryong60 ]] || { echo "::error::bad target"; exit 1; }
           [[ "$REQ" =~ ^req-[A-Za-z0-9-]{1,40}$ ]] || { echo "::error::bad request id"; exit 1; }
           [[ ${#LABEL} -le 40 ]] || { echo "::error::label too long"; exit 1; }
           int "$IDLE" 10 3600 idle_timeout_s; int "$SLEEP" 0 1440 sleep_min
@@ -68,7 +68,8 @@ jobs:
       - name: Prepare workspace
         shell: bash
         run: |
-          if [ "${{ inputs.target }}" = bt60 ]; then python3 scripts/prepare_bt60.py /tmp/fw --host-layout
+          if [ "${{ inputs.target }}" = bt60 ]; then python3 scripts/prepare_bt60.py /tmp/fw --host-layout --variant cheeto
+          elif [ "${{ inputs.target }}" = bt60-oreo ]; then python3 scripts/prepare_bt60.py /tmp/fw --host-layout --variant oreo
           else python3 scripts/prepare_zmk.py /tmp/fw; fi
       - uses: actions/cache@v4
         with:
@@ -81,7 +82,7 @@ jobs:
             /tmp/fw/zmk-feature-runtime-combo
             /tmp/fw/zmk-feature-runtime-macro
             /tmp/fw/zmk-feature-custom-settings
-          key: fw-${{ inputs.target }}-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'experiments/dya-runtime/west.yml') }}
+          key: fw-${{ inputs.target == 'ryong60' && 'ryong60' || 'bt60' }}-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'experiments/dya-runtime/west.yml') }}
       - name: Resolve pinned dependencies
         working-directory: /tmp/fw
         run: |
@@ -97,17 +98,20 @@ jobs:
         run: |
           set -euo pipefail
           W="$GITHUB_WORKSPACE"
-          if [ "${{ inputs.target }}" = bt60 ]; then
+          # Firmware-built combos/macros become editable runtime defaults (listed in keysbeta).
+          if [[ "${{ inputs.target }}" == bt60* ]]; then python3 "$W/scripts/runtime_defaults.py" /tmp/fw/config/ryong-behaviors.dtsi /tmp/fw/runtime-defaults.overlay /tmp/fw/config/ryong-behaviors.json
+          else python3 "$W/scripts/runtime_defaults.py" "$W/hardware/ryong60/boards/ryong/ryong60/ryong-behaviors.dtsi" /tmp/fw/runtime-defaults.overlay "$W/hardware/ryong60/boards/ryong/ryong60/ryong-behaviors.json"; fi
+          if [[ "${{ inputs.target }}" == bt60* ]]; then
             west build -s zmk/app -d build -b bt60//zmk -S studio-rpc-usb-uart -- -DCONFIG_ZMK_STUDIO=y -DZMK_CONFIG=/tmp/fw/config \
-              "-DZMK_EXTRA_MODULES=/tmp/fw/bt60-module;$W/modules/ryong-holdtap;$W/modules/ryong-host-layout;$W/modules/ryong-update;$W/modules/ryong-ble-profiles;$W/modules/ryong-runtime-settings" \
-              "-DEXTRA_CONF_FILE=$W/experiments/dya-runtime/ryong60-runtime.conf;$W/experiments/host-layout/host-layout.conf;$W/experiments/host-layout/update.conf;$W/experiments/host-layout/ble-profiles.conf;$W/experiments/host-layout/runtime-settings.conf;$W/experiments/bt60-runtime/lights.conf;/tmp/admin-settings.conf" \
-              "-DEXTRA_DTC_OVERLAY_FILE=$W/experiments/bt60-runtime/runtime.overlay;$W/experiments/host-layout/host-layout.overlay" \
+              "-DZMK_EXTRA_MODULES=/tmp/fw/bt60-module;$W/modules/ryong-holdtap;$W/modules/ryong-host-layout;$W/modules/ryong-update;$W/modules/ryong-ble-profiles;$W/modules/ryong-runtime-settings;$W/modules/ryong-named-macro" \
+              "-DEXTRA_CONF_FILE=$W/experiments/dya-runtime/ryong60-runtime.conf;$W/experiments/host-layout/host-layout.conf;$W/experiments/host-layout/update.conf;$W/experiments/host-layout/ble-profiles.conf;$W/experiments/host-layout/runtime-settings.conf;$W/experiments/bt60-runtime/lights.conf;$W/experiments/bt60-runtime/ble-dfu.conf;/tmp/admin-settings.conf" \
+              "-DEXTRA_DTC_OVERLAY_FILE=$W/experiments/bt60-runtime/runtime.overlay;$W/experiments/host-layout/host-layout.overlay;/tmp/fw/runtime-defaults.overlay;$W/experiments/bt60-runtime/ble-dfu.overlay" \
               "-DCONFIG_RYONG_UPDATE_BUILD_ID=\"${GITHUB_SHA}\""
           else
             west build -s zmk/app -d build -b ryong60//zmk -S studio-rpc-usb-uart -- -DZMK_CONFIG=/tmp/fw/config \
-              "-DZMK_EXTRA_MODULES=/tmp/fw/board;$W/modules/ryong-holdtap;$W/modules/ryong-ble-profiles;$W/modules/ryong-runtime-settings" \
+              "-DZMK_EXTRA_MODULES=/tmp/fw/board;$W/modules/ryong-holdtap;$W/modules/ryong-ble-profiles;$W/modules/ryong-runtime-settings;$W/modules/ryong-named-macro" \
               "-DEXTRA_CONF_FILE=$W/experiments/dya-runtime/ryong60-runtime.conf;$W/experiments/host-layout/ble-profiles.conf;$W/experiments/host-layout/runtime-settings.conf;/tmp/admin-settings.conf" \
-              "-DEXTRA_DTC_OVERLAY_FILE=$W/experiments/dya-runtime/ryong60-runtime.overlay"
+              "-DEXTRA_DTC_OVERLAY_FILE=$W/experiments/dya-runtime/ryong60-runtime.overlay;/tmp/fw/runtime-defaults.overlay"
           fi
       - name: Confirm every requested setting reached the firmware
         shell: bash
@@ -131,6 +135,14 @@ jobs:
           uf2="${TARGET}-r${GITHUB_RUN_ID}-${short}.uf2"
           cp /tmp/fw/build/zephyr/zmk.uf2 "/tmp/out/$uf2"
           sha=$(sha256sum "/tmp/out/$uf2" | cut -d' ' -f1)
+          dfu=""
+          if [[ "$TARGET" == bt60* ]]; then
+            # Bluetooth update package for the Adafruit bootloader (legacy Nordic DFU). Development only: unsigned.
+            python3 -m pip install --quiet adafruit-nrfutil==0.5.3.post16 2>/dev/null || python3 -m pip install --quiet --break-system-packages adafruit-nrfutil==0.5.3.post16
+            dfu="${TARGET}-r${GITHUB_RUN_ID}-${short}-bluetooth.zip"
+            adafruit-nrfutil dfu genpkg --dev-type 0x0052 --sd-req 0xFFFE --application /tmp/fw/build/zephyr/zmk.hex "/tmp/out/$dfu"
+          fi
+          export DFU="$dfu"
           cp /tmp/fw/build/zephyr/.config /tmp/out/reports/config.txt
           cp /tmp/admin-settings.conf /tmp/out/reports/requested-settings.conf
           python3 - "$uf2" "$sha" <<'PY'
@@ -140,6 +152,7 @@ jobs:
             "version": 1, "target": os.environ["TARGET"], "label": os.environ["LABEL"],
             "run_id": int(os.environ["GITHUB_RUN_ID"]), "git_sha": os.environ["GITHUB_SHA"], "ref": os.environ["GITHUB_REF_NAME"],
             "uf2": uf2, "uf2_sha256": sha, "uf2_bytes": os.path.getsize("/tmp/out/" + uf2),
+            "bluetooth_dfu_zip": os.environ.get("DFU") or None,
             "settings": open("/tmp/admin-settings.conf").read().splitlines(),
             "built_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "status": "unvalidated — owner bench test only, not a release",
@@ -151,6 +164,7 @@ jobs:
             echo "### Firmware build · ${TARGET} · ${LABEL}"
             echo "- File: \`$uf2\`"
             echo "- SHA-256: \`$sha\`"
+            [ -n "$dfu" ] && echo "- Bluetooth update package: \`$dfu\` (nRF Device Firmware Update app; unsigned, development only)"
             echo "- Not a release. Bench-test it and record the result in keysbeta.ryong.com/admin."
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4

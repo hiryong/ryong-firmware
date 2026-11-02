@@ -1,6 +1,7 @@
 if(CONFIG_RYONG_RUNTIME_SETTINGS)
   zephyr_include_directories(include)
   target_sources(app PRIVATE src/settings_core.c src/settings_runtime.c src/settings_rpc.c)
+  target_sources_ifdef(CONFIG_RYONG_BLE_DFU_ENTRY app PRIVATE src/ble_dfu.c)
   list(APPEND CMAKE_MODULE_PATH ${ZEPHYR_BASE}/modules/nanopb)
   include(nanopb)
   set(NANOPB_GENERATE_CPP_APPEND_PATH TRUE)

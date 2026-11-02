@@ -165,3 +165,18 @@ See HOST_OS_LAYOUT.ko.md. This is not yet a working firmware feature.
 - Still build-only (by design): NKRO, mouse keys, Studio unlock requirement, BLE TX power (admin build option).
 - Next: iPhone. iOS browsers have no WebUSB/Web Serial/Web Bluetooth, so phone editing and updates need a
   native app over BLE plus BLE DFU with signed images and a recovery path.
+
+### Firmware combos/macros editable, BT60 Oreo target, Bluetooth update (dev) (2026-11-03)
+- `scripts/runtime_defaults.py` turns keys.ryong.com's `ryong-behaviors.dtsi` into runtime defaults at build
+  time: `zmk,combos` → `cormoran,runtime-combo-defaults`; each `zmk,behavior-macro` → a
+  `cormoran,runtime-macro-default` with the same steps, and the original label becomes
+  `ryong,behavior-named-runtime-macro` (`modules/ryong-named-macro`) that plays the macro *by name*, so the
+  keymap (`&BT_Profile0`) and saved Studio keymaps keep working. keysbeta lists and edits them; the web app
+  locks rename/delete of name-bound macros.
+- Admin build target `bt60-oreo`: Oreo's Mac keymap (copied read-only from zmk-config-studio LED_mac_oreo)
+  with the same OS-adaptive modifiers; optional Bluetooth name.
+- Bluetooth update (development, **unsigned**): `CONFIG_RYONG_BLE_DFU_ENTRY` restarts into the Adafruit
+  bootloader's OTA DFU (GPREGRET 0xA8) from keysbeta Keyboard settings or a "BLE Update" key; BT60 builds also
+  produce `-bluetooth.zip` (adafruit-nrfutil genpkg, --sd-req 0xFFFE) for Nordic's nRF Device Firmware Update
+  app. Owner's INFO_UF2.TXT: UF2 Bootloader 0.4.0-41, Model CKP, S140 6.1.1. USB/UF2 stays the recovery path.
+  Not verified: OTA on this bootloader build, the zip on iOS, anything on hardware.

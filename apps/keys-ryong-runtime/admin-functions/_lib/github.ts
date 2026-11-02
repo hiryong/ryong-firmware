@@ -6,7 +6,7 @@ import type { Channel, ValidationRecord } from "./rules";
 export const REGISTRY = "firmware-registry";
 export const BUILD_WORKFLOW = "firmware-build.yml";
 export const RELEASE_WORKFLOW = "firmware-release.yml";
-export const TARGETS = ["bt60", "ryong60"] as const;
+export const TARGETS = ["bt60", "bt60-oreo", "ryong60"] as const;
 
 export const repo = (env: AdminEnv) => env.FIRMWARE_REPO || "hiryong/ryong-firmware";
 export const ref = (env: AdminEnv) => env.FIRMWARE_REF || "dev/keys-ryong-runtime";
@@ -49,13 +49,13 @@ export interface Run {
 
 /** "Firmware build · bt60 · label · req-xxxx" (run-name set by firmware-build.yml) */
 export function parseBuildTitle(title: string) {
-  const m = /^Firmware build · (bt60|ryong60) · (.*?) · (req-[\w-]+)$/.exec(title);
+  const m = /^Firmware build · (bt60-oreo|bt60|ryong60) · (.*?) · (req-[\w-]+)$/.exec(title);
   return m ? { target: m[1], label: m[2], request: m[3] } : null;
 }
 
 /** Artifact name carries the target and the UF2's SHA-256 (the release workflow re-checks the file). */
 export function parseArtifact(name: string) {
-  const m = /^firmware-(bt60|ryong60)-([0-9a-f]{64})$/.exec(name);
+  const m = /^firmware-(bt60-oreo|bt60|ryong60)-([0-9a-f]{64})$/.exec(name);
   return m ? { target: m[1], uf2_sha256: m[2] } : null;
 }
 
