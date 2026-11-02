@@ -1,0 +1,33 @@
+on:
+  push:
+    branches:
+      - main
+
+permissions: {}
+
+name: release-please
+
+jobs:
+  release-please:
+    # keys.ryong.com: desktop-app release jobs only run in the official repository
+    if: github.repository == 'zmkfirmware/zmk-studio'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.ZMK_STUDIO_RELEASE_TOKEN }}
+      - uses: actions/checkout@v4
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          ref: prod
+      - name: publish to prod branch
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          git fetch origin main
+          git pull --ff-only origin main
+          git remote set-url origin "https://x-access-token:${{ secrets.ZMK_STUDIO_RELEASE_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push

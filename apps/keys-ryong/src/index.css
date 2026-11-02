@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  @font-face {
+    font-family: "Inter";
+    src: url("/Inter.woff2") format("woff2");
+    font-display: fallback;
+  }
+}
+
+html {
+  color-scheme: light dark;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+
+  width: 100vw;
+  height: 100vh;
+}

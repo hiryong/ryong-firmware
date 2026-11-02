@@ -1,0 +1,113 @@
+# keys.ryong.com desktop app (Mac, Windows): edit keys over Bluetooth.
+# The app is the official ZMK Studio app (src-tauri) opening https://keys.ryong.com — see ryong-app/.
+# The site itself updates without a new app; this only runs when the app code changes
+# (here, or in an official update — the sync workflow starts it then).
+# Builds land in public/app/ so keys.ryong.com serves the downloads (this repository is private).
+name: ryong-app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src-tauri/**"
+      - "ryong-app/**"
+      - ".github/workflows/ryong-app.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ryong-app
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.repository != 'zmkfirmware/zmk-studio'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: mac
+            args: --target universal-apple-darwin --bundles dmg
+          - os: windows-latest
+            name: windows
+            args: --bundles nsis
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Make it the keys.ryong.com app
+        run: |
+          node ryong-app/prepare.mjs
+          npx tauri icon ryong-app/icon.png
+
+      - name: Build
+        run: npx tauri build --config ryong-app/tauri.ryong.json ${{ matrix.args }}
+
+      - name: Collect
+        shell: bash
+        run: |
+          mkdir -p out
+          if [ "${{ matrix.name }}" = mac ]; then
+            cp "$(ls src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -1)" out/Keys-mac.dmg
+          else
+            cp "$(ls src-tauri/target/release/bundle/nsis/*.exe | head -1)" out/Keys-windows.exe
+          fi
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.name }}
+          path: out/*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Clear the old downloads
+        run: git rm -q -r --ignore-unmatch public/app && mkdir -p public/app
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: public/app
+          merge-multiple: true
+
+      - name: Put the downloads on the site
+        run: |
+          VERSION=$(node -p "require('./ryong-app/tauri.ryong.json').version")
+          node -e '
+            const fs = require("fs");
+            fs.writeFileSync("public/app/latest.json", JSON.stringify({
+              version: process.argv[1],
+              date: new Date().toISOString().slice(0, 10),
+              mac: "Keys-mac.dmg",
+              windows: "Keys-windows.exe",
+            }, null, 2) + "\n");
+          ' "$VERSION"
+          ls -la public/app
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A public/app
+          git commit -m "Desktop app $VERSION" || exit 0
+          for i in 1 2 3; do git pull --rebase origin main && git push origin main && break; sleep 5; done

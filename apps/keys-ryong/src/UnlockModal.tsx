@@ -1,0 +1,56 @@
+import { BrandFloat } from "./ryong/BrandFloat";
+import React, { useContext, useMemo } from "react";
+
+import type { RpcTransport } from "@zmkfirmware/zmk-studio-ts-client/transport/index";
+import type { AvailableDevice } from "./tauri/index";
+import { LockStateContext } from "./rpc/LockStateContext";
+import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core";
+import { ConnectionContext } from "./rpc/ConnectionContext";
+import { useModalRef } from "./misc/useModalRef";
+import { GenericModal } from "./GenericModal";
+import { ExternalLink } from "./misc/ExternalLink";
+
+export type TransportFactory = {
+  label: string;
+  connect?: () => Promise<RpcTransport>;
+  pick_and_connect?: {
+    list: () => Promise<Array<AvailableDevice>>;
+    connect: (dev: AvailableDevice) => Promise<RpcTransport>;
+  };
+};
+
+export interface UnlockModalProps {
+  /** keys.ryong.com: shown under the first paragraph */
+  extra?: React.ReactNode;
+}
+
+export const UnlockModal = ({ extra }: UnlockModalProps) => {
+  let conn = useContext(ConnectionContext);
+  let lockState = useContext(LockStateContext);
+
+  let open = useMemo(
+    () =>
+      !!conn.conn && lockState != LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED,
+    [conn, lockState]
+  );
+  const dialog = useModalRef(open, false, false);
+
+  return (
+    <GenericModal ref={dialog} className="ry-solid">
+      <h1 className="text-xl">Unlock To Continue</h1>
+      <p>
+        For security reasons, your keyboard requires unlocking before using ZMK
+        Studio.
+      </p>
+      {extra}
+      <p>
+        If studio unlocking hasn't been added to your keymap or a combo, see the{" "}
+        <ExternalLink href="https://zmk.dev/docs/keymaps/behaviors/studio-unlock">
+          Studio Unlock Behavior
+        </ExternalLink>{" "}
+        documentation for more infomation.
+      </p>
+      <BrandFloat />
+    </GenericModal>
+  );
+};

@@ -24,7 +24,7 @@ jobs:
           west init -l config
           west update --fetch-opt=--filter=tree:0
           west zephyr-export
-          west manifest --freeze > resolved-manifest.yml
+          west manifest --freeze --active-only > resolved-manifest.yml
       - name: Require Studio unlock in external modules
         if: matrix.variant == 'runtime'
         run: python3 scripts/secure_runtime_rpc.py /tmp/ryong-build

@@ -1,0 +1,24 @@
+name: Independent Keys app validation
+on:
+  push:
+    branches: [dev/keys-ryong-runtime]
+    paths: ['apps/**', 'scripts/**', '.github/workflows/keys-app-validation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/keys-ryong
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/keys-ryong/package-lock.json
+      - run: npm ci
+      - run: bash scripts/ryong-build.sh
+# Build only. No Cloudflare credentials, deployment, GitHub login or firmware writes.
