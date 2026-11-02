@@ -1,4 +1,5 @@
 import { AppHeader } from "./AppHeader";
+import { UpdateConnectionContext } from "./ryong/runtime/updateContext";
 import { RuntimePanel } from "./ryong/RuntimePanel";
 import { t } from "./ryong/i18n";
 
@@ -179,6 +180,7 @@ function App() {
   const [showLicenseNotice, setShowLicenseNotice] = useState(false);
   const [connectionAbort, setConnectionAbort] = useState(new AbortController());
   const [hubTab, setHubTab] = useState<HubTab | null>(null);
+  const [updating, setUpdating] = useState(false);
   const [runtimeSection, setRuntimeSection] = useState("keymap");
   const [runtimeOpen, setRuntimeOpen] = useState(
     import.meta.env.VITE_RYONG_RUNTIME === "1" && (new URLSearchParams(location.search).get("runtime") === "1" || import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1")
@@ -303,12 +305,18 @@ function App() {
   );
 
   return (
+    <UpdateConnectionContext.Provider value={{setUpdating,adopt:(next,name,abort)=>{
+      setConnectionAbort(abort);setConn({conn:next});setConnectedDeviceName(name);
+      void listen_for_notifications(next.notification_readable,abort.signal).finally(()=>{
+        setConnectedDeviceName(undefined);setConn({conn:null});
+      }).catch(()=>{});
+    }}}>
     <ConnectionContext.Provider value={conn}>
       <LockStateContext.Provider value={lockState}>
         <UndoRedoContext.Provider value={doIt}>
           <UnlockModal extra={<UnlockHelp deviceName={connectedDeviceName} onTab={setHubTab} onApp={openApp} />} />
           <ConnectModal
-            open={!conn.conn && !runtimeOpen}
+            open={!conn.conn && !runtimeOpen && !updating}
             transports={TRANSPORTS}
             onTransportCreated={onConnect}
             lead={<ConnectLead />}
@@ -320,8 +328,8 @@ function App() {
           />
           <Hub
             tab={hubTab}
-            onTab={setHubTab}
-            onClose={() => setHubTab(null)}
+            onTab={tab => { if (!updating) setHubTab(tab); }}
+            onClose={() => { if (!updating) setHubTab(null); }}
             deviceName={connectedDeviceName}
             onRestored={() => {
               reset();
@@ -376,6 +384,7 @@ function App() {
         </UndoRedoContext.Provider>
       </LockStateContext.Provider>
     </ConnectionContext.Provider>
+    </UpdateConnectionContext.Provider>
   );
 }
 

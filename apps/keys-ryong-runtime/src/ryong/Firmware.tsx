@@ -613,6 +613,10 @@ const UpdateFlow = ({ b, live, bootloader, bootloaderKeys }: { b: Board; live: b
     }
   };
 
+  if (import.meta.env.VITE_RYONG_RUNTIME === "1") return <p className="ry-note">{t(
+    "Use the verified update flow above. Development images are not released while board and recovery checks remain open.",
+    "위의 검증된 업데이트 흐름을 사용합니다. 기기·복구 검증이 끝나기 전에는 개발 펌웨어를 배포하지 않습니다.")}</p>;
+
   return (
     <ol className="ry-steps">
       <li>

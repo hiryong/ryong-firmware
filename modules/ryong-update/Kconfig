@@ -1,0 +1,22 @@
+config RYONG_UPDATE_RPC
+    bool "Ryong development firmware identity/update RPC"
+    depends on ZMK_STUDIO && ZMK_USB
+    default n
+if RYONG_UPDATE_RPC
+config RYONG_UPDATE_MODEL
+    string "Verified board model identifier"
+    default "unvalidated-development-board"
+config RYONG_UPDATE_BUILD_ID
+    string "Source build identity"
+    default "development"
+config RYONG_UPDATE_VERSION
+    int "Monotonic release version"
+    default 0
+    range 0 2147483647
+config RYONG_UPDATE_BOOTLOADER_ALLOWED
+    bool "Allow signed desktop update bridge to enter bootloader"
+    default n
+    help
+      Leave disabled until actual unit identity, signed update policy, settings
+      migration and hardware recovery have been independently validated.
+endif

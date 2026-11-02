@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir -p generated-runtime-proto
           protoc --plugin=protoc-gen-ts_proto="$GITHUB_WORKSPACE/vendor/runtime-studio-client/node_modules/.bin/protoc-gen-ts_proto" --ts_proto_out=generated-runtime-proto --ts_proto_opt=env=browser,esModuleInterop=true --proto_path=experiments/runtime-client/proto experiments/runtime-client/proto/*.proto
-          cp generated-runtime-proto/{runtime_tapdance,holdtap,os_detection}.ts apps/keys-ryong-runtime/src/ryong/runtime/proto/
+          cp generated-runtime-proto/{runtime_tapdance,holdtap,os_detection,update}.ts apps/keys-ryong-runtime/src/ryong/runtime/proto/
       - uses: actions/upload-artifact@v4
         with:
           name: generated-runtime-protocol
@@ -40,6 +40,8 @@ jobs:
         working-directory: apps/keys-ryong-runtime
         run: |
           npm ci
+          node tests/web-update.test.mjs
+          node tests/update-machine.test.mjs
           node tests/host-device.test.mjs
           node tests/runtime-bindings.test.mjs
           node tests/runtime-device.test.mjs
@@ -69,7 +71,9 @@ jobs:
         working-directory: apps/keys-ryong-runtime
         env:
           RYONG_PLAYWRIGHT: /tmp/ryong-ui-qa/node_modules/playwright/index.mjs
-        run: node tests/runtime-ui.test.mjs
+        run: |
+          node tests/runtime-ui.test.mjs
+          node tests/web-update.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

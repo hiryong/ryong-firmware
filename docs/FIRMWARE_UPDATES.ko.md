@@ -85,3 +85,39 @@ access volumes or pretend to perform updates.
 
 The native serial sender now uses write_all and stops on error, preventing a
 short serial write from silently truncating a Studio request.
+
+
+## Web-first update path
+
+User preference: keep configuration and firmware updating on the web; desktop
+software is an optional fallback, not a customer prerequisite. Adafruit nRF52
+bootloader upstream provides CDC serial DFU as well as UF2 MSC. Web Serial can
+use CDC; WebUSB cannot directly claim the protected mass-storage interface.
+Browser permission prompts remain browser-controlled, especially on first use.
+
+`webUpdate` now contains real WebCrypto Ed25519/SHA-256 package verification,
+strict contiguous application-range checks, independently checked HCI/SLIP
+framing and a Web Serial application-only DFU transport. Officially generated
+init packet bytes must be included and hashed in the signed package. No
+SoftDevice or bootloader update mode is sent. Unexpected ACKs/disconnection
+stop without retries. A shared update state machine requires durable backup
+before reboot and exact unit/model/build/version after reconnect before success.
+
+The browser policy registry is empty. Seeing a UF2 drive does not prove that
+this BT60's actual bootloader exposes CDC DFU or that its application start
+matches the DFU write location. These must be verified before any real image
+or bootloader-enter permission is enabled. Native Mac app builds successfully
+as a separate development bundle; it remains optional and cannot flash because
+its release registry is empty too.
+
+
+The web UI is now wired to the browser update adapters: signed approved-package
+download, strict IndexedDB backup transaction, two-phase firmware bridge,
+browser-owned bootloader permission, application-only transfer, automatic
+reconnection through an already granted matching runtime port, and same-unit
+verification before completion. The normal connection chooser stays closed
+while an update is active. Backup preserves semantic dynamic settings, keymap
+behavior names plus named macro/dance references, and host profile choices.
+No record is restored automatically after a failure. All live paths remain
+closed because the approved browser/native policy registries are empty and
+firmware bootloader entry defaults off. This wiring is not a real-device test.

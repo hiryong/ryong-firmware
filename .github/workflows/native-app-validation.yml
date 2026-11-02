@@ -15,6 +15,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/keys-ryong-runtime/src-tauri/target
+          key: native-macos-${{ runner.arch }}-${{ hashFiles('apps/keys-ryong-runtime/src-tauri/Cargo.lock', 'tools/ryong-updater/Cargo.lock') }}
       - name: Install protocol compiler in runner
         run: command -v protoc || brew install protobuf
       - run: bash experiments/runtime-client/prepare.sh "$GITHUB_WORKSPACE/vendor/runtime-studio-client"

@@ -36,7 +36,8 @@ development fixture while Ryong60 hardware is unavailable.
 ## Physical verification and migration remain open
 
 - [ ] Confirm actual BT60 revision, bootloader and known-good restoration image.
-- [ ] Prove physical bootloader entry even when application firmware is unresponsive.
+- [x] User confirms the physical reset path works and Fn+Enter opens the bootloader drive; do not ask to repeat that confirmation.
+- [ ] Obtain actual bootloader metadata and match an intact rollback image; interrupted-update recovery remains untested.
 - [ ] Test original SETTINGS_TABLE -> runtime CRC16 keymap migration and rollback.
 - [ ] Preserve BLE bonds through the actual upgrade.
 - [ ] USB/BLE runtime RPC and firmware-side locked-write enforcement.
@@ -94,5 +95,15 @@ See HOST_OS_LAYOUT.ko.md. This is not yet a working firmware feature.
 - [x] Implement and locally test signed package/hash/model/version/UF2 range checks and exclusive-create transfer against synthetic temporary volumes.
 - [x] Add separate native adapter, read-only bootloader inventory and an empty-by-default release policy.
 - [x] Fix native serial short-write handling with write_all and error termination.
-- [ ] Native Mac development app build, real unit/recovery identity and complete backup/reboot/reconnect flow remain to be verified.
+- [x] Separate native Mac development app builds and ad-hoc signature verification pass (run 41437820913).
+- [ ] Real unit/recovery identity and complete backup/reboot/reconnect flow require hardware validation.
 - [ ] No production board policy or installable firmware is enabled.
+
+## Web update implementation checkpoint
+
+- [x] Web-first policy; optional native fallback.
+- [x] WebCrypto signature/hash and approved contiguous application-range validation.
+- [x] Legacy Adafruit serial DFU/HCI codec and Web Serial transport, application-only, no retries after uncertain ACK.
+- [x] Backup-before-reboot/update state machine and same-unit/build reconnection checks.
+- [x] Firmware read-only identity plus separate secured two-phase bootloader bridge; real bootloader entry defaults off.
+- [ ] Validate latest bridge in actual ZMK build; no actual BT60 bootloader identity/CDC/range/recovery approval exists yet.

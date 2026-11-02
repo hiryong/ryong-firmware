@@ -1,0 +1,9 @@
+syntax = "proto3";
+package ryong.update;
+message Empty {}
+message Identity { string model = 1; string build_id = 2; uint32 version = 3; bool bootloader_allowed = 4; }
+message Prepare { bytes nonce = 1; string expected_build_id = 2; }
+message Confirm { bytes nonce = 1; }
+message Status { bool ok = 1; uint32 error = 2; }
+message Request { oneof request_type { Empty identity = 1; Prepare prepare = 2; Confirm confirm = 3; } }
+message Response { oneof response_type { Identity identity = 1; Status status = 2; } }

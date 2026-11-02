@@ -54,8 +54,9 @@ jobs:
             EXTRA=("-DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module;$GITHUB_WORKSPACE/modules/ryong-holdtap" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/bt60-runtime/runtime.overlay")
           fi
           if [ "$VARIANT" = host-layout ]; then
-            EXTRA=("-DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module;$GITHUB_WORKSPACE/modules/ryong-holdtap;$GITHUB_WORKSPACE/modules/ryong-host-layout" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf;$GITHUB_WORKSPACE/experiments/host-layout/host-layout.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/bt60-runtime/runtime.overlay;$GITHUB_WORKSPACE/experiments/host-layout/host-layout.overlay")
+            EXTRA=("-DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module;$GITHUB_WORKSPACE/modules/ryong-holdtap;$GITHUB_WORKSPACE/modules/ryong-host-layout;$GITHUB_WORKSPACE/modules/ryong-update" "-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf;$GITHUB_WORKSPACE/experiments/host-layout/host-layout.conf;$GITHUB_WORKSPACE/experiments/host-layout/update.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/bt60-runtime/runtime.overlay;$GITHUB_WORKSPACE/experiments/host-layout/host-layout.overlay")
           fi
+          if [ "$VARIANT" = host-layout ]; then EXTRA+=("-DCONFIG_RYONG_UPDATE_BUILD_ID=\"${GITHUB_SHA}\""); fi
           west build -s zmk/app -d build -b bt60//zmk -S studio-rpc-usb-uart -- -DCONFIG_ZMK_STUDIO=y -DZMK_CONFIG=/tmp/bt60-build/config -DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module "${EXTRA[@]}"
       - name: Diagnostic reports only
         if: always()

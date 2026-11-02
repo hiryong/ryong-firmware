@@ -1,0 +1,5 @@
+ryong.update.Identity.model max_size:40
+ryong.update.Identity.build_id max_size:65
+ryong.update.Prepare.nonce max_size:16
+ryong.update.Prepare.expected_build_id max_size:65
+ryong.update.Confirm.nonce max_size:16
