@@ -1,0 +1,87 @@
+# keys.ryong.com — keep this fork in step with the official ZMK Studio.
+# Every day (and on demand) it merges zmkfirmware/zmk-studio main into this repo's main.
+# Cloudflare Pages then rebuilds keys.ryong.com automatically from the new commit.
+# If the merge conflicts with the ryong changes, nothing is pushed and an issue is opened instead.
+name: Sync upstream ZMK Studio
+
+on:
+  schedule:
+    - cron: "17 0 * * *" # every day 09:17 KST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+jobs:
+  sync:
+    if: github.repository != 'zmkfirmware/zmk-studio'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge upstream
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/zmkfirmware/zmk-studio.git
+          git fetch upstream main
+          BEFORE=$(git rev-parse HEAD)
+          echo "before=$BEFORE" >> "$GITHUB_OUTPUT"
+          if git merge --no-edit upstream/main; then
+            if [ "$(git rev-parse HEAD)" = "$BEFORE" ]; then
+              echo "result=uptodate" >> "$GITHUB_OUTPUT"
+            else
+              echo "result=merged" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            git diff --name-only --diff-filter=U > conflicts.txt
+            git merge --abort
+            echo "result=conflict" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check the merged site still builds
+        if: steps.merge.outputs.result == 'merged'
+        id: build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm ci --no-audit --no-fund
+          bash scripts/ryong-build.sh
+
+      - name: Push
+        if: steps.merge.outputs.result == 'merged' && steps.build.outcome == 'success'
+        run: git push origin main
+
+      # Pushes made here don't start other workflows by themselves, so ask for a new desktop app
+      # when the official app code (src-tauri) changed.
+      - name: Rebuild the desktop app if its code changed
+        if: steps.merge.outputs.result == 'merged' && steps.build.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --name-only ${{ steps.merge.outputs.before }} HEAD | grep -q '^src-tauri/'; then
+            gh workflow run ryong-app.yml --ref main
+          fi
+
+      - name: Open an issue on conflict or broken build
+        if: steps.merge.outputs.result == 'conflict' || (steps.merge.outputs.result == 'merged' && failure())
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const files = fs.existsSync('conflicts.txt') ? fs.readFileSync('conflicts.txt', 'utf8').trim() : '';
+            const title = files ? 'ZMK Studio 업데이트: 충돌 정리 필요' : 'ZMK Studio 업데이트: 빌드 실패';
+            const body = (files
+              ? `공식 ZMK Studio 변경과 ryong 수정이 같은 곳을 건드렸어요. 사이트는 이전 버전 그대로예요.\n\n충돌 파일:\n\`\`\`\n${files}\n\`\`\``
+              : `공식 ZMK Studio 변경을 합쳤더니 빌드가 실패했어요. 사이트는 이전 버전 그대로예요.`)
+              + `\n\n실행 기록: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const open = await github.rest.issues.listForRepo({ ...context.repo, state: 'open', labels: 'upstream-sync' });
+            if (open.data.length === 0) {
+              await github.rest.issues.create({ ...context.repo, title, body, labels: ['upstream-sync'] });
+            }

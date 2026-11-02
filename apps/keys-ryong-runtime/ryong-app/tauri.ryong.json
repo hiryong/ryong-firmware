@@ -1,0 +1,25 @@
+{
+  "productName": "Keys",
+  "mainBinaryName": "keys",
+  "version": "1.0.1",
+  "identifier": "com.ryong.keys",
+  "build": {
+    "beforeBuildCommand": null,
+    "beforeDevCommand": null,
+    "frontendDist": "https://keys.ryong.com"
+  },
+  "bundle": {
+    "copyright": "ryong.com",
+    "shortDescription": "keys.ryong.com — keyboard editor with Bluetooth",
+    "windows": {
+      "signCommand": null
+    }
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "capabilities": ["default", "ryong-remote"],
+      "csp": null
+    }
+  }
+}

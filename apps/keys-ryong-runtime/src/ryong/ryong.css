@@ -1,0 +1,762 @@
+/* keys.ryong.com — ZMK Studio dressed in the ryong.com CMS style.
+   True black, one typeface (Geist, Pretendard for Korean), hairlines, pill buttons.
+   Everything ryong-specific lives in src/ryong so upstream updates merge cleanly. */
+
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 300 500; font-display: swap;
+  src: url("/fonts/geist-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 300 500; font-display: swap;
+  src: url("/fonts/geist-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+:root {
+  --ink: #FCFDFF;
+  --body: rgba(252, 253, 255, 0.86);
+  --soft: rgba(252, 253, 255, 0.7);
+  --mute: #A1A4A5;
+  --faint: #8A8E90;
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --danger: #FF8A8A;
+  /* colour only on small status dots */
+  --ok: #3DD68C;
+  --busy: #FF7A1A;
+  color-scheme: dark;
+}
+
+html { color-scheme: dark !important; background: #000; scrollbar-color: #3a3a3a #000; }
+body {
+  background: #000; color: var(--ink);
+  font-family: "Geist", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px; line-height: 1.45; letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+::selection { background: rgba(255, 255, 255, 0.24); }
+
+/* ---------- Upstream surfaces, retuned (no upstream class names changed) ---------- */
+
+/* Header: black bar with a hairline, like the CMS top bar. */
+.ry-app > header { height: 56px; border-bottom: 1px solid var(--line); padding: 0 8px; }
+.ry-app > header button:hover { background: rgba(255, 255, 255, 0.06); }
+
+/* Editor: true black canvas, side and bottom panels one step up with hairlines. */
+.ry-app .ry-canvas { background: #000; }
+.ry-app .ry-canvas > .bg-base-200 { background: #0A0A0A; }
+.ry-app .ry-canvas > .row-span-2 { border-right: 1px solid var(--line); }
+.ry-app .ry-canvas .row-start-2.bg-base-200 { border-top: 1px solid var(--line); }
+
+/* Keys: dark cards with a hairline, white when selected (like a pressed CMS pill). */
+.ry-key { background: #0D0D0D; outline: 1px solid var(--line); outline-offset: -1px; border-radius: 6px; }
+.ry-key:hover { --tw-ring-color: rgba(255, 255, 255, 0.4); background: #141414; }
+.ry-key.bg-primary { background: var(--ink); outline-color: var(--ink); }
+.ry-key.bg-primary:hover { background: #fff; }
+/* A label never leaves its key: one line, cut with … if it still does not fit. */
+/* see-through (▽) and empty keys: small and faint, so a layer full of them stays calm */
+.ry-key.is-quiet > span { opacity: 0.3; font-size: 0.6em; }
+.ry-view-3d .ry-key.is-quiet > span { font-size: 8px; }
+.ry-key > span { display: block; max-width: calc(100% - 4px); letter-spacing: -0.01em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center; }
+/* Longer labels ("Show All Wins", "Refresh"): smaller, up to two lines. */
+/* labels shrink to fit their key (--fit, from keyLegend.legendFit); longer ones take two lines, broken only
+   between words, and end in … if they still don't fit */
+.ry-key > span { font-size: calc(1em * var(--fit, 1)); }
+.ry-key > span[data-ry-long] { line-height: 1.1; white-space: normal; overflow-wrap: normal; word-break: keep-all;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* Popovers, menus, tooltips and dialogs share one dark surface. */
+dialog { border: 1px solid var(--line); border-radius: 12px !important; background: #0A0A0A !important; color: var(--ink) !important; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.72) !important; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+[role="menu"], [role="listbox"][data-rac], .react-aria-Popover { border-color: var(--line-strong); }
+.ry-app [data-rac][role="menu"] { background: #141414; border: 1px solid var(--line-strong); border-radius: 10px; padding: 4px; }
+.ry-app [data-rac][role="menuitem"] { border-radius: 6px; padding: 8px 12px; }
+.ry-app [data-rac][role="menuitem"]:hover { background: rgba(255, 255, 255, 0.08); }
+input, select, textarea { background: #000; color: var(--ink); border: 1px solid var(--line-strong); border-radius: 6px; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--ink); }
+
+/* Key picker: the field and its arrow are one control — one border, rounded only on the outside corners */
+.ry-combo { border: 1px solid var(--line-strong); border-radius: 6px; background: #000; height: 34px; }
+.ry-combo:focus-within { border-color: var(--ink); }
+.ry-combo input { border: 0 !important; border-radius: 6px 0 0 6px !important; background: transparent; height: 100%; padding: 0 10px; outline: none; }
+.ry-combo button { height: 100%; width: 34px; border: 0; border-left: 1px solid var(--line-strong); border-radius: 0 6px 6px 0; background: transparent; color: var(--soft); }
+.ry-combo button:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+
+/* …and its list: the same dark surface and hairline as the other menus */
+[data-trigger="ComboBox"] { background: #0A0A0A !important; border: 1px solid var(--line-strong) !important; border-radius: 10px !important; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6); }
+[data-trigger="ComboBox"] [role="option"] { border-radius: 6px; padding-top: 3px; padding-bottom: 3px; }
+
+/* 2D: a key under the pointer grows only a little (Studio's own 125% covered its neighbours) */
+.ry-view-2d .ry-key:hover { --tw-scale-x: 1.06 !important; --tw-scale-y: 1.06 !important; }
+
+/* Layout picker: each option is one card; its little keyboard is a picture, not keys you can touch */
+.ry-layout-list { padding: 6px; display: grid; gap: 4px; background: #0A0A0A; border: 1px solid var(--line-strong); border-radius: 12px; }
+.ry-layout-option { padding: 10px 12px 8px; border-radius: 8px; outline: none; color: var(--soft); }
+.ry-layout-option[data-hovered], .ry-layout-option[data-focus-visible] { background: rgba(255, 255, 255, 0.05); color: var(--ink); }
+.ry-layout-option[aria-selected="true"] { background: rgba(255, 255, 255, 0.1); color: var(--ink); }
+.ry-layout-list .ry-key { pointer-events: none; transform: none !important; background: #26272B; outline: none; border-radius: 2.5px; box-shadow: none; }
+.ry-layout-list .ry-key > * { display: none; }
+.ry-layout-option[aria-selected="true"] .ry-key { background: #4A4B50; }
+.ry-layout-list .ry-key.is-iso { background: transparent; }
+.ry-layout-list .ry-iso-flat { fill: #26272B; stroke: none; }
+.ry-layout-option[aria-selected="true"] .ry-iso-flat { fill: #4A4B50; }
+
+/* Sidebar (layout, layers): more air, its labels lined up with the logo above */
+.ry-app .ry-canvas > .row-span-2 { padding: 20px 16px; gap: 20px; }
+.ry-app .ry-canvas > .row-span-2 label, .ry-app .ry-canvas > .row-span-2 [data-rac] > span.text-sm { padding-left: 12px; }
+
+/* Footer: quiet line of text. */
+.ry-footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; padding: 10px 16px; border-top: 1px solid var(--line); background: #000; color: var(--faint); font-size: 12px; }
+.ry-footer a, .ry-footer button { color: var(--mute); cursor: pointer; }
+.ry-footer a:hover, .ry-footer button:hover { color: var(--ink); }
+
+/* ---------- ryong components ---------- */
+
+.ry-brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; color: var(--ink); }
+.ry-brand .ry-mark { width: 22px; height: 22px; flex: none; }
+.ry-brand strong { font-weight: 500; font-size: 16px; line-height: 22px; display: block; letter-spacing: -0.01em; transform: translateY(0.75px); } /* the mark's height, so the word sits on its middle */
+.ry-brand span { color: var(--mute); font-size: 13px; }
+
+.ry-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.ry-tab { min-height: 36px; padding: 0 14px; border-radius: 9999px; border: 0; background: transparent; color: var(--mute); font-size: 13px; cursor: pointer; white-space: nowrap; }
+.ry-tab[aria-pressed="true"] { background: rgba(255, 255, 255, 0.12); color: var(--ink); }
+.ry-tab:hover { color: var(--ink); }
+
+.ry-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 9999px; border: 0; background: var(--ink); color: #000; font-size: 14px; font-weight: 500; cursor: pointer; }
+.ry-primary:hover { background: #fff; }
+.ry-primary:disabled { opacity: 0.4; cursor: default; }
+.ry-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.2); background: none; color: var(--body); font-size: 13px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.ry-outline:hover { border-color: rgba(255, 255, 255, 0.4); color: var(--ink); }
+.ry-outline:disabled { opacity: 0.4; cursor: default; }
+.ry-text { min-height: 36px; padding: 0 12px; border-radius: 9999px; border: 0; background: none; color: var(--mute); font-size: 13px; cursor: pointer; }
+.ry-text:hover { color: var(--ink); }
+.ry-danger { color: var(--danger) !important; }
+.ry-icon { width: 36px; height: 36px; border-radius: 9999px; border: 0; background: none; color: var(--mute); display: inline-flex; align-items: center; justify-content: center; flex: none; cursor: pointer; }
+.ry-icon:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+.ry-outline svg, .ry-primary svg, .ry-icon svg { width: 16px; height: 16px; }
+
+.ry-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 10px; border-radius: 9999px; border: 1px solid var(--line-strong); color: var(--body); font-size: 12px; white-space: nowrap; }
+.ry-pill.is-on { background: var(--ink); border-color: var(--ink); color: #000; }
+.ry-pill.is-quiet { color: var(--faint); }
+.ry-dot { width: 6px; height: 6px; border-radius: 9999px; background: currentColor; flex: none; }
+.ry-dot.is-ok { background: var(--ok); }
+.ry-dot.is-busy { background: var(--busy); animation: ry-blink 1.4s ease-in-out infinite; }
+.ry-dot.is-busy-still { background: var(--busy); }
+.ry-status .ry-dot { display: inline-block; margin-right: 7px; vertical-align: 1px; }
+.ry-dot.is-bad { background: var(--danger); }
+@keyframes ry-blink { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .ry-dot.is-busy { animation: none; } }
+
+/* Hub (firmware, backup, guide): a full page over the editor — nothing behind it can be used meanwhile,
+   so it takes the whole screen and reads like a page, its text in a comfortable column */
+dialog.ry-hub { position: fixed; inset: 0; margin: 0; width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh;
+  padding: 0 !important; border: 0 !important; border-radius: 0 !important; overflow: hidden; background: #000 !important; }
+dialog.ry-hub::backdrop { background: #000 !important; }
+dialog.ry-hub[open] { display: flex; flex-direction: column; animation: ry-page-in 0.22s cubic-bezier(0.2, 0.7, 0.2, 1); }
+@keyframes ry-page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { dialog.ry-hub[open] { animation: none; } }
+.ry-hub-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; height: 56px; padding: 0 12px 0 20px; border-bottom: 1px solid var(--line); flex: none; }
+.ry-hub-top .ry-brand { justify-self: start; padding: 0 8px; height: 40px; background: none; border: 0; border-radius: 9999px; cursor: pointer; font: inherit; }
+.ry-hub-top .ry-brand:focus { outline: none; }
+/* the page opens with focus on its own tab, which is already highlighted: no extra ring */
+.ry-hub-top .ry-tab[aria-pressed="true"]:focus { outline: none; }
+.ry-hub-top .ry-brand:focus-visible { outline: 1px solid var(--line-strong); }
+.ry-hub-top .ry-tabs { justify-self: center; }
+.ry-hub-top .ry-lang { margin-left: 0; }
+.ry-hub-top > :last-child { justify-self: end; }
+.ry-hub-top-end { justify-self: end; display: flex; align-items: center; gap: 4px; }
+.ry-hub-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 48px 24px 64px; }
+.ry-hub-page { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+dialog.ry-hub.is-wide .ry-hub-page { max-width: 1040px; }
+
+.ry-h1 { font-size: 20px; font-weight: 500; line-height: 1.3; }
+.ry-h2 { font-size: 14px; font-weight: 500; }
+.ry-lead { color: var(--body); line-height: 1.65; }
+.ry-muted { color: var(--mute); }
+.ry-faint { color: var(--faint); font-size: 12px; }
+.ry-sec { display: flex; flex-direction: column; gap: 12px; }
+.ry-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.ry-gap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ry-hr { height: 1px; background: var(--line); border: 0; margin: 0; }
+
+.ry-card { border: 1px solid var(--line); border-radius: 10px; background: #0D0D0D; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+/* Connected: the same black pill as the others, with a green dot. */
+.ry-pill.is-live { gap: 8px; }
+.ry-live-dot { width: 7px; height: 7px; border-radius: 9999px; background: var(--ok); flex: none; }
+/* While one keyboard is connected, the others step back (full again on hover or keyboard focus). */
+.ry-card.is-dim { opacity: 0.4; transition: opacity 0.2s; }
+.ry-card.is-dim:hover, .ry-card.is-dim:focus-within { opacity: 1; }
+.ry-card-t { font-size: 15px; font-weight: 500; }
+.ry-card-m { font-size: 12px; color: var(--mute); }
+
+.ry-steps { counter-reset: s; display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.ry-steps li { counter-increment: s; display: grid; grid-template-columns: 24px 1fr; gap: 10px; color: var(--body); line-height: 1.6; }
+.ry-steps li::before { content: counter(s); width: 22px; height: 22px; border-radius: 9999px; border: 1px solid var(--line-strong); color: var(--mute); font-size: 11px; display: flex; align-items: center; justify-content: center; margin-top: 1px; font-variant-numeric: tabular-nums; }
+
+.ry-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ry-table th { text-align: left; font-weight: 500; color: var(--mute); font-size: 12px; padding: 0 12px 8px 0; border-bottom: 1px solid var(--line); }
+.ry-table td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--body); line-height: 1.55; }
+.ry-table td:first-child { color: var(--ink); white-space: nowrap; }
+
+.ry-note { border-left: 2px solid var(--line-strong); padding: 2px 0 2px 12px; color: var(--soft); font-size: 13px; line-height: 1.6; }
+.ry-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; padding: 1px 6px; border-radius: 4px; background: #141414; color: var(--body); }
+.ry-link { color: var(--ink); text-decoration: underline; text-decoration-color: rgba(255, 255, 255, 0.3); text-underline-offset: 3px; }
+.ry-link:hover { text-decoration-color: var(--ink); }
+
+.ry-list { display: flex; flex-direction: column; }
+.ry-list > li { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.ry-list > li:last-child { border-bottom: 0; }
+
+.ry-toast { position: fixed; left: 50%; bottom: calc(32px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 100005; display: flex; align-items: center; gap: 12px;
+  padding: 0 20px; min-height: 44px; border-radius: 9999px; background: var(--ink); color: #000; font-size: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); max-width: calc(100vw - 32px); }
+
+/* Connect dialog extras */
+.ry-connect { display: flex; flex-direction: column; gap: 16px; min-width: min(440px, 80vw); }
+.ry-connect h1 { font-size: 20px !important; font-weight: 500; }
+.ry-connect ul button { min-height: 40px; padding: 0 18px !important; border-radius: 9999px !important; }
+
+@media (max-width: 640px) {
+  .ry-app > header { height: auto; padding: 6px 4px; row-gap: 4px; }
+  .ry-brand span { display: none; }
+  .ry-hub-body { padding: 24px 16px 64px; }
+  .ry-hub-top { padding: 0 4px 0 8px; gap: 4px; }
+  .ry-hub-top .ry-brand strong { display: none; }
+}
+
+/* ---------- Behaviors editor ---------- */
+
+button.ry-link { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.ry-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.ry-count { margin-left: 6px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.ry-tab[aria-pressed="true"] .ry-count { color: var(--mute); }
+
+.ry-pillbtn { min-height: 36px; padding: 0 14px; border-radius: 9999px; border: 1px solid var(--line-strong); background: transparent; color: var(--body); font-size: 13px; cursor: pointer; }
+.ry-pillbtn:hover { border-color: rgba(255, 255, 255, 0.4); }
+.ry-pillbtn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #000; }
+.ry-chip { min-height: 32px; padding: 0 12px; border-radius: 9999px; border: 1px solid var(--line-strong); background: transparent; color: var(--body); font-size: 12px; cursor: pointer; }
+.ry-chip:hover { border-color: rgba(255, 255, 255, 0.4); }
+.ry-chip[aria-pressed="true"] { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.4); color: var(--ink); }
+.ry-ghost { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 9999px; border: 1px dashed rgba(255, 255, 255, 0.2); background: none; color: var(--mute); font-size: 12px; cursor: pointer; }
+.ry-ghost:hover { border-color: rgba(255, 255, 255, 0.4); color: var(--ink); }
+.ry-ghost svg { width: 14px; height: 14px; }
+.ry-add { align-self: flex-start; min-height: 44px; padding: 0 18px; font-size: 13px; }
+.ry-icon:disabled { opacity: 0.3; cursor: default; background: none; }
+.ry-icon.trash:hover { color: var(--danger); background: rgba(255, 138, 138, 0.08); }
+
+.ry-hub .ry-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ry-hub .ry-label { font-size: 12px; color: var(--mute); }
+.ry-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ry-hub input[type="text"], .ry-hub input[type="password"], .ry-hub input[type="number"], .ry-hub select {
+  min-height: 40px; margin: 0; padding: 0 12px; border-radius: 6px; border: 1px solid var(--line-strong); background: #000; color: var(--ink); font-size: 13px; min-width: 0; }
+.ry-hub input:focus, .ry-hub select:focus { outline: none; border-color: var(--ink); }
+/* our own chevron, with room on the right (the native one sits against the edge) */
+.ry-hub select { -webkit-appearance: none; appearance: none; padding: 0 40px 0 14px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A1A4A5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 16px center; background-size: 12px; }
+.ry-hub select option { background: #141414; color: var(--ink); }
+.ry-hub input::placeholder { color: #6E7173; }
+.ry-num { width: 110px; font-variant-numeric: tabular-nums; }
+
+.ry-beh { display: flex; flex-direction: column; gap: 22px; }
+.ry-ghrow { padding: 4px 0; }
+.ry-item { padding: 0; gap: 0; }
+.ry-item > .ry-row { padding: 6px 6px 6px 4px; flex-wrap: nowrap; }
+.ry-item-head { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; border-radius: 8px; }
+.ry-item-head svg { width: 16px; height: 16px; color: var(--mute); flex: none; }
+.ry-item-head > span { display: flex; flex-direction: column; min-width: 0; }
+.ry-item-head .ry-card-m { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ry-item.is-open { border-color: var(--line-strong); }
+.ry-item-body { display: flex; flex-direction: column; gap: 18px; padding: 8px 16px 18px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+.ry-bind { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ry-bind > select { flex: 0 1 200px; }
+.ry-bind > input { flex: 1 1 200px; }
+.ry-mods { display: flex; gap: 4px; flex-wrap: wrap; }
+
+.ry-keypick { position: relative; flex: 1 1 220px; min-width: 180px; }
+.ry-keypick input { width: 100%; }
+.ry-keylist { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); max-height: 280px; overflow-y: auto; margin: 0; padding: 4px; list-style: none;
+  background: #141414; border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6); }
+.ry-keylist li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.ry-keylist li[aria-selected="true"] { background: rgba(255, 255, 255, 0.08); }
+.ry-keylist li .ry-faint { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ry-steps-ed { display: flex; flex-direction: column; gap: 8px; }
+.ry-step { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #000; }
+.ry-step:has(.ry-step-n) { grid-template-columns: 36px minmax(0, 1fr) auto; }
+.ry-step-n { color: var(--mute); font-size: 13px; line-height: 40px; text-align: center; font-variant-numeric: tabular-nums; }
+.ry-step-body input[type="text"] { width: 100%; }
+.ry-step-tools { display: flex; }
+.ry-step-tools .ry-icon { width: 32px; height: 40px; }
+
+.ry-combokeys { position: relative; width: 100%; }
+.ry-combokeys button { position: absolute; padding: 2px; border: 0; background: none; cursor: pointer; }
+.ry-combokeys button span { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border-radius: 5px; background: #0D0D0D;
+  outline: 1px solid var(--line); outline-offset: -1px; color: var(--soft); font-size: 11px; white-space: nowrap; overflow: hidden; }
+.ry-combokeys button:hover span { background: #1a1a1a; color: var(--ink); }
+.ry-combokeys button[aria-pressed="true"] span { background: var(--ink); color: #000; outline-color: var(--ink); }
+
+.ry-pre { margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: #000; color: var(--body);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.6; overflow: auto; max-height: 60vh; white-space: pre; }
+
+.ry-savebar { position: sticky; bottom: -64px; margin: 0 -20px -64px; padding: 14px 20px calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px;
+  background: rgba(10, 10, 10, 0.94); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-top: 1px solid var(--line); }
+.ry-issues { margin: 0; padding: 0 0 0 16px; color: var(--danger); font-size: 12px; line-height: 1.7; }
+.ry-note.ry-danger { border-left-color: var(--danger); }
+
+@media (max-width: 640px) {
+  .ry-step { grid-template-columns: minmax(0, 1fr) auto; }
+  .ry-step .ry-step-type { grid-column: 1 / -1; }
+  .ry-savebar { margin: 0 -16px -64px; padding-left: 16px; padding-right: 16px; }
+  .ry-two { grid-template-columns: 1fr; }
+}
+
+/* ---------- public version: update steps, key offer, account ---------- */
+.ry-ok { display: inline-flex; align-items: center; gap: 4px; color: #3DD68C; }
+.ry-ok svg { width: 14px; height: 14px; }
+.ry-link.is-wait { color: var(--mute); }
+.ry-offer { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); padding: 8px 8px 8px 20px; max-width: min(760px, calc(100vw - 32px)); }
+.ry-offer > span:first-child { line-height: 1.4; }
+.ry-offer button { min-height: 36px; padding: 0 14px; border-radius: 9999px; border: 1px solid rgba(0, 0, 0, 0.2); background: none; color: #000; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.ry-offer button:first-child { background: #000; color: var(--ink); border-color: #000; }
+.ry-avatar { width: 36px; height: 36px; border-radius: 9999px; border: 0; background: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 4px; }
+.ry-avatar img { width: 24px; height: 24px; border-radius: 9999px; outline: 1px solid var(--line-strong); }
+.ry-avatar:hover img { outline-color: var(--ink); }
+.ry-offer { border-radius: 22px; }
+.ry-offer .ry-gap { flex-wrap: nowrap; }
+@media (max-width: 640px) { .ry-offer { flex-direction: column; align-items: stretch; padding: 14px 16px; } .ry-offer .ry-gap { justify-content: flex-end; } }
+
+/* Unlock screen: the keys to press, as keycaps; the help links at the bottom */
+dialog[open]:has(.ry-unlock) { display: flex; flex-direction: column; gap: 12px; width: min(560px, calc(100vw - 32px)); padding: 24px !important; }
+dialog:has(.ry-unlock) > h1 { font-size: 20px; font-weight: 500; line-height: 1.3; }
+dialog:has(.ry-unlock) > p { color: var(--soft); font-size: 13px; margin: 0; }
+.ry-unlock { display: contents; }
+.ry-unlock-keys { display: block; margin: 2px 0 0; outline: none; }
+.ry-kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 52px; height: 52px; padding: 0 14px;
+  border-radius: 8px; background: #141414; border: 1px solid var(--line-strong); box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.06);
+  font-family: inherit; font-size: 18px; font-weight: 500; color: var(--ink); }
+.ry-unlock-plus { color: var(--faint); font-size: 16px; }
+dialog:has(.ry-unlock) > .ry-unlock-note, .ry-unlock-note { color: var(--body); font-size: 13px; margin: 0 0 6px; }
+.ry-unlock-note code { font-size: 12px; color: var(--ink); }
+.ry-unlock-more { order: 10; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; }
+
+/* Language switch */
+.ry-lang { white-space: nowrap; }
+
+/* checkbox row */
+.ry-check { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--body); cursor: pointer; }
+.ry-check input { margin-top: 2px; width: 16px; height: 16px; accent-color: var(--ink); }
+/* keycaps inside text (bootloader step) */
+.ry-keys { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0 2px; }
+.ry-keys .ry-kbd { min-width: 40px; height: 40px; padding: 0 10px; font-size: 15px; }
+.ry-feature { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.ry-feature:last-child { border-bottom: 0; }
+.ry-fold { display: inline-flex; align-items: center; gap: 6px; padding-left: 0; color: var(--body); font-size: 14px; font-weight: 500; }
+.ry-fold svg { width: 16px; height: 16px; }
+
+/* Connect dialog */
+.ry-connect-lead { margin: -8px 0 0; font-size: 14px; line-height: 1.55; color: var(--soft); }
+.ry-connect-foot { display: grid; gap: 6px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ry-connect-foot .ry-text { padding-left: 0; padding-right: 16px; }
+.ry-advanced { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 8px 0; background: none; border: 0; color: inherit; text-align: left; cursor: pointer; }
+.ry-advanced > span { display: grid; gap: 2px; }
+.ry-advanced-t { font-size: 13px; color: var(--ink); }
+.ry-advanced-p { font-size: 12px; color: var(--faint, var(--soft)); }
+.ry-advanced > svg { width: 16px; height: 16px; flex: none; color: var(--soft); transition: transform .15s; }
+.ry-advanced:hover > svg { transform: translateX(2px); color: var(--ink); }
+
+/* Line breaks: Korean breaks between words (not mid-word), short lines balance, paragraphs avoid a lone last word */
+html[lang="ko"] body { word-break: keep-all; overflow-wrap: anywhere; }
+h1, h2, h3, .ry-h1, .ry-h2, .ry-advanced-t, .ry-firstrun-t, .ry-unlock-t { text-wrap: balance; }
+p, li, .ry-lead, .ry-note, .ry-faint, .ry-connect-lead, .ry-advanced-p, dialog p { text-wrap: pretty; }
+.ry-connect-lead { max-width: 34em; }
+/* Connect dialog spacing: the focus ring sits inside the pill, so it doesn't crowd the line above */
+.ry-connect ul button:focus-visible { outline-offset: -3px; }
+.ry-connect-lead + div { margin-top: 6px; }
+.ry-connect ul { padding-top: 12px !important; }
+/* Before a keyboard is connected there is nothing useful behind the dialog: plain black, no blur */
+dialog.ry-solid::backdrop { background: #000 !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* A protected item (the Studio Unlock combo) */
+.ry-keep { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 9999px; border: 1px solid var(--line-strong); color: var(--soft); font-size: 12px; }
+.ry-keep svg { width: 12px; height: 12px; }
+.ry-keep-note { margin: 0; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,0.04); color: var(--soft); font-size: 13px; line-height: 1.55; }
+.ry-keep-delete { padding-left: 0 !important; color: var(--faint) !important; font-size: 12px; }
+.ry-keep-delete:hover { color: var(--danger) !important; }
+/* Short descriptions wrap into lines of even length; long text keeps a readable measure */
+.ry-muted, .ry-faint, .ry-note, .ry-keep-note, .ry-card-m, .ry-lead, .ry-connect-lead, .ry-field .ry-faint, .ry-feature span { text-wrap: balance; }
+.ry-hub p, .ry-hub .ry-lead, .ry-hub .ry-muted, .ry-hub .ry-note { max-width: 62ch; }
+.ry-keep-note { max-width: none !important; }
+
+/* The brand stays where the header shows it, above the plain black behind the connect / unlock dialogs */
+.ry-brand-float { position: fixed; top: 0; left: 20px; height: 55px; z-index: 1; text-decoration: none; } /* exactly where the header has it */
+dialog:not(.ry-solid) .ry-brand-float { display: none; }
+/* when the dialog reaches the top of the screen (phones, short windows), start it below the brand
+   instead of under it */
+@media (max-height: 760px) and (min-width: 641px) {
+  dialog.ry-solid[open] { margin-top: 64px !important; margin-bottom: 16px !important; max-height: calc(100dvh - 80px) !important; }
+}
+/* phones: the start screens are the page itself — full screen, the brand at its top, no frame or ring */
+@media (max-width: 640px) {
+  dialog.ry-solid[open] { inset: 0; margin: 0 !important; width: 100vw !important; max-width: 100vw !important; height: 100dvh !important; max-height: 100dvh !important;
+    border: 0 !important; border-radius: 0 !important; padding: 72px 20px 32px !important; background: #000 !important; overflow-y: auto; }
+  dialog.ry-solid .ry-brand-float { position: absolute; left: 12px; }
+}
+dialog:focus, dialog:focus-visible { outline: none; }
+/* this browser can't connect (phones, Safari) */
+.ry-nosupport { outline: none; display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+.ry-nosupport p { margin: 0; color: var(--body); font-size: 15px; line-height: 1.6; max-width: 46ch; }
+.ry-nosupport .ry-nosupport-t { color: var(--ink); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.ry-nosupport .ry-nosupport-t::before { content: ""; width: 7px; height: 7px; border-radius: 9999px; background: var(--busy); flex: none; }
+
+/* a firmware feature set differently from how the board ships */
+.ry-changed { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; color: var(--soft); font-size: 12px; }
+
+/* Wake key picker: each key shows what it does now; power mark = wake key, orange mark = Soft Off */
+.ry-wakekeys button span { position: relative; flex-direction: column; gap: 1px; overflow: hidden; padding: 0 2px; }
+.ry-wakekeys b { font-weight: 400; font-size: 11px; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ry-wakekeys small { font-size: 9px; line-height: 1.1; color: var(--faint); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ry-wakekeys button[aria-pressed="true"] small { color: rgba(0,0,0,.55); }
+.ry-wake-mark { position: absolute; top: 4px; left: 4px; width: 11px; height: 11px; }
+.ry-off-mark { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 999px; background: var(--busy); }
+.ry-off-mark.is-inline { position: static; display: inline-block; margin-right: 7px; vertical-align: 1px; }
+.ry-wake-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--body); }
+.ry-wake-legend > span { display: inline-flex; align-items: center; }
+.ry-legend-icon { width: 13px; height: 13px; margin-right: 6px; }
+
+/* Unlock animation: two keycaps seen from slightly above, index fingers from the typist's side.
+   Matte greys, no glow; one loop every 3.2 s. */
+.ry-unlock-anim { display: block; width: 100%; max-width: 420px; height: auto; margin: 4px auto 0; overflow: visible; }
+.ua-top { stroke: rgba(255, 255, 255, 0.07); stroke-width: 1; }
+.ua-dish { fill: rgba(255, 255, 255, 0.025); }
+.ua-shadow { transform-box: fill-box; transform-origin: center; }
+.ua-shadow { fill: #000; opacity: 0.5; filter: blur(7px); }
+.ua-legend-flat { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+.ua-legend-flat > span { position: absolute; top: 9px; transform: translateX(-50%); white-space: nowrap; font: 500 15px var(--font, "Geist", "Pretendard", sans-serif); letter-spacing: 0.01em; }
+.ua-legend-flat.ua-legend { color: #C9CCD2; }
+.ua-legend { font: 500 14px var(--font, "Geist", "Pretendard", sans-serif); fill: #C9CCD2; letter-spacing: 0.01em; }
+.ua-cap, .ua-shadow, .ua-finger, .ua-legend { animation-duration: 3.2s; animation-iteration-count: infinite; animation-timing-function: cubic-bezier(.45, 0, .2, 1); }
+
+/* together: both fingers come in, press at the same time, hold, release */
+.ua-together .ua-finger { animation-name: uaFingerTogether; }
+.ua-together .ua-cap { animation-name: uaCapTogether; }
+.ua-together .ua-shadow { animation-name: uaShadowTogether; }
+.ua-together .ua-legend { animation-name: uaLegendTogether; }
+@keyframes uaFingerTogether {
+  0%, 8% { transform: translateY(70px); opacity: 0; }
+  26% { transform: translateY(6px); opacity: 1; }
+  34% { transform: translateY(0); }
+  40%, 64% { transform: translateY(4px); }
+  72% { transform: translateY(0); opacity: 1; }
+  90%, 100% { transform: translateY(70px); opacity: 0; }
+}
+@keyframes uaCapTogether { 0%, 34% { transform: none; } 40%, 64% { transform: translateY(4px); } 72%, 100% { transform: none; } }
+@keyframes uaShadowTogether { 0%, 34% { transform: none; opacity: .7; } 40%, 64% { transform: scale(.9, .7); opacity: .9; } 72%, 100% { transform: none; opacity: .7; } }
+@keyframes uaLegendTogether { 0%, 36% { color: #C9CCD2; fill: #C9CCD2; } 42%, 64% { color: #FCFDFF; fill: #FCFDFF; } 72%, 100% { color: #C9CCD2; fill: #C9CCD2; } }
+
+/* hold: the first key goes down and stays; the second is pressed while it's held */
+.ua-hold .ua-first .ua-finger, .ua-hold .ua-finger.ua-first { animation-name: uaFingerFirst; }
+.ua-hold .ua-first .ua-cap { animation-name: uaCapFirst; }
+.ua-hold .ua-first .ua-shadow { animation-name: uaShadowFirst; }
+.ua-hold .ua-first .ua-legend { animation-name: uaLegendFirst; }
+.ua-hold .ua-finger.ua-second { animation-name: uaFingerSecond; }
+.ua-hold .ua-second .ua-cap { animation-name: uaCapSecond; }
+.ua-hold .ua-second .ua-shadow { animation-name: uaShadowSecond; }
+.ua-hold .ua-second .ua-legend { animation-name: uaLegendSecond; }
+@keyframes uaFingerFirst {
+  0%, 4% { transform: translateY(70px); opacity: 0; }
+  18% { transform: translateY(0); opacity: 1; }
+  24%, 72% { transform: translateY(4px); }
+  78% { transform: translateY(0); opacity: 1; }
+  92%, 100% { transform: translateY(70px); opacity: 0; }
+}
+@keyframes uaCapFirst { 0%, 18% { transform: none; } 24%, 72% { transform: translateY(4px); } 78%, 100% { transform: none; } }
+@keyframes uaShadowFirst { 0%, 18% { transform: none; opacity: .7; } 24%, 72% { transform: scale(.9, .7); opacity: .9; } 78%, 100% { transform: none; opacity: .7; } }
+@keyframes uaLegendFirst { 0%, 20% { color: #C9CCD2; fill: #C9CCD2; } 26%, 72% { color: #FCFDFF; fill: #FCFDFF; } 78%, 100% { color: #C9CCD2; fill: #C9CCD2; } }
+@keyframes uaFingerSecond {
+  0%, 20% { transform: translateY(70px); opacity: 0; }
+  38% { transform: translateY(0); opacity: 1; }
+  44%, 60% { transform: translateY(4px); }
+  66% { transform: translateY(0); opacity: 1; }
+  86%, 100% { transform: translateY(70px); opacity: 0; }
+}
+@keyframes uaCapSecond { 0%, 38% { transform: none; } 44%, 60% { transform: translateY(4px); } 66%, 100% { transform: none; } }
+@keyframes uaShadowSecond { 0%, 38% { transform: none; opacity: .7; } 44%, 60% { transform: scale(.9, .7); opacity: .9; } 66%, 100% { transform: none; opacity: .7; } }
+@keyframes uaLegendSecond { 0%, 40% { color: #C9CCD2; fill: #C9CCD2; } 46%, 60% { color: #FCFDFF; fill: #FCFDFF; } 66%, 100% { color: #C9CCD2; fill: #C9CCD2; } }
+
+/* a single key */
+.ua-single .ua-finger { animation-name: uaFingerTogether; }
+.ua-single .ua-cap { animation-name: uaCapTogether; }
+.ua-single .ua-shadow { animation-name: uaShadowTogether; }
+.ua-single .ua-legend { animation-name: uaLegendTogether; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ua-cap, .ua-shadow, .ua-finger, .ua-legend { animation: none !important; }
+  .ua-finger { opacity: 1; }
+}
+.ua-finger image { filter: brightness(0.74) contrast(1.06); }
+
+/* the hand comes in turning slightly and the index finger flexes on its knuckle as it presses */
+.ua-tilt, .ua-flex { animation-duration: 3.2s; animation-iteration-count: infinite; animation-timing-function: cubic-bezier(.45, 0, .2, 1); }
+.ua-flex { transform-origin: 8px 145px; }
+.ua-together .ua-tilt, .ua-single .ua-tilt { animation-name: uaTiltTogether; }
+.ua-together .ua-flex, .ua-single .ua-flex { animation-name: uaFlexTogether; }
+.ua-hold .ua-first .ua-tilt { animation-name: uaTiltFirst; }
+.ua-hold .ua-first .ua-flex { animation-name: uaFlexFirst; }
+.ua-hold .ua-second .ua-tilt { animation-name: uaTiltSecond; }
+.ua-hold .ua-second .ua-flex { animation-name: uaFlexSecond; }
+@keyframes uaTiltTogether { 0%, 8% { transform: rotate(-7deg) scale(1.04); } 34%, 72% { transform: none; } 92%, 100% { transform: rotate(-7deg) scale(1.04); } }
+@keyframes uaFlexTogether { 0%, 22% { transform: scaleY(1.05) rotate(-2deg); } 34% { transform: none; } 40%, 64% { transform: scaleY(0.93) rotate(1.5deg); } 72% { transform: none; } 90%, 100% { transform: scaleY(1.05) rotate(-2deg); } }
+@keyframes uaTiltFirst { 0%, 4% { transform: rotate(-7deg) scale(1.04); } 18%, 78% { transform: none; } 94%, 100% { transform: rotate(-7deg) scale(1.04); } }
+@keyframes uaFlexFirst { 0%, 10% { transform: scaleY(1.05) rotate(-2deg); } 18% { transform: none; } 24%, 72% { transform: scaleY(0.93) rotate(1.5deg); } 78% { transform: none; } 92%, 100% { transform: scaleY(1.05) rotate(-2deg); } }
+@keyframes uaTiltSecond { 0%, 20% { transform: rotate(-7deg) scale(1.04); } 38%, 66% { transform: none; } 88%, 100% { transform: rotate(-7deg) scale(1.04); } }
+@keyframes uaFlexSecond { 0%, 28% { transform: scaleY(1.05) rotate(-2deg); } 38% { transform: none; } 44%, 60% { transform: scaleY(0.93) rotate(1.5deg); } 66% { transform: none; } 86%, 100% { transform: scaleY(1.05) rotate(-2deg); } }
+@media (prefers-reduced-motion: reduce) { .ua-tilt, .ua-flex { animation: none !important; } }
+
+/* long: both keys held down for a few seconds (Soft Off); a line above them fills while held, then the keyboard goes dark */
+.ua-long .ua-cap, .ua-long .ua-shadow, .ua-long .ua-finger, .ua-long .ua-legend, .ua-long .ua-tilt, .ua-long .ua-flex, .ua-long .ua-meter-fill { animation-duration: 5.6s; animation-iteration-count: infinite; }
+.ua-long .ua-finger { animation-name: uaFingerLong; animation-timing-function: cubic-bezier(.45, 0, .2, 1); }
+.ua-long .ua-cap { animation-name: uaCapLong; }
+.ua-long .ua-shadow { animation-name: uaShadowLong; }
+.ua-long .ua-legend { animation-name: uaLegendLong; }
+.ua-long .ua-tilt { animation-name: uaTiltLong; }
+.ua-long .ua-flex { animation-name: uaFlexLong; }
+.ua-meter-track { stroke: rgba(255, 255, 255, 0.08); stroke-width: 2; stroke-linecap: round; }
+.ua-meter-fill { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; animation-name: uaMeter; animation-timing-function: linear; }
+.ua-meter-label { font: 500 12px "Geist Mono", ui-monospace, monospace; fill: var(--faint); }
+@keyframes uaFingerLong { 0%, 4% { transform: translateY(70px); opacity: 0; } 14% { transform: translateY(6px); opacity: 1; } 17% { transform: translateY(0); } 19%, 74% { transform: translateY(4px); } 78% { transform: translateY(0); opacity: 1; } 92%, 100% { transform: translateY(70px); opacity: 0; } }
+@keyframes uaCapLong { 0%, 17% { transform: none; } 19%, 74% { transform: translateY(4px); } 78%, 100% { transform: none; } }
+@keyframes uaShadowLong { 0%, 17% { transform: none; opacity: .7; } 19%, 74% { transform: scale(.9, .7); opacity: .9; } 78%, 100% { transform: none; opacity: .7; } }
+@keyframes uaLegendLong { 0%, 18% { color: #C9CCD2; fill: #C9CCD2; } 20%, 71% { color: #FCFDFF; fill: #FCFDFF; } 73%, 94% { color: #3A3B3F; fill: #3A3B3F; } 98%, 100% { color: #C9CCD2; fill: #C9CCD2; } }
+@keyframes uaTiltLong { 0%, 4% { transform: rotate(-7deg) scale(1.04); } 17%, 78% { transform: none; } 94%, 100% { transform: rotate(-7deg) scale(1.04); } }
+@keyframes uaFlexLong { 0%, 10% { transform: scaleY(1.05) rotate(-2deg); } 17% { transform: none; } 19%, 74% { transform: scaleY(0.93) rotate(1.5deg); } 78% { transform: none; } 92%, 100% { transform: scaleY(1.05) rotate(-2deg); } }
+@keyframes uaMeter { 0%, 19% { stroke-dashoffset: 100; opacity: 1; } 72% { stroke-dashoffset: 0; opacity: 1; } 90% { stroke-dashoffset: 0; opacity: 0; } 100% { stroke-dashoffset: 100; opacity: 0; } }
+/* keys alone (no hands): a shorter picture */
+.ua-nohands .ua-finger { display: none; }
+@media (prefers-reduced-motion: reduce) { .ua-meter-fill { animation: none !important; stroke-dashoffset: 0; } }
+
+/* Scenes (Scenes.tsx): the same matte greys as the keycaps */
+.ry-scene { display: block; width: 100%; max-width: 420px; height: auto; margin: 2px auto 0; overflow: hidden; }
+.ry-scene * { transform-box: fill-box; }
+.sc-doc { fill: #2A2B2F; stroke: rgba(255, 255, 255, 0.16); stroke-width: 1; }
+.sc-doc-fold { fill: none; stroke: rgba(255, 255, 255, 0.16); stroke-width: 1; }
+.sc-doc-label { font: 500 10px "Geist Mono", ui-monospace, monospace; fill: #D8DADF; }
+.sc-cursor { fill: #FCFDFF; stroke: #000; stroke-width: 0.8; stroke-linejoin: round; }
+.sc-drive-body { fill: #1E1F22; stroke: rgba(255, 255, 255, 0.09); stroke-width: 1; }
+.sc-drive-top { fill: #2A2B2F; }
+.sc-drive-led { fill: #3A3B3F; }
+.sc-board { fill: #1E1F23; stroke-width: 0.6; }
+.sc-board-edge { fill: #141518; }
+.sc-minikey { fill: #17181B; }
+.sc-minikey-top { fill: #2E2F34; }
+.sc-ok { fill: var(--ok); }
+.sc-cable { fill: url(#sc-cable-fade); }
+.sc-port { fill: #0B0B0C; stroke: rgba(255, 255, 255, 0.08); stroke-width: 0.6; }
+.sc-plug-lip { fill: rgba(0, 0, 0, 0.18); }
+.sc-plug-body { fill: url(#sc-plug-top); }
+.sc-plug-tip { fill: #D3D6DB; }
+.sc-panel { fill: #151618; stroke: rgba(255, 255, 255, 0.1); stroke-width: 1; }
+.sc-panel-t { font: 500 10px "Geist", "Pretendard", sans-serif; fill: #8A8E90; }
+.sc-row { fill: rgba(255, 255, 255, 0); }
+.sc-row-t { font: 400 10.5px "Geist", "Pretendard", sans-serif; fill: #D8DADF; }
+.sc-row-t.is-dim { fill: #5C5F63; }
+.sc-btn { fill: #2A2B2F; }
+.sc-btn-t { font: 500 9.5px "Geist", "Pretendard", sans-serif; fill: #FCFDFF; }
+.sc-flash *, .sc-connect * { animation-iteration-count: infinite; animation-fill-mode: both; }
+
+/* flash: the pointer drags the .uf2 into the drive, its light blinks while copying, it restarts as the keyboard */
+.sc-flash * { animation-duration: 4.8s; }
+.sc-drag { transform-origin: center; animation-name: scDrag; animation-timing-function: cubic-bezier(.45, 0, .2, 1); }
+.sc-drive { animation-name: scDrive; }
+.sc-drive-led { animation-name: scLed; animation-timing-function: steps(1, end); }
+.sc-back { animation-name: scBack; }
+.sc-flash .sc-ok { animation-name: scOkFlash; }
+@keyframes scDrag { 0% { opacity: 0; transform: none; } 8%, 18% { opacity: 1; transform: none; } 46% { opacity: 1; transform: translate(214px, 4px) scale(0.5); } 52%, 100% { opacity: 0; transform: translate(214px, 4px) scale(0.4); } }
+@keyframes scDrive { 0% { opacity: 0; } 6%, 74% { opacity: 1; } 80%, 100% { opacity: 0; } }
+@keyframes scLed { 0%, 50% { fill: #3A3B3F; } 52% { fill: #FF7A1A; } 56% { fill: #3A3B3F; } 60% { fill: #FF7A1A; } 64% { fill: #3A3B3F; } 68% { fill: #FF7A1A; } 72%, 100% { fill: #3A3B3F; } }
+@keyframes scBack { 0%, 76% { opacity: 0; } 84%, 96% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes scOkFlash { 0%, 86% { opacity: 0; } 90%, 96% { opacity: 1; } 100% { opacity: 0; } }
+
+/* connect: plug in, the browser asks which device, pick the keyboard, Connect, connected */
+.sc-connect * { animation-duration: 6s; }
+.sc-plug { transform-origin: 50% 100%; animation-name: scPlug; animation-timing-function: cubic-bezier(.3, 0, .2, 1); }
+.sc-picker { animation-name: scPicker; }
+.sc-cursor-move { animation-name: scPointer; animation-timing-function: cubic-bezier(.45, 0, .2, 1); }
+.sc-row-pick { animation-name: scPick; }
+.sc-btn { animation-name: scBtn; }
+.sc-connect .sc-ok { animation-name: scOkConnect; }
+@keyframes scPlug { 0% { opacity: 0; transform: translateY(-34px) scale(0.86); } 6% { opacity: 1; } 20% { transform: translateY(-2px) scale(0.99); } 23%, 94% { opacity: 1; transform: none; } 100% { opacity: 0; transform: none; } }
+@keyframes scPicker { 0%, 26% { opacity: 0; transform: translateY(6px); } 32%, 72% { opacity: 1; transform: none; } 78%, 100% { opacity: 0; transform: none; } }
+@keyframes scPointer { 0%, 32% { transform: translate(330px, 140px); } 44%, 50% { transform: translate(300px, 64px); } 60%, 66% { transform: translate(352px, 115px); } 100% { transform: translate(352px, 115px); } }
+@keyframes scPick { 0%, 48% { fill: rgba(255, 255, 255, 0); } 50%, 100% { fill: rgba(255, 255, 255, 0.1); } }
+@keyframes scBtn { 0%, 61% { fill: #2A2B2F; } 63%, 66% { fill: #4A4B50; } 68%, 100% { fill: #2A2B2F; } }
+@keyframes scOkConnect { 0%, 76% { opacity: 0; } 80%, 94% { opacity: 1; } 100% { opacity: 0; } }
+/* handoff (phones, Safari): the phone can't; the page travels over to a computer, which opens the editor */
+.sc-device { fill: #1E1F23; stroke: rgba(255, 255, 255, 0.12); stroke-width: 1; }
+.sc-screen { fill: #0B0C0D; }
+.sc-url { fill: #26272B; }
+.sc-url-t { font: 500 5px "Geist", "Pretendard", sans-serif; fill: #8A8E90; }
+.sc-x { fill: none; stroke: rgba(255, 255, 255, 0.14); stroke-width: 1.2; }
+.sc-x-mark { stroke: var(--busy); stroke-width: 1.6; stroke-linecap: round; fill: none; }
+.sc-handoff .sc-laptop { transform-box: view-box; }
+.sc-ed-line { stroke: rgba(255, 255, 255, 0.08); stroke-width: 0.6; }
+.sc-ed-mark { fill: #8A8E90; }
+.sc-ed-side { fill: #121315; }
+.sc-ed-layer { fill: #2A2B2F; }
+.sc-ed-layer.is-on { fill: #D8DADF; }
+.sc-ed-key { fill: #26272B; }
+.sc-ed-key.is-sel { fill: #FCFDFF; }
+.sc-ed-bar { fill: #1E1F23; }
+.sc-handoff * { animation-duration: 5s; animation-iteration-count: infinite; animation-timing-function: cubic-bezier(.45, 0, .2, 1); }
+.sc-handoff .sc-x, .sc-handoff .sc-x-mark { animation-name: scHandX; }
+.sc-handoff .sc-phone { animation-name: scHandPhone; }
+.sc-handoff .sc-laptop-on { animation-name: scHandOn; }
+.sc-handoff .sc-ed-key.is-sel { animation-name: scHandSel; }
+.sc-handoff .sc-laptop-on .sc-ok { animation-name: scHandOk; }
+@keyframes scHandX { 0%, 6% { opacity: 0; } 12%, 30% { opacity: 1; } 38%, 100% { opacity: 0; } }
+@keyframes scHandPhone { 0%, 30% { opacity: 1; } 44%, 92% { opacity: 0.35; } 100% { opacity: 1; } }
+@keyframes scHandOn { 0%, 38% { opacity: 0; } 50%, 92% { opacity: 1; } 99%, 100% { opacity: 0; } }
+@keyframes scHandSel { 0%, 60% { fill: #26272B; } 64%, 92% { fill: #FCFDFF; } 100% { fill: #26272B; } }
+@keyframes scHandOk { 0%, 54% { opacity: 0; } 58%, 92% { opacity: 1; } 99%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sc-flash *, .sc-connect *, .sc-handoff * { animation: none !important; } }
+
+.ry-anim { display: block; width: 100%; margin: 10px 0 2px; }
+.ry-anim-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.ry-anim-pair figure { margin: 0; display: grid; gap: 2px; }
+.ry-anim-pair figcaption { text-align: center; font-size: 12px; color: var(--faint); }
+
+/* Editor view: 2D (flat, as the official Studio) or 3D (keycaps seen from slightly above) */
+/* Auto zoom fits the keyboard into this box: leave air around it so it doesn't fill the screen */
+.ry-view-2d, .ry-view-3d { position: absolute; inset: clamp(40px, 9%, 96px) clamp(40px, 10%, 160px); }
+.ry-view-3d { inset: clamp(44px, 9%, 110px) clamp(44px, 9%, 160px); }
+.ry-tilt { width: 100%; height: 100%; display: grid; place-items: center; transition: transform 0.5s cubic-bezier(.2, .7, .2, 1); transform-origin: 50% 55%; }
+.ry-view-3d, .ry-view-2d { perspective: 2000px; perspective-origin: 50% 20%; }
+/* the front sides take room out of each key's square, so the tops would look squashed: stretch the rows
+   (not the lettering) until the tops read as square again */
+.ry-view-3d { --stretch: 1; } /* no stretch: like the little keyboard, the tops read a touch wider than tall, as seen from above at an angle */
+.ry-view-3d .ry-tilt { transform: rotateX(10deg) scaleY(var(--stretch)); }
+.ry-view-3d .ry-key > span, .ry-view-3d .ry-key > .absolute { transform: scaleY(calc(1 / var(--stretch))) !important; transform-origin: 0 0; }
+/* a keycap, drawn like the little keyboard in the connect picture: one skirt (::before) that fades into the
+   dark toward its foot, and a lighter top (::after) set on it where the camera puts it */
+.ry-view-3d .ry-key {
+  --tw-scale-x: 1 !important; --tw-scale-y: 1 !important;
+  --g: 2px; /* half the extra gap between caps */
+  /* seen from the middle: a key on the left shows its right side, one on the right its left side */
+  --l: clamp(1.5px, calc(4px + 4px * var(--kx, 0)), 8px);
+  --r: clamp(1.5px, calc(4px - 4px * var(--kx, 0)), 8px);
+  /* and from slightly in front, above: the far rows hide their back side and show more front */
+  --t: calc((0.5px + 2.5px * var(--ky, 0.5)) / var(--stretch, 1));
+  --b: calc((12px - 3px * var(--ky, 0.5)) / var(--stretch, 1));
+  --top-a: #37383D; --top-b: #2B2C30;
+  --skirt-a: #1E1F23; --skirt-b: #111214; --skirt-c: rgba(17, 18, 20, 0.25);
+  --cap-r: 4px;
+  background: transparent; border-radius: var(--cap-r); overflow: visible;
+  /* a transparent outline (not none), so going back to 2D fades the hairline in instead of flashing white */
+  outline: 1px solid transparent; outline-offset: -1px; box-shadow: none; --tw-ring-color: transparent;
+  color: #D8DADF; transition: transform .08s ease-out;
+}
+.ry-view-3d .ry-key::before, .ry-view-3d .ry-key::after { content: ""; position: absolute; pointer-events: none; border-radius: var(--cap-r); }
+.ry-view-3d .ry-key::before {
+  inset: var(--g);
+  background: linear-gradient(180deg, var(--skirt-a) 0, var(--skirt-a) calc(100% - var(--b) - 2px), var(--skirt-b) calc(100% - var(--b) * 0.45), var(--skirt-c) 100%);
+}
+.ry-view-3d .ry-key::after {
+  top: calc(var(--g) + var(--t)); left: calc(var(--g) + var(--l)); right: calc(var(--g) + var(--r)); bottom: calc(var(--g) + var(--b));
+  background: linear-gradient(180deg, var(--top-a), var(--top-b));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.ry-view-3d .ry-key > * { position: relative; z-index: 1; }
+.ry-view-3d .ry-key > .absolute { position: absolute; }
+/* legends printed on the top, like a real set: top-left, small; the second line (MO, LT Fn…) bottom-left */
+.ry-view-3d .ry-key > span {
+  position: absolute; left: calc(var(--g) + var(--l) + 5px); top: calc(var(--g) + var(--t) + 5px); max-width: calc(100% - var(--g) * 2 - var(--l) - var(--r) - 7px); overflow: hidden;
+  font-size: calc(12px * var(--fit3, 1)); line-height: 1.15; font-weight: 500; letter-spacing: 0; text-align: left;
+}
+/* 3D has its own fit: one line unless data-ry-long3 says two */
+.ry-view-3d .ry-key > span[data-ry-long] { display: block; white-space: nowrap; text-overflow: ellipsis; }
+.ry-view-3d .ry-key > span[data-ry-long3] { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; word-break: keep-all; line-height: 1.1; }
+.ry-view-3d .ry-key > .absolute {
+  left: calc(var(--g) + var(--l) + 6px); right: auto; top: auto; bottom: calc(var(--g) + var(--b) + 4px); --tw-translate-x: 0 !important; transform: none;
+  font-size: 9px; line-height: 1; font-weight: 500; letter-spacing: 0.02em; opacity: 0.5; text-align: left;
+  max-width: calc(100% - var(--g) * 2 - var(--l) - var(--r) - 8px); overflow: hidden; text-overflow: ellipsis;
+}
+.ry-view-3d .ry-key:hover, .ry-view-3d .ry-key.bg-primary:hover { background: transparent; }
+.ry-view-3d .ry-key:hover { --top-a: #404146; --top-b: #323337; }
+/* pressed: the whole cap goes down, its foot fading into the dark */
+.ry-view-3d .ry-key:active { --tw-translate-y: 2px !important; --top-a: #303136; --top-b: #27282C; transition-duration: .04s; }
+.ry-view-3d .ry-key.bg-primary { --top-a: #FAFAFB; --top-b: #E3E5E8; --skirt-a: #B9BCC1; --skirt-b: #6E7176; --skirt-c: rgba(110, 113, 118, 0.2); color: #0A0A0A; }
+.ry-view-3d .ry-key.bg-primary:hover { --top-a: #FFFFFF; --top-b: #EEF0F2; }
+.ry-view-3d .ry-key.bg-primary:active { --top-a: #EDEEF0; --top-b: #D9DBDE; }
+.ry-view-3d .ry-key.bg-primary::after { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9); }
+.ry-view-3d .ry-tilt .absolute.hover\:z-10:hover { z-index: auto !important; }
+
+/* media and arrow keys: icons the size of a capital letter, in the legend colour */
+.ry-key-icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.12em; }
+.ry-view-3d .ry-key-icon { width: 1.15em; height: 1.15em; stroke-width: 2.2; }
+
+/* ISO Enter (see PhysicalLayout): an L — the top half full width, the bottom half starting --nx in */
+/* both views draw it with one SVG (Key.tsx IsoShape) in place of the usual box and pseudo-elements */
+.ry-key.is-iso { background: transparent !important; outline-color: transparent !important; --kbg: #0D0D0D; --kline: var(--line); }
+.ry-key.is-iso:hover { --kbg: #141414; }
+.ry-key.is-iso.bg-primary { --kbg: var(--ink); --kline: var(--ink); }
+.ry-key.is-iso::before, .ry-key.is-iso::after { content: none !important; }
+.ry-iso-shape { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 0 !important; transform: none !important; }
+.ry-iso-flat { fill: var(--kbg); stroke: var(--kline); stroke-width: 1; }
+.ry-iso-cap { display: none; }
+.ry-view-3d .ry-iso-flat { display: none; }
+.ry-view-3d .ry-iso-cap { display: inline; }
+.ry-view-3d .ry-key.is-iso > .ry-iso-shape { position: absolute !important; }
+.ry-key.is-iso > span, .ry-key.is-iso > .absolute { z-index: 1; }
+.ry-view-2d .ry-key.is-iso > span { position: absolute; top: calc(var(--ny) / 2); left: 50%; transform: translate(-50%, -50%); }
+
+/* 2D / 3D switch */
+.ry-seg { display: inline-flex; height: 32px; padding: 2px; border-radius: 9999px; border: 1px solid var(--line-strong); }
+.ry-seg button { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 38px; padding: 0 10px; border-radius: 9999px; font-size: 12px; color: var(--soft); background: none; border: 0; cursor: pointer; }
+.ry-seg button[aria-pressed="true"] { background: #1F1F21; color: var(--ink); }
+.ry-seg button:hover { color: var(--ink); }
+/* icons: drawn in solid white and dimmed as a whole, so lines that cross don't show darker where they meet */
+.ry-seg button svg { color: var(--ink); opacity: 0.5; transition: opacity .15s; }
+.ry-seg button:hover svg, .ry-seg button[aria-pressed="true"] svg { opacity: 1; }
+/* the name of an icon-only button, under it on hover */
+.ry-seg button[data-tip]::after { content: attr(data-tip); position: absolute; top: calc(100% + 8px); left: 50%; transform: translate(-50%, -2px); padding: 4px 8px; border-radius: 6px; background: #1F1F21; border: 1px solid var(--line-strong); color: var(--ink); font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s; }
+.ry-seg button[data-tip]:hover::after, .ry-seg button[data-tip]:focus-visible::after { opacity: 1; transform: translate(-50%, 0); transition-delay: .25s; }
+/* switching view: the board is redrawn (keyed on the view), so both ways get the same short move —
+   it tilts back or lies flat while the new caps fade in */
+.ry-view-3d .ry-tilt { animation: ryTo3d .45s cubic-bezier(.2, .7, .2, 1); }
+.ry-view-2d .ry-tilt { animation: ryTo2d .45s cubic-bezier(.2, .7, .2, 1); }
+@keyframes ryTo3d { from { opacity: 0.35; transform: rotateX(0deg) scaleY(var(--stretch)); } to { opacity: 1; } }
+@keyframes ryTo2d { from { opacity: 0.35; transform: rotateX(10deg); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ry-tilt { transition: none; animation: none !important; } }
+
+/* Crash screen (ErrorScreen): calm, centred, the way out first and the technical part folded away */
+.ry-crash { min-height: 100vh; max-width: 440px; margin: 0 auto; padding: 0 24px; display: flex; flex-direction: column; justify-content: center; gap: 0; color: var(--ink); background: #000; }
+.ry-crash .ry-mark { width: 28px; height: 28px; margin-bottom: 28px; }
+.ry-crash h1 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 22px; font-weight: 500; letter-spacing: -0.01em; }
+.ry-crash h1 .ry-dot { width: 8px; height: 8px; }
+.ry-crash > p { margin: 10px 0 0; color: var(--body); font-size: 15px; line-height: 1.55; text-wrap: pretty; }
+.ry-crash-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
+.ry-crash-actions .ry-outline { min-height: 44px; }
+.ry-crash .ry-crash-hint { margin-top: 14px; color: var(--mute); font-size: 13px; }
+.ry-crash-details { margin-top: 36px; border-top: 1px solid var(--line); padding-top: 14px; color: var(--mute); font-size: 13px; }
+.ry-crash-details summary { cursor: pointer; list-style: none; width: fit-content; }
+.ry-crash-details summary::before { content: "›"; display: inline-block; width: 14px; transition: transform .2s; }
+.ry-crash-details[open] summary::before { transform: rotate(90deg); }
+.ry-crash-details pre { margin: 12px 0 4px; padding: 12px 14px; max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-word; font: 12px/1.6 "Geist Mono", ui-monospace, monospace; color: var(--mute); background: #0A0A0A; border: 1px solid var(--line); border-radius: 10px; }
+.ry-crash-details .ry-text { padding: 0; min-height: 28px; }
+
+/* number features (brightness): label on the left, slider and its value on the right */
+/* options of a feature (on at start, off without USB, brightness) sit under it, indented */
+.ry-feature.is-sub { padding-left: 28px; }
+.ry-feature > .ry-check { flex: 1 1 0; min-width: 0; }
+/* a note under a feature (e.g. its power switch is off), on its own line */
+.ry-feature-warn { flex-basis: 100%; padding-left: 26px; justify-content: space-between; }
+.ry-feature-warn .ry-dot { display: inline-block; vertical-align: 2px; }
+.ry-feature-range { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 16px; padding: 8px 0 8px 28px; }
+.ry-feature-range .ry-feature-l { padding-left: 26px; } /* lines up with the labels of the checkboxes above it */
+.ry-feature-l { color: var(--body); font-size: 14px; }
+.ry-range { display: flex; align-items: center; gap: 10px; }
+.ry-range input[type="range"] { -webkit-appearance: none; appearance: none; width: 160px; height: 4px; border-radius: 9999px; background: linear-gradient(90deg, var(--ink) var(--p), rgba(255, 255, 255, 0.14) var(--p)); outline: none; cursor: pointer; }
+.ry-range input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 9999px; background: var(--ink); border: 0; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }
+.ry-range input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 9999px; background: var(--ink); border: 0; }
+.ry-range input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid rgba(255, 255, 255, 0.4); outline-offset: 2px; }
+.ry-range-n { display: inline-flex; align-items: center; gap: 4px; }
+.ry-range-n .ry-num { width: 68px; padding: 0 10px; text-align: right; }
+@media (max-width: 640px) { .ry-feature-range { grid-template-columns: 1fr; } .ry-range input[type="range"] { flex: 1; width: auto; } }

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "ryong60",
+    "name": "ryong60",
+    "note": "61-key wireless 60% PCB (GH60 size)",
+    "repo": "hiryong/zmk-config-ryong60",
+    "branch": "main",
+    "workflow": "build.yml",
+    "artifact": "firmware",
+    "keymap": "boards/ryong/ryong60/ryong60.keymap",
+    "match": [
+      "ryong60"
+    ],
+    "unlockKey": "Fn + \\",
+    "bootloaderKey": "Fn + Enter",
+    "layout": "60-ansi",
+    "template": {
+      "repo": "hiryong/zmk-config-ryong60",
+      "keymap": "boards/ryong/ryong60/ryong60.keymap"
+    }
+  },
+  {
+    "id": "bt60-v2",
+    "name": "BT60 V2",
+    "note": "Polarity Works BT60 V2 · 60% ANSI · Windows or Mac",
+    "repo": "hiryong/zmk-config-bt60",
+    "branch": "main",
+    "workflow": "build.yml",
+    "artifact": "firmware",
+    "keymap": "config/bt60.keymap",
+    "match": [
+      "BT60 V2"
+    ],
+    "layout": "60-ansi",
+    "template": {
+      "repo": "hiryong/zmk-config-bt60",
+      "keymap": "config/bt60.keymap",
+      "os": {
+        "base": "windows",
+        "layer": 1
+      }
+    }
+  }
+]

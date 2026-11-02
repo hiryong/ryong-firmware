@@ -1,0 +1,77 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist/"
+  },
+  "productName": "ZMK Studio",
+  "mainBinaryName": "zmk-studio",
+  "version": "0.3.1",
+  "identifier": "dev.zmk.studio",
+  "bundle": {
+    "active": true,
+    "category": "Productivity",
+    "copyright": "",
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "externalBin": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "longDescription": "",
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": "-"
+    },
+    "resources": [],
+    "shortDescription": "",
+    "targets": "all",
+    "windows": {
+      "signCommand": "signtool.exe sign /v /debug /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib ..\\Microsoft.Trusted.Signing.Client\\bin\\x64\\Azure.CodeSigning.Dlib.dll /dmdf trusted-signing-metadata.json %1"
+    }
+  },
+  "plugins": {
+    "cli": {
+      "description": "Tauri CLI Plugin Example",
+      "args": [
+        {
+          "name": "serial-port",
+          "takesValue": true,
+          "description": "Specific serial port to connect to"
+        }
+      ]
+    }
+  },
+  "app": {
+    "security": {
+      "capabilities": [
+        "default"
+      ],
+      "csp": {
+        "default-src": "'self' customprotocol: asset:",
+        "connect-src": "ipc: http://ipc.localhost"
+      }
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 600,
+        "resizable": true,
+        "title": "ZMK Studio",
+        "width": 800
+      }
+    ]
+  }
+}
