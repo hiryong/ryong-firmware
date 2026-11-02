@@ -39,15 +39,18 @@ async function sameSecret(a: string, b: string) {
   return diff === 0;
 }
 
+/* Secrets pasted into GitHub often carry a trailing newline or space; ignore surrounding whitespace. */
+const secret = (env: AdminEnv) => (env.ADMIN_PASSWORD ?? "").trim();
+
 export function configured(env: AdminEnv): "ok" | "no-password" | "weak-password" {
-  if (!env.ADMIN_PASSWORD) return "no-password";
-  if (env.ADMIN_PASSWORD.length < MIN_PASSWORD) return "weak-password";
+  if (!secret(env)) return "no-password";
+  if (secret(env).length < MIN_PASSWORD) return "weak-password";
   return "ok";
 }
 
 export async function issue(env: AdminEnv, now = Date.now()): Promise<string> {
   const exp = Math.floor(now / 1000) + SESSION_SECONDS;
-  const sig = await crypto.subtle.sign("HMAC", await hmacKey(env.ADMIN_PASSWORD!), enc.encode(`v1.${exp}`));
+  const sig = await crypto.subtle.sign("HMAC", await hmacKey(secret(env)), enc.encode(`v1.${exp}`));
   return `v1.${exp}.${b64u(sig)}`;
 }
 
@@ -85,7 +88,7 @@ export const noteSuccess = (ip: string) => failures.delete(ip);
 
 export async function checkPassword(env: AdminEnv, given: unknown) {
   if (configured(env) !== "ok" || typeof given !== "string" || given.length > 256) return false;
-  return sameSecret(given, env.ADMIN_PASSWORD!);
+  return sameSecret(given.trim(), secret(env));
 }
 
 export const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>

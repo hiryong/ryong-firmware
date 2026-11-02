@@ -104,6 +104,9 @@ assert.equal((await call(h.login, "POST", "/api/admin/login", { body: { password
 for (let i = 0; i < 5; i++) await call(h.login, "POST", "/api/admin/login", { body: { password: "nope" }, headers: { "CF-Connecting-IP": "9.9.9.9" } });
 assert.equal((await call(h.login, "POST", "/api/admin/login", { body: { password: PASSWORD }, headers: { "CF-Connecting-IP": "9.9.9.9" } })).status, 429);
 
+// a secret pasted with a trailing newline still works, and so does a typed trailing space
+assert.equal((await call(h.login, "POST", "/api/admin/login", { body: { password: PASSWORD + " " }, e: { ...env, ADMIN_PASSWORD: PASSWORD + "\n" } })).status, 200);
+
 /* ---------- builds ---------- */
 assert.equal((await call(h.builds, "POST", "/api/admin/builds", { body: { target: "esp32" } })).status, 400);
 assert.equal((await call(h.builds, "POST", "/api/admin/builds", { body: { target: "bt60", idle_timeout_s: 5 } })).status, 400);

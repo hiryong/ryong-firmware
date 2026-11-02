@@ -50,7 +50,7 @@ export function AdminApp() {
   const [focus, setFocus] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshMe = useCallback(() => api<Me>("/me").then(setMe).catch((e) => setError(e.message)), []);
+  const refreshMe = useCallback(() => api<Me>("/me").then((m) => { setMe(m); return m; }).catch((e) => { setError(e.message); return null; }), []);
   useEffect(() => { refreshMe(); }, [refreshMe]);
   const onAuthError = useCallback((e: unknown) => {
     if (e instanceof ApiError && e.status === 401) refreshMe();
@@ -83,13 +83,18 @@ export function AdminApp() {
   );
 }
 
-function Login({ me, onDone }: { me: Me; onDone: () => void }) {
+function Login({ me, onDone }: { me: Me; onDone: () => Promise<Me | null> }) {
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submit = async (e: FormEvent) => {
     e.preventDefault(); setBusy(true); setError(null);
-    try { await api("/login", { method: "POST", body: JSON.stringify({ password: pw }) }); setPw(""); onDone(); }
+    try {
+      await api("/login", { method: "POST", body: JSON.stringify({ password: pw }) });
+      const m = await onDone();
+      if (!m?.signedIn) setError("비밀번호는 맞았지만 로그인 쿠키가 저장되지 않았어요. 시크릿 창이거나 쿠키를 막는 설정·확장 프로그램이 있는지 확인하세요.");
+      else setPw("");
+    }
     catch (err) { setError((err as Error).message); }
     finally { setBusy(false); }
   };
