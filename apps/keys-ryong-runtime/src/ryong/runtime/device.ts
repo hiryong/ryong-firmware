@@ -251,6 +251,7 @@ export class RuntimeSession {
           } else {
             const binding = step.down || step.up || step.tap;
             if (!binding?.behaviorId) throw new Error("Macro behavior is missing.");
+            if (binding.behaviorId === this.port.runtimeMacroBehaviorId) throw new Error("Nested runtime macros are not enabled.");
             const key = canonical(binding);
             if (step.down) {
               if (held.has(key)) throw new Error("Repeated macro press.");
@@ -274,6 +275,10 @@ export class RuntimeSession {
         throw new Error("Invalid runtime combo.");
       }
       if (combo.macroName && !desired.macros.some(macro => macro.name === combo.macroName)) throw new Error("Unknown combo macro reference.");
+      if (combo.behavior.behaviorId === this.port.runtimeMacroBehaviorId && !combo.macroName &&
+          !desired.macros.some(macro => macro.slot === combo.behavior!.param1 && before.macros.find(old => old.slot === macro.slot)?.name === macro.name)) {
+        throw new Error("Combo points at an unconfirmed macro slot.");
+      }
       comboSlots.add(combo.index);
     }
     const newSlots = desired.macros.filter(macro => macro.slot === undefined ||

@@ -427,6 +427,13 @@ const Editor = ({
   const update = <K extends Section>(key: K, id: string, patch: Partial<BehaviorDoc[K][number]>) =>
     setDoc((d) => ({ ...d, [key]: (d[key] as any[]).map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
   const remove = (key: Section, id: string) => {
+    if (runtime && key === "macros" && runtimeView) {
+      const old = runtimeView.snapshot.macros.find(macro => "runtime_macro_" + macro.slot === id);
+      const references = old ? runtimeView.snapshot.keymap?.layers.flatMap(layer => layer.bindings).filter(binding =>
+        binding.behaviorId === runtimeView.catalog.ref && binding.param1 === old.slot).length ?? 0 : 0;
+      if (references && !confirm(t("This macro is assigned to {n} keys. Those bindings will become None when saved. Delete?",
+        "이 매크로가 지정된 키 {n}개는 저장하면 None으로 바뀝니다. 삭제할까요?", { n: references }))) return;
+    }
     const used = [...doc.combos.map((c) => c.binding), ...doc.tapDances.flatMap((x) => x.bindings), ...doc.macros.flatMap((m) => m.steps.map((s) => ("binding" in s ? s.binding : null)))].some(
       (b) => b?.b === "ref" && b.id === id
     );

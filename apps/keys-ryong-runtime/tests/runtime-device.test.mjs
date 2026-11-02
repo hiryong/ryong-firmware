@@ -13,14 +13,24 @@ const { RuntimeSession, C, M } = module.exports;
 const clone = value => structuredClone(value);
 function fixture() {
   const state = {
-    ram: { combos: [], macros: [] }, flash: { combos: [], macros: [] },
-    locked: false, disconnected: false, writes: 0, failAt: 0,
+    ram: { combos: [], macros: [], keymap: { layers: [], availableLayers: 8, maxLayerNameLength: 16 } }, flash: { combos: [], macros: [], keymap: { layers: [], availableLayers: 8, maxLayerNameLength: 16 } },
+    locked: false, disconnected: false, writes: 0, failAt: 0, loseAckAfter: 0, dirty: false,
   };
   const statusC = () => C.Response.fromPartial({ status: { affectedCount: 1, message: "ok" } });
   const statusM = () => M.Response.fromPartial({ status: { affectedCount: 1, message: "ok" } });
   const write = () => { state.writes++; if (state.failAt === state.writes) { state.disconnected = true; throw new Error("disconnected"); } };
+  const ack = () => { if (state.loseAckAfter === state.writes) { state.disconnected = true; throw new Error("lost acknowledgement"); } };
   const port = {
     physicalKeyCount: 61,
+    runtimeMacroBehaviorId: 43,
+    noneBehaviorId: 99,
+    keymap: {
+      read: async () => { if (state.disconnected) throw new Error("disconnected"); return clone(state.ram.keymap); },
+      isDirty: async () => state.dirty,
+      set: async (layerId, position, binding) => { write(); state.ram.keymap.layers.find(layer => layer.id === layerId).bindings[position] = clone(binding); ack(); },
+      save: async () => { write(); state.flash.keymap = clone(state.ram.keymap); ack(); },
+      discard: async () => { if (state.disconnected) throw new Error("disconnected"); state.ram.keymap = clone(state.flash.keymap); },
+    },
     assertUnlocked: async () => { if (state.locked || state.disconnected) throw new Error("locked/disconnected"); },
     combo: async req => {
       if (state.disconnected) throw new Error("disconnected");
@@ -37,7 +47,7 @@ function fixture() {
         if (c) c.enabled = false;
       } else if (req.save) state.flash.combos = clone(state.ram.combos);
       else if (req.discard) state.ram.combos = clone(state.flash.combos);
-      return statusC();
+      ack(); return statusC();
     },
     macro: async req => {
       if (state.disconnected) throw new Error("disconnected");
@@ -50,9 +60,13 @@ function fixture() {
         state.ram.macros.push(M.MacroDetail.fromPartial({ slot, name: req.createMacro.name }));
       } else if (req.setMacroStepCount) state.ram.macros.find(m => m.slot === req.setMacroStepCount.slot).steps.length = req.setMacroStepCount.stepCount;
       else if (req.appendMacroStep) state.ram.macros.find(m => m.slot === req.appendMacroStep.slot).steps.push(clone(req.appendMacroStep.step));
+      else if (req.deleteMacro) {
+        state.ram.macros = state.ram.macros.filter(m => m.name !== req.deleteMacro.name);
+        state.flash.macros = state.flash.macros.filter(m => m.name !== req.deleteMacro.name);
+      }
       else if (req.saveMacros) state.flash.macros = clone(state.ram.macros);
       else if (req.discardMacros) state.ram.macros = clone(state.flash.macros);
-      return statusM();
+      ack(); return statusM();
     },
   };
   return { state, port, session: new RuntimeSession(port), restart() { state.ram = clone(state.flash); state.disconnected = false; } };
@@ -110,3 +124,43 @@ const first = concurrent.session.save(initial, clone(desired), { prepare() {}, c
 await assert.rejects(concurrent.session.save(initial, desired, journal), /in progress/);
 release(); await first;
 console.log("PASS: runtime transactions: protocol, restart model, locked/stale/invalid writes, journal failure, 7 disconnect points, concurrent edit");
+
+async function boundFixture() {
+  const f = fixture();
+  await f.session.save(await f.session.read(), clone(desired), { prepare() {}, complete() {} });
+  f.state.ram.keymap.layers = [{ id: 0, name: "Base", bindings: [{ behaviorId: 43, param1: 0, param2: 0 }] }];
+  f.state.flash.keymap = clone(f.state.ram.keymap); f.state.writes = 0;
+  return f;
+}
+const renamePlan = () => {
+  const next = clone(desired); next.macros[0].slot = 0; next.macros[0].name = "Renamed";
+  next.combos[0].macroName = "Renamed";
+  return next;
+};
+const rename = await boundFixture();
+const renamed = await rename.session.save(await rename.session.read(), renamePlan(), { prepare() {}, complete() {} });
+assert.equal(renamed.macros.length, 1); assert.equal(renamed.macros[0].name, "Renamed");
+assert.notEqual(renamed.macros[0].slot, 0);
+assert.equal(rename.state.flash.keymap.layers[0].bindings[0].param1, renamed.macros[0].slot);
+assert.equal(rename.state.flash.combos[0].behavior.param1, renamed.macros[0].slot);
+await rename.session.save(await rename.session.read(), { combos: [], macros: [] }, { prepare() {}, complete() {} });
+rename.restart();
+assert.equal(rename.state.flash.keymap.layers[0].bindings[0].behaviorId, 99);
+assert.equal(rename.state.flash.macros.length, 0);
+for (const mode of ["failAt", "loseAckAfter"]) {
+  for (let point = 1; point <= 10; point++) {
+    const f = await boundFixture(); f.state[mode] = point; let cleared = false;
+    await assert.rejects(f.session.save(await f.session.read(), renamePlan(), { prepare() {}, complete() { cleared = true; } }));
+    assert.equal(cleared, false); f.restart();
+    for (const layer of f.state.flash.keymap.layers) for (const binding of layer.bindings) {
+      if (binding.behaviorId === 43) assert.ok(f.state.flash.macros.some(m => m.slot === binding.param1), "durable keymap references a missing macro");
+    }
+    for (const combo of f.state.flash.combos) {
+      if (combo.enabled && combo.behavior.behaviorId === 43) assert.ok(f.state.flash.macros.some(m => m.slot === combo.behavior.param1), "durable combo references a missing macro");
+    }
+  }
+}
+const dirty = await boundFixture(); dirty.state.dirty = true;
+await assert.rejects(dirty.session.save(await dirty.session.read(), renamePlan(), { prepare() {}, complete() {} }), /Studio keymap edits/);
+assert.equal(dirty.state.writes, 0);
+console.log("PASS: macro rename/delete migrate keymap and combo references; 20 interruption/ACK-loss points preserve durable references");

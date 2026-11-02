@@ -25,6 +25,15 @@ export async function makePreviewView(): Promise<RuntimeView> {
   const persist = () => localStorage.setItem(key, JSON.stringify(flash));
   const port: RuntimePort = {
     physicalKeyCount: 61,
+    runtimeMacroBehaviorId: 2,
+    noneBehaviorId: 8,
+    keymap: {
+      read: async () => ({ layers: [], availableLayers: 8, maxLayerNameLength: 16 }),
+      isDirty: async () => false,
+      set: async () => { throw new Error("Preview has no physical keymap bindings."); },
+      save: async () => {},
+      discard: async () => {},
+    },
     assertUnlocked: async () => {},
     combo: async request => {
       if (request.listCombos) return C.Response.fromPartial({ listCombos: { combos: clone(ram.combos) } });
@@ -68,6 +77,10 @@ export async function makePreviewView(): Promise<RuntimeView> {
         const macro = ram.macros.find(item => item.slot === request.appendMacroStep!.slot);
         if (!macro || !request.appendMacroStep.step) throw new Error("Preview macro step is missing.");
         macro.steps.push(clone(request.appendMacroStep.step));
+      } else if (request.deleteMacro) {
+        ram.macros = ram.macros.filter(macro => macro.name !== request.deleteMacro!.name);
+        flash.macros = flash.macros.filter(macro => macro.name !== request.deleteMacro!.name);
+        persist();
       } else if (request.saveMacros) { flash.macros = clone(ram.macros); persist(); }
       else if (request.discardMacros) ram.macros = clone(flash.macros);
       return mStatus();
