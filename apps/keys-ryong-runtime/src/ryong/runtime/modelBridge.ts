@@ -1,7 +1,7 @@
 import { call_rpc } from "@zmkfirmware/zmk-studio-ts-client/index";
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
 import type { BehaviorDoc, Binding, Mod, MacroStep as EditorStep } from "../behaviors/model";
-import { emptyDoc, textToKeys } from "../behaviors/model";
+import { emptyDoc, textToKeys, BT_CMDS, OUT_CMDS } from "../behaviors/model";
 import values from "./keycode-values.json";
 import * as C from "./proto/runtime_combo";
 import * as M from "./proto/runtime_macro";
@@ -14,7 +14,8 @@ const aliases: Record<string, string[]> = {
   tog: ["togglelayer"], to: ["tolayer"], sl: ["stickylayer"],
   none: ["none"], trans: ["transparent"], caps_word: ["capsword"],
   key_repeat: ["keyrepeat"], studio_unlock: ["studiounlock"],
-  ref: ["runtimemacro"],
+  ref: ["runtimemacro"], bt: ["bluetooth"], out: ["outputselection"],
+  sys_reset: ["reset"], bootloader: ["bootloader"],
 };
 const normalized = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 export type Catalog = Record<string, number>;
@@ -70,9 +71,15 @@ function decode(binding: C.BehaviorBinding | undefined, view: RuntimeView): Bind
   if (!binding) throw new Error("Missing device binding.");
   const kind = Object.entries(view.catalog).find(([, id]) => id === binding.behaviorId)?.[0];
   if (kind === "kp" || kind === "sk") return { ...keyBinding(binding.param1), b: kind } as Binding;
+  if (kind === "bt" || kind === "out") {
+    const prefix = kind === "bt" ? "__bt_" : "__out_";
+    const command = Object.entries(codes).find(([name, value]) => name.startsWith(prefix) && value === binding.param1)?.[0].slice(prefix.length);
+    if (!command) throw new Error("Unknown device output/Bluetooth command.");
+    return { b: kind, cmd: command + (command === "BT_SEL" || command === "BT_DISC" ? " " + binding.param2 : "") } as Binding;
+  }
   if (kind === "ref") return { b: "ref", id: "runtime_macro_" + binding.param1 };
   if (["mo", "tog", "to", "sl"].includes(kind ?? "")) return { b: kind, layer: binding.param1 } as Binding;
-  if (["none", "trans", "caps_word", "key_repeat", "studio_unlock"].includes(kind ?? "")) return { b: kind } as Binding;
+  if (["none", "trans", "caps_word", "key_repeat", "studio_unlock", "sys_reset", "bootloader"].includes(kind ?? "")) return { b: kind } as Binding;
   throw new Error("A device behavior is not yet supported by the runtime editor: " + binding.behaviorId);
 }
 
@@ -83,6 +90,14 @@ function encode(binding: Binding, view: RuntimeView, doc: BehaviorDoc): { wire: 
     if ((binding.mods ?? []).some(mod => !mods.includes(mod))) throw new Error("Unknown modifier.");
     const param1 = (binding.mods ?? []).reduce((usage, mod) => usage | codes["__mod_" + mod], keyValue(binding.key)) >>> 0;
     return { wire: { behaviorId, param1, param2: 0 } };
+  }
+  if (binding.b === "bt" || binding.b === "out") {
+    const allowed = binding.b === "bt" ? BT_CMDS : [...OUT_CMDS, "OUT_NONE"];
+    if (!allowed.includes(binding.cmd)) throw new Error("Unsupported Bluetooth/output command.");
+    const [command, argument] = binding.cmd.split(" ");
+    const param1 = codes[(binding.b === "bt" ? "__bt_" : "__out_") + command];
+    if (param1 === undefined) throw new Error("Unknown firmware command.");
+    return { wire: { behaviorId, param1, param2: argument === undefined ? 0 : Number(argument) } };
   }
   if (binding.b === "ref") {
     const macro = doc.macros.find(item => item.id === binding.id);

@@ -43,7 +43,7 @@ try {
   await page.locator(".ry-item.is-open input[type=number]").fill("65");
   await page.getByRole("button", { name: "미리보기 저장", exact: true }).click();
   await page.getByText("미리보기를 이 브라우저에 저장했습니다.", { exact: true }).waitFor();
-  await page.locator(".ry-hub-body").evaluate(element => element.scrollTo(0, 0));
+  await page.locator("dialog[open] .ry-hub-body").evaluate(element => element.scrollTo(0, 0));
   await page.screenshot({ path: output + "/combos.png", fullPage: true });
   await page.getByRole("button", { name: /^매크로/ }).click();
   await page.getByRole("button", { name: "새 매크로", exact: true }).click();
@@ -52,7 +52,7 @@ try {
   await page.getByRole("button", { name: "미리보기 저장", exact: true }).click();
   await page.getByText("미리보기를 이 브라우저에 저장했습니다.", { exact: true }).waitFor();
   await page.locator(".ry-item-head").first().click();
-  await page.locator(".ry-hub-body").evaluate(element => element.scrollTo(0, 0));
+  await page.locator("dialog[open] .ry-hub-body").evaluate(element => element.scrollTo(0, 0));
   await page.screenshot({ path: output + "/macros.png", fullPage: true });
   await page.locator(".ry-item.is-open input[type=text]").first().fill("Hello renamed");
   await page.getByRole("button", { name: "미리보기 저장", exact: true }).click();
