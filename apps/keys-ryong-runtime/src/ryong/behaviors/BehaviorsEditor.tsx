@@ -36,6 +36,7 @@ import { useSub } from "../../usePubSub";
 import { WakePicker } from "../PowerInfo";
 import { KeyPress } from "../UnlockAnim";
 import { BehaviorLab } from "./BehaviorLab";
+import { FriendlyBindingPicker, friendlyLabel } from "./FriendlyBindingPicker";
 import type { MacroItem } from "./labEngine";
 
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
@@ -664,7 +665,7 @@ const Editor = ({
                     }
                   >
                     {c.keys.length >= 2 && c.keys.length <= 4 && (
-                      <BehaviorLab lab={{ kind: "combo", timeout: c.timeout, comboLabel: bindingLabel(c.binding, doc, layers),
+                      <BehaviorLab lab={{ kind: "combo", timeout: c.timeout, comboLabel: friendlyLabel(c.binding, doc, layers),
                         keyLabels: c.keys.map((p) => comboKeys[p]?.[4] ?? String(p)) }} />
                     )}
                     <Field label={t("Name", "이름")}>
@@ -677,7 +678,7 @@ const Editor = ({
                       {c.binding.b === "studio_unlock" ? (
                         <span className="ry-code" style={{ alignSelf: "flex-start", width: "fit-content" }}>{bindingLabel(c.binding, doc, layers)}</span>
                       ) : (
-                        <BindingPicker value={c.binding} onChange={(binding) => update("combos", c.id, { binding })} doc={doc} layerNames={layers} />
+                        <FriendlyBindingPicker value={c.binding} onChange={(binding) => update("combos", c.id, { binding })} doc={doc} layerNames={layers} />
                       )}
                     </Field>
                     <Field label={t("Works on", "적용 레이어")}>
@@ -728,7 +729,7 @@ const Editor = ({
                       />
                     </Field>
                     {m.steps.length > 0 && <BehaviorLab lab={{ kind: "macro", name: m.name, wait: m.wait, tap: m.tap, steps: m.steps.map((st): MacroItem =>
-                      st.t === "wait" ? { kind: "wait", label: "", ms: st.ms } : st.t === "text" ? { kind: "text", label: st.text } : { kind: st.t, label: bindingLabel(st.binding, doc, layers) }) }} />}
+                      st.t === "wait" ? { kind: "wait", label: "", ms: st.ms } : st.t === "text" ? { kind: "text", label: st.text } : { kind: st.t, label: friendlyLabel(st.binding, doc, layers) }) }} />}
                     <div className="ry-two">
                       <Field label="wait-ms" hint={t("Time between steps.", "단계 사이 시간이에요.")}>
                         <Num value={m.wait} onChange={(wait) => update("macros", m.id, { wait })} min={0} max={1000} />
@@ -761,7 +762,8 @@ const Editor = ({
                         {td.bindings.map((b, i) => (
                           <div key={i} className="ry-step">
                             <span className="ry-step-n">{i + 1}×</span>
-                            <BindingPicker
+                            <FriendlyBindingPicker
+                              compact
                               value={b}
                               doc={doc}
                               layerNames={layers}
@@ -787,7 +789,7 @@ const Editor = ({
                         </button>
                       </div>
                     </Field>
-                    {td.bindings.length > 0 && <BehaviorLab lab={{ kind: "tapDance", term: td.term, labels: td.bindings.map((b) => bindingLabel(b, doc, layers)) }} />}
+                    {td.bindings.length > 0 && <BehaviorLab lab={{ kind: "tapDance", term: td.term, labels: td.bindings.map((b) => friendlyLabel(b, doc, layers)) }} />}
                     <Field label="tapping-term-ms" hint={t("Wait for the next tap. Usually 200.", "다음 탭을 기다리는 시간이에요. 보통 200.")}>
                       <Num value={td.term} onChange={(term) => runtime ? setDoc(d=>({...d,tapDances:d.tapDances.map(x=>({...x,term}))})) : update("tapDances", td.id, { term })} min={50} max={1000} />
                     </Field>

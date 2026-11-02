@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { t } from "../i18n";
 import { combo, Ev, FLAVOR_TEXT, holdTap, macroTimeline, MacroItem, Result, tapDance } from "./labEngine";
 
@@ -162,7 +162,7 @@ function explain(lab: Lab, res: Result): string {
 export function BehaviorLab(props: { lab: Lab }) {
   const { lab } = props;
   const list = useMemo(() => scenarios(lab), [JSON.stringify(lab)]);
-  const [mode, setMode] = useState<"demo" | "try">("demo");
+  const [mode, setMode] = useState<"demo" | "try">("try");
   const [pick, setPick] = useState(0);
   const sc = list[Math.min(pick, list.length - 1)];
   const demoRes = useMemo(() => simulate(lab, sc.evs), [lab, sc]);
@@ -226,40 +226,71 @@ export function BehaviorLab(props: { lab: Lab }) {
   });
   useEffect(() => () => clearTimeout(idle.current), []);
 
-  const pads = lab.kind === "combo" ? ["a", "b", "c", "d"].slice(0, lab.keyLabels.length) : lab.kind === "macro" ? ["a"] : ["a", "o"];
+  // One key to try for tap dance / hold-tap keeps it simple; J still works as "another key" from a keyboard.
+  const pads = lab.kind === "combo" ? ["a", "b", "c", "d"].slice(0, lab.keyLabels.length) : ["a"];
   const physOf = (k: string) => lab.kind === "combo" ? ["F", "J", "K", "L"][["a", "b", "c", "d"].indexOf(k)] : k === "a" ? "F" : "J";
-  const shownEvs = mode === "demo" ? sc.evs : evs;
-  const res = mode === "demo" ? demoRes : liveRes;
-  const H = mode === "demo" ? head : (t0.current === null ? Infinity : now);
-  const S = mode === "demo" ? demoEnd : span;
+  const last = [...liveRes.outputs].reverse().find(o => o.t <= now || t0.current === null);
+  const pressKey = (k: string) => ({
+    className: "ry-lab-pad" + (down.current.has(k) ? " is-down" : "") + (k === "a" || lab.kind === "combo" ? "" : " is-other"),
+    onPointerDown: (e: React.PointerEvent) => { try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* synthetic or already released */ } press(k, true); },
+    onPointerUp: () => press(k, false), onPointerCancel: () => press(k, false), onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  });
   return <section className="ry-lab" aria-label={t("How it works", "어떻게 동작하나요")}>
-    <div className="ry-lab-top">
-      <strong>{t("How it works", "어떻게 동작하나요")}</strong>
-      <div className="ry-lab-modes" role="tablist">
-        <button role="tab" aria-selected={mode === "demo"} onClick={() => setMode("demo")}>{t("Watch", "예시 보기")}</button>
-        <button role="tab" aria-selected={mode === "try"} onClick={() => { setMode("try"); t0.current = null; setEvs([]); }}>{t("Try it", "직접 해보기")}</button>
+    <Equations lab={lab} />
+    <div className="ry-lab-try">
+      <span className="ry-lab-trylabel">{t("Try it", "직접 해보기")}</span>
+      <div className="ry-lab-pads">
+        {pads.map((k, i) => <span key={k} className="ry-lab-padwrap">
+          {i > 0 && lab.kind === "combo" && <b className="ry-eq-op">+</b>}
+          <button {...pressKey(k)}><span>{KEY_LABEL(lab, k)}</span><kbd>{physOf(k)}</kbd></button>
+        </span>)}
+        <b className="ry-eq-op">=</b>
+        <span className={"ry-lab-result" + (last ? " is-on" : "")} aria-live="polite" key={last ? last.t + last.label : "none"}>{last ? last.label : "?"}</span>
       </div>
+      <p className="ry-faint">{lab.kind === "combo" ? t("Press both at once with mouse/touch (or F + J).", "두 키를 동시에 눌러 보세요. 마우스·터치 또는 F + J.")
+        : lab.kind === "macro" ? t("Press it to replay.", "누르면 다시 재생돼요.")
+        : lab.kind === "tapDance" ? t("Tap quickly once, twice… (or F).", "빠르게 한 번, 두 번… 눌러 보세요 (또는 F).")
+        : t("Tap it, then press and hold it (or F).", "톡 눌러 보고, 꾹 눌러 보세요 (또는 F).")}</p>
+      {typed.length > 0 && <div className="ry-lab-typed"><span className="ry-label">{t("Typed", "입력된 키")}</span>
+        <div>{typed.map((x, i) => <kbd key={i}>{x}</kbd>)}</div>
+        <button className="ry-text" onClick={() => setTyped([])}>{t("Clear", "지우기")}</button></div>}
     </div>
-    <p className="ry-lab-rule">{rule(lab)}</p>
-    {mode === "demo" ? <div className="ry-lab-chips">
-      {list.map((s, i) => <button key={i} className="ry-chip" aria-pressed={i === pick} onClick={() => setPick(i)}>{s.name}</button>)}
-    </div> : <div className="ry-lab-pads">
-      {pads.map(k => <button key={k} className={"ry-lab-pad" + (down.current.has(k) ? " is-down" : "") + (k === "a" || lab.kind === "combo" ? "" : " is-other")}
-        onPointerDown={e => { try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* synthetic or already released */ } press(k, true); }}
-        onPointerUp={() => press(k, false)} onPointerCancel={() => press(k, false)}
-        onContextMenu={e => e.preventDefault()}>
-        <span>{KEY_LABEL(lab, k)}</span><kbd>{physOf(k)}</kbd>
-      </button>)}
-      <p className="ry-faint">{lab.kind === "combo" ? t("Press the keys with the mouse/touch or the F, J… keys. Try together, then a little apart.", "마우스·터치나 F, J… 키로 눌러 보세요. 동시에, 그리고 조금씩 늦게도 눌러 보세요.")
-        : lab.kind === "macro" ? t("Press it to replay the sequence.", "누르면 순서가 다시 재생돼요.")
-        : t("Hold with the mouse/touch, or use F (this key) and J (another key).", "마우스·터치로 누르고 있거나, F(이 키)와 J(다른 키)로 눌러 보세요.")}</p>
-    </div>}
-    <Timeline lab={lab} evs={shownEvs} res={res} span={S} head={Math.min(H, S)} />
-    <p className="ry-lab-explain" aria-live="polite">{explain(lab, { ...res, outputs: res.outputs.filter(o => o.t <= H) }) || " "}</p>
-    {mode === "try" && <div className="ry-lab-typed">
-      <span className="ry-label">{t("Typed so far", "지금까지 입력된 키")}</span>
-      <div>{typed.length ? typed.map((x, i) => <kbd key={i}>{x}</kbd>) : <span className="ry-faint">{t("Nothing yet", "아직 없음")}</span>}</div>
-      {typed.length > 0 && <button className="ry-text" onClick={() => setTyped([])}>{t("Clear", "지우기")}</button>}
-    </div>}
+    {lab.kind !== "combo" && <details className="ry-lab-more" onToggle={e => setMode((e.target as HTMLDetailsElement).open ? "demo" : "try")}>
+      <summary>{t("Show the timing", "시간 흐름으로 자세히 보기")}</summary>
+      <p className="ry-lab-rule">{rule(lab)}</p>
+      <div className="ry-lab-chips">
+        {list.map((sc2, i) => <button key={i} className="ry-chip" aria-pressed={i === pick} onClick={() => setPick(i)}>{sc2.name}</button>)}
+      </div>
+      <Timeline lab={lab} evs={sc.evs} res={demoRes} span={demoEnd} head={Math.min(head, demoEnd)} />
+      <p className="ry-lab-explain">{explain(lab, { ...demoRes, outputs: demoRes.outputs.filter(o => o.t <= head) }) || "\u00a0"}</p>
+    </details>}
   </section>;
+}
+
+/** The whole idea at a glance: keycaps and an equals sign. */
+function Cap({ children, small }: { children: React.ReactNode; small?: boolean }) {
+  return <span className={"ry-eq-cap" + (small ? " is-small" : "")}>{children}</span>;
+}
+function Equations({ lab }: { lab: Lab }) {
+  const row = (key: string, left: React.ReactNode, right: React.ReactNode, caption: string) =>
+    <div className="ry-eq" key={key}><div className="ry-eq-left">{left}</div><b className="ry-eq-op">=</b><div className="ry-eq-right">{right}</div><span className="ry-eq-cap-text">{caption}</span></div>;
+  switch (lab.kind) {
+    case "combo":
+      return <div className="ry-eqs">{row("c", <>{lab.keyLabels.map((k, i) => <span key={i} className="ry-eq-group">{i > 0 && <b className="ry-eq-op">+</b>}<Cap>{k}</Cap></span>)}</>,
+        <Cap>{lab.comboLabel}</Cap>, t("Press together", "동시에 누르면"))}</div>;
+    case "tapDance":
+      return <div className="ry-eqs">{lab.labels.map((l, i) => row(String(i), <>{Array.from({ length: i + 1 }, (_, j) => <Cap key={j} small={j > 0}>{t("Key", "키")}</Cap>)}</>,
+        <Cap>{l}</Cap>, i === 0 ? t("Tap once", "한 번") : t("Tap {n} times quickly", "빠르게 {n}번", { n: i + 1 })))}</div>;
+    case "holdTap":
+      return <div className="ry-eqs">
+        {row("t", <span className="ry-eq-press is-tap"><Cap>{t("Key", "키")}</Cap><i /></span>, <Cap>{lab.tapLabel}</Cap>, t("Tap", "톡 누르면"))}
+        {row("h", <span className="ry-eq-press is-hold"><Cap>{t("Key", "키")}</Cap><i /></span>, <Cap>{lab.holdLabel}</Cap>, t("Hold", "꾹 누르고 있으면"))}
+      </div>;
+    case "macro": {
+      const seq = lab.steps.flatMap(s => s.kind === "text" ? [...s.label].map(c => c === " " ? "␣" : c) : s.kind === "wait" ? [] : [s.label]);
+      return <div className="ry-eqs">{row("m", <Cap>{lab.name || t("Macro", "매크로")}</Cap>,
+        <span className="ry-eq-seq">{seq.slice(0, 14).map((x, i) => <Cap key={i} small>{x}</Cap>)}{seq.length > 14 && <span className="ry-faint">+{seq.length - 14}</span>}</span>,
+        t("One press types all of this", "한 번 누르면 차례대로"))}</div>;
+    }
+  }
 }
