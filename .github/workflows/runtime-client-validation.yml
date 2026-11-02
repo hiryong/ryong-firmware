@@ -48,6 +48,15 @@ jobs:
         run: |
           npx tsc -p tsconfig.runtime.json
           npx vite build --config vite.runtime.config.ts --outDir dist-runtime
+      - name: Build standalone preview with device transports disabled
+        working-directory: apps/keys-ryong-runtime
+        run: |
+          npx vite build --config vite.offline.config.ts --outDir dist-offline
+          python3 ../../scripts/pack_runtime_preview.py dist-offline offline-preview/Keys-Ryong-Runtime-Preview.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-offline-preview
+          path: apps/keys-ryong-runtime/offline-preview
       - name: Install browser QA in the runner only
         run: |
           npm install --prefix /tmp/ryong-ui-qa playwright@1.56.1

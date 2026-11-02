@@ -45,7 +45,7 @@ declare global {
   }
 }
 
-const TRANSPORTS: TransportFactory[] = [
+const TRANSPORTS: TransportFactory[] = import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1" ? [] : [
   navigator.serial && { label: "USB", connect: serial_connect },
   ...(navigator.bluetooth && navigator.userAgent.indexOf("Linux") >= 0
     ? [{ label: "BLE", connect: gatt_connect }]
@@ -180,7 +180,7 @@ function App() {
   const [connectionAbort, setConnectionAbort] = useState(new AbortController());
   const [hubTab, setHubTab] = useState<HubTab | null>(null);
   const [runtimeOpen, setRuntimeOpen] = useState(
-    import.meta.env.VITE_RYONG_RUNTIME === "1" && new URLSearchParams(location.search).get("runtime") === "1"
+    import.meta.env.VITE_RYONG_RUNTIME === "1" && (new URLSearchParams(location.search).get("runtime") === "1" || import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1")
   );
   useResumeHub(setHubTab);
   useLang(); // re-render everything in the chosen language

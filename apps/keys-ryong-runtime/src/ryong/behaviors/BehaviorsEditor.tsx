@@ -93,7 +93,7 @@ export const BehaviorsEditor = ({ connectedName }: { connectedName?: string }) =
   const me = useMe();
   const mine = useMyBoards(me);
   const { conn } = useContext(ConnectionContext);
-  const [preview, setPreview] = useState(false);
+  const [preview, setPreview] = useState(import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1");
   const intro = (
     <div className="ry-sec">
       <h1 className="ry-h1">{t("Combos & Macros", "콤보·매크로")}</h1>
