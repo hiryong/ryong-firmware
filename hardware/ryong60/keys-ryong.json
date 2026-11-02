@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "keyboards": [
+    {
+      "id": "ryong60-template",
+      "name": "ryong60 · template",
+      "note": "What colleagues get with Make it yours",
+      "branch": "main",
+      "workflow": "build.yml",
+      "artifact": "firmware",
+      "keymap": "boards/ryong/ryong60/ryong60.keymap",
+      "match": [],
+      "layout": "60-ansi",
+      "onlyIn": "hiryong/zmk-config-ryong60"
+    }
+  ]
+}
