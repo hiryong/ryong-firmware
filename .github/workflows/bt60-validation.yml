@@ -1,0 +1,69 @@
+name: BT60 v2 test fixture compile
+on:
+  push:
+    branches: [dev/keys-ryong-runtime]
+    paths: ['hardware/test-fixtures/bt60-v2/**', 'experiments/bt60-runtime/**', 'scripts/prepare_bt60.py', '.github/workflows/bt60-validation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    container: zmkfirmware/zmk-build-arm:stable
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [baseline, runtime]
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/prepare_bt60.py /tmp/bt60-build
+      - uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/bt60-build/zmk
+            /tmp/bt60-build/zephyr
+            /tmp/bt60-build/modules
+            /tmp/bt60-build/tools
+            /tmp/bt60-build/bootloader
+            /tmp/bt60-build/zmk-feature-runtime-combo
+            /tmp/bt60-build/zmk-feature-runtime-macro
+            /tmp/bt60-build/zmk-feature-custom-settings
+          key: bt60-deps-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml') }}
+      - name: Resolve fully pinned test dependencies
+        working-directory: /tmp/bt60-build
+        run: |
+          west init -l config
+          west update --fetch-opt=--filter=tree:0
+          west zephyr-export
+      - name: Secure runtime RPC
+        if: matrix.variant == 'runtime'
+        run: python3 scripts/secure_runtime_rpc.py /tmp/bt60-build
+      - name: Compile BT60 only
+        shell: bash
+        working-directory: /tmp/bt60-build
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          EXTRA=()
+          if [ "$VARIANT" = runtime ]; then
+            EXTRA=("-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf" "-DEXTRA_DTC_OVERLAY_FILE=$GITHUB_WORKSPACE/experiments/bt60-runtime/runtime.overlay")
+          fi
+          west build -s zmk/app -d build -b bt60//zmk -S studio-rpc-usb-uart -- -DCONFIG_ZMK_STUDIO=y -DZMK_CONFIG=/tmp/bt60-build/config -DZMK_EXTRA_MODULES=/tmp/bt60-build/bt60-module "${EXTRA[@]}"
+      - name: Diagnostic reports only
+        if: always()
+        working-directory: /tmp/bt60-build
+        run: |
+          mkdir -p reports
+          for f in .config zephyr.dts zmk.map; do
+            if [ -f "build/zephyr/$f" ]; then cp "build/zephyr/$f" "reports/${f#.}"; fi
+          done
+          if [ -f build/zephyr/zmk.elf ]; then
+            west build -d build -t rom_report > reports/rom.txt
+            west build -d build -t ram_report > reports/ram.txt
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bt60-diagnostic-${{ matrix.variant }}
+          path: /tmp/bt60-build/reports
+# Never upload installable images until the actual unit/recovery path is verified.

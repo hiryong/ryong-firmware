@@ -1,0 +1,2 @@
+/* Behavior definition only: no Ryong60 pins, partitions or power code. */
+#include <behaviors/runtime_macro.dtsi>

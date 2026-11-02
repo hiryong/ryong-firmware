@@ -39,3 +39,6 @@ The owner has an already-working customer-facing Keys · ryong website, built us
 - Preserve current styling, routes, authentication, Studio unlock, 5-change history and separate Firmware tab. Regression-test them before proposing any merge.
 - Do not deploy or change the original production site. Future deployment plans require a separate, explicit decision outside the current project scope.
 - Having `ryong-firmware` access does not grant `keys-ryong` access. If the app repo is private, GitHub App installation may need explicit additional repository permission.
+
+## User-authorized BT60 v2 development fixture
+On 2026-11-02 the user clarified that their BT60 v2 is used for all ZMK physical tests while Ryong60 completion is unknown. Support this as a development fixture only, not a third-party product-support expansion. Read hiryong/zmk-config-bt60 at pinned commit dbf49fcdf3e5c45b0960859919b91361e33fa36f; never write or trigger Actions there. Keep all fixture copies/builds in ryong-firmware. Build bt60//zmk independently; NEVER flash a Ryong60 image to BT60 or reuse its hardware/power code. Ryong60 electrical questions do not block software testing on BT60, but the BT60 unit, known-good firmware and recovery path must still be verified before requesting a physical test.
