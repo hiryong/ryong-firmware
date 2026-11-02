@@ -1,0 +1,13 @@
+file_format: "1"
+id: ryong60//zmk
+name: ryong60
+type: board
+arch: arm
+features:
+  - keys
+  - underglow
+  - studio
+outputs:
+  - usb
+  - ble
+url: 

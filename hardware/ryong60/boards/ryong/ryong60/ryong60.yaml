@@ -1,0 +1,14 @@
+identifier: ryong60/nrf52840/zmk
+name: ryong60
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+supported:
+  - adc
+  - usb_device
+  - ble
+  - ieee802154
+  - pwm
+  - watchdog
