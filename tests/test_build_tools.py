@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import importlib.util
 
 ROOT = Path(__file__).resolve().parents[1]
 HANDLERS = [
@@ -30,6 +31,14 @@ class BuildTools(unittest.TestCase):
                         self.assertEqual(source.read_bytes(), copied.read_bytes())
             result = subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_zmk.py'), str(dest)], capture_output=True)
             self.assertNotEqual(result.returncode, 0)
+
+    def test_simulation_requires_hardened_metadata(self):
+        spec = importlib.util.spec_from_file_location("sim_runner", ROOT / "scripts/run_module_simulations.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        original = "cormoran__runtime_combo, Security: Unsecured\npressed: position 4 keycode 0x70005\nother, Security: Unsecured\n"
+        expected = "cormoran__runtime_combo, Security: Secured\npressed: position 4 keycode 0x70005\nother, Security: Unsecured\n"
+        self.assertEqual(module.secured_snapshot(original), expected)
 
     def fixture(self, root, bad=False):
         paths = []
