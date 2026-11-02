@@ -37,7 +37,9 @@ jobs:
           bash scripts/ryong-build.sh
       - name: Install editable runtime app
         working-directory: apps/keys-ryong-runtime
-        run: npm ci
+        run: |
+          npm ci
+          node tests/runtime-device.test.mjs
       - name: Build custom client variant without changing original app dependencies
         working-directory: apps/keys-ryong-runtime
         run: |

@@ -14,7 +14,8 @@ export type RuntimeSnapshot = {
   maxNameLength: number;
 };
 export type DesiredMacro = { slot?: number; name: string; steps: M.MacroStep[] };
-export type DesiredProfile = { combos: C.Combo[]; macros: DesiredMacro[] };
+export type DesiredCombo = C.Combo & { macroName?: string };
+export type DesiredProfile = { combos: DesiredCombo[]; macros: DesiredMacro[] };
 export type RuntimePort = {
   combo: (request: C.Request) => Promise<C.Response>;
   macro: (request: M.Request) => Promise<M.Response>;
@@ -106,7 +107,15 @@ export class RuntimeSession {
           throw new Error("Macro readback differs from requested data.");
         }
       }
-      for (const combo of desired.combos) {
+      const macroCatalog = await this.port.macro(M.Request.fromPartial({ listMacros: {} }));
+      check(macroCatalog);
+      const resolvedCombos = desired.combos.map(combo => {
+        if (!combo.macroName) return combo;
+        const macro = macroCatalog.listMacros?.macros.find(item => item.name === combo.macroName);
+        if (!macro || !combo.behavior) throw new Error("Referenced macro has no confirmed slot.");
+        return { ...combo, behavior: { ...combo.behavior, param1: macro.slot } };
+      });
+      for (const combo of resolvedCombos) {
         check(await this.port.combo(C.Request.fromPartial({ setCombo: {
           ...combo, persist: false,
         } })));
@@ -124,7 +133,7 @@ export class RuntimeSession {
       check(await this.port.combo(C.Request.fromPartial({ save: {} })));
       const result = await this.read();
       // Keep journal if final readback fails or a device restarts between saves.
-      for (const combo of desired.combos) {
+      for (const combo of resolvedCombos) {
         const actual = result.combos.find(item => item.index === combo.index);
         if (!actual || actual.enabled !== combo.enabled ||
             actual.timeoutMs !== combo.timeoutMs ||
@@ -172,6 +181,31 @@ export class RuntimeSession {
           macro.steps.some(step => M.MacroStep.encode(step).finish().length > 80)) {
         throw new Error("Macro execution bound exceeded.");
       }
+      const unchanged = before.macros.some(old => old.slot === macro.slot && canonical(old.steps) === canonical(macro.steps));
+      if (!unchanged) {
+        const held = new Set<string>();
+        let duration = 0;
+        for (const step of macro.steps) {
+          const types = [step.down, step.up, step.tap, step.delay, step.keyTapSequence].filter(Boolean);
+          if (types.length !== 1 || step.keyTapSequence) throw new Error("Unsupported or ambiguous macro step.");
+          if (step.delay) {
+            if (!Number.isInteger(step.delay.delayMs) || step.delay.delayMs < 0 || step.delay.delayMs > 5000) throw new Error("Invalid macro delay.");
+            duration += step.delay.delayMs;
+            if (duration > 10000) throw new Error("Macro duration limit exceeded.");
+          } else {
+            const binding = step.down || step.up || step.tap;
+            if (!binding?.behaviorId) throw new Error("Macro behavior is missing.");
+            const key = canonical(binding);
+            if (step.down) {
+              if (held.has(key)) throw new Error("Repeated macro press.");
+              held.add(key);
+            } else if (step.up) {
+              if (!held.delete(key)) throw new Error("Macro release without matching press.");
+            } else if (held.has(key)) throw new Error("Macro tap conflicts with held binding.");
+          }
+        }
+        if (held.size) throw new Error("Macro has keys left pressed.");
+      }
     }
     const comboSlots = new Set<number>();
     for (const combo of desired.combos) {
@@ -183,6 +217,7 @@ export class RuntimeSession {
           !Number.isInteger(combo.timeoutMs) || combo.timeoutMs < 1 || combo.timeoutMs > 1000) {
         throw new Error("Invalid runtime combo.");
       }
+      if (combo.macroName && !desired.macros.some(macro => macro.name === combo.macroName)) throw new Error("Unknown combo macro reference.");
       comboSlots.add(combo.index);
     }
     // Validate deletions/renames before staging anything.
