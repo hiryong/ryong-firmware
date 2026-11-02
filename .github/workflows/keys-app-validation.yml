@@ -19,6 +19,8 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: apps/keys-ryong/package-lock.json
+      - name: Verify imported baseline
+        run: python3 ../verify_baseline.py
       - run: npm ci
       - run: bash scripts/ryong-build.sh
 # Build only. No Cloudflare credentials, deployment, GitHub login or firmware writes.

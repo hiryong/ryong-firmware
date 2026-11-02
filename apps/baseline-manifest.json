@@ -1,0 +1,1500 @@
+{
+  "repository": "hiryong/keys-ryong",
+  "commit": "5e7b2239746002ec2c07faaead31b10cf3848622",
+  "excluded": [
+    "public/app/Keys-mac.dmg",
+    "public/app/Keys-windows.exe"
+  ],
+  "files": [
+    {
+      "path": ".devcontainer/Dockerfile",
+      "sha": "be67e43558c4b4619437c7416dc9f12588174970",
+      "mode": "100644"
+    },
+    {
+      "path": ".devcontainer/devcontainer.json",
+      "sha": "1bad837627408253f60640d11c8725a9e9d6b500",
+      "mode": "100644"
+    },
+    {
+      "path": ".eslintrc.cjs",
+      "sha": "200a1665849b3c0dc9aba3979378de7e30b6af68",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug_report.md",
+      "sha": "9a3152054dd1f33dd2095607a88c9981f57886c9",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/feature_request.md",
+      "sha": "11fc491ef1dae316f2b06bbb40eaba9c757fdfd1",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/release-please.yml",
+      "sha": "62d1a8266488dc8967ebe54fb981716d33f73c0a",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/ryong-app.yml",
+      "sha": "a8f2d6cdc7c260c834186a4bf9699d3c69f7357b",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/ryong-sync-upstream.yml",
+      "sha": "663f574a0eb63cbd61ae66339cb3cbbd342d0bf6",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/tauri-build.yml",
+      "sha": "404f8d82b104a2759d880d6794ef0f937cc503eb",
+      "mode": "100644"
+    },
+    {
+      "path": ".gitignore",
+      "sha": "5618eb167ce7270a59a29ccc773aa44497e9285b",
+      "mode": "100644"
+    },
+    {
+      "path": ".pre-commit-config.yaml",
+      "sha": "1b52d8789ec7f654679a0e7dd0e95af34d0b6792",
+      "mode": "100644"
+    },
+    {
+      "path": ".prettierignore",
+      "sha": "d3661fe097eec956a4a89167bbac9a9d0b1dcf14",
+      "mode": "100644"
+    },
+    {
+      "path": ".prettierrc",
+      "sha": "0967ef424bce6791893e9a57bb952f80fd536e93",
+      "mode": "100644"
+    },
+    {
+      "path": ".release-please-manifest.json",
+      "sha": "816df2d5b4c53241549449d4279f9e962fa42e57",
+      "mode": "100644"
+    },
+    {
+      "path": ".storybook/main.ts",
+      "sha": "69ac0074d7b4478169dbe5b26e3ae6290ace0543",
+      "mode": "100644"
+    },
+    {
+      "path": ".storybook/preview.ts",
+      "sha": "cd8e0cda734cc2c3972fa68d49274dcc138f62c2",
+      "mode": "100644"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha": "9279c1589c8a594b922fdf2694f99203aa930f22",
+      "mode": "100644"
+    },
+    {
+      "path": "LICENSE",
+      "sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+      "mode": "100644"
+    },
+    {
+      "path": "NOTICE",
+      "sha": "23b4200cfe2093b435b8a0aff2c43c7958b3d583",
+      "mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "sha": "26c368363976be0fe3ecba47fbf4b3a144f350d6",
+      "mode": "100644"
+    },
+    {
+      "path": "RYONG.md",
+      "sha": "dbac9237b5b19fb8dff270d80cbb4a7eb5ff202a",
+      "mode": "100644"
+    },
+    {
+      "path": "download.html",
+      "sha": "5eb770fb7622a4c912defcdd8ea8785b3f3fade7",
+      "mode": "100644"
+    },
+    {
+      "path": "functions/_lib/session.ts",
+      "sha": "89f498e6295da70c36f67f62ec788d2231c80479",
+      "mode": "100644"
+    },
+    {
+      "path": "functions/api/auth/callback.ts",
+      "sha": "ef0c2ee51da6f42123378b5d9ebf0fbd0e592996",
+      "mode": "100644"
+    },
+    {
+      "path": "functions/api/auth/install.ts",
+      "sha": "7bef1ec25a7fe9ab359219c6ef765f9e5ac571d9",
+      "mode": "100644"
+    },
+    {
+      "path": "functions/api/auth/login.ts",
+      "sha": "1735f118c27b0260f684bfcb98353bed33949c1a",
+      "mode": "100644"
+    },
+    {
+      "path": "functions/api/auth/logout.ts",
+      "sha": "58fab2ae93ab9268a86353e515b4e3d9c88492ae",
+      "mode": "100644"
+    },
+    {
+      "path": "functions/api/firmware.ts",
+      "sha": "be8066b6321dc6e8040598fc7e39981531f1c128",
+      "mode": "100644"
+    },
+    {
+      "path": "functions/api/gh/[[path]].ts",
+      "sha": "846585c1cf5c3a72b2a53b74a0461e131a5f3d20",
+      "mode": "100644"
+    },
+    {
+      "path": "functions/api/me.ts",
+      "sha": "6522efae6e2adbc74bc2fe4a3a8eb0b07bd1a5de",
+      "mode": "100644"
+    },
+    {
+      "path": "index.html",
+      "sha": "8bf64e64131edc9dd5484b1337666fe46601da96",
+      "mode": "100644"
+    },
+    {
+      "path": "package-lock.json",
+      "sha": "77d0645a67d3e5f61254f5a70aac18c65efda3dc",
+      "mode": "100644"
+    },
+    {
+      "path": "package.json",
+      "sha": "1505bcaf29a9c78359e5de7ea32f635fd7189237",
+      "mode": "100644"
+    },
+    {
+      "path": "postcss.config.js",
+      "sha": "2aa7205d4b402a1bdfbe07110c61df920b370066",
+      "mode": "100644"
+    },
+    {
+      "path": "public/Inter.woff2",
+      "sha": "e97a76e97f37daff303c0c21fdce479353149fad",
+      "mode": "100644"
+    },
+    {
+      "path": "public/app/latest.json",
+      "sha": "d1d1d2450833a4405f681ee9afe7f4f27bd74d17",
+      "mode": "100644"
+    },
+    {
+      "path": "public/catalog.json",
+      "sha": "62d6f1482cefbcb391ad22b3017de64920deae05",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/geist-latin-ext.woff2",
+      "sha": "8a1d3df6272a20ed445a030a88121222e5d78ba9",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/geist-latin.woff2",
+      "sha": "8f01e7630ba2f88ffa1acd90d69f67efb5bd3092",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/pretendardvariable-dynamic-subset.css",
+      "sha": "0a8ddd1c446317e04fc0c8e860f07931393b01c9",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.0.woff2",
+      "sha": "eec84682c9e1118f5d64bac7b60a0d5c8cc277db",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.1.woff2",
+      "sha": "a0fa937345eb0d7c341ac4a4b63496a2b7d2d078",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.10.woff2",
+      "sha": "5ac44404ac52db01d5318a3ce41db7025256125f",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.11.woff2",
+      "sha": "aec023b90b564d1c50b4501bd138c592d6592463",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.12.woff2",
+      "sha": "27f0ba1cf08d4d68da4cb2b3abbc2ea915fe14f7",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.13.woff2",
+      "sha": "c78d1b7654985830400adc0ea90c5fe6b4da324f",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.14.woff2",
+      "sha": "4ee047882bfd16a67e504e5902244076ae62c62e",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.15.woff2",
+      "sha": "e311b83e8c8bb5874e8dded8790b52a062cb0530",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.16.woff2",
+      "sha": "1118dad2a2cf7868c75668f48f06908bc229a468",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.17.woff2",
+      "sha": "28d9f1b02899b1892cdc357d6a8c75ed984e13ab",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.18.woff2",
+      "sha": "0aa785d80dc1e3937b2911aba15ab3180acdfc4b",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.19.woff2",
+      "sha": "cffd0457cdbda5437f8c5054f2a4a5adc24a37f5",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.2.woff2",
+      "sha": "11188574ceeab8a1513413cf453a48474ec2473a",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.20.woff2",
+      "sha": "446057e3f19607efdaa982a321a56f7ca6a603d2",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.21.woff2",
+      "sha": "a1f22ace7a6f19c629f9e729288cb95ead1e7f23",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.22.woff2",
+      "sha": "544bce298fec01f73157f19e8d427d121ff7452c",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.23.woff2",
+      "sha": "7184f01fbed048b7afdd217e0aa9cc299ad5db07",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.24.woff2",
+      "sha": "030323fe9810ffafe354ff7ba9f90d5d029e39f2",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.25.woff2",
+      "sha": "cbbeb7c4698db1096acb70f0246dc2953b466a1f",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.26.woff2",
+      "sha": "6cd7515ff60dde70440031a0c68b09fc29545431",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.27.woff2",
+      "sha": "2af9f95922ca6ec4d16ccd72fb8b68a46fb9e37f",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.28.woff2",
+      "sha": "25c9459f7268570d82f2917764342750fbdbe5e3",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.29.woff2",
+      "sha": "2226447dda0867684ae415b9db068b9fa575840b",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.3.woff2",
+      "sha": "8ccaf48f6f2ce3c7eaed15da7f3ba09ca2fce67e",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.30.woff2",
+      "sha": "c5a3f9def547eb4c1c1412d619ef8ff8e28bc98c",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.31.woff2",
+      "sha": "b5a465b4e27e77de0be1f4189f66617d29399b9c",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.32.woff2",
+      "sha": "0d02dc928b572252c24a378b2f8da0e6a10764d7",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.33.woff2",
+      "sha": "1912f3bb9babae90573a055ee4040851e3a4758f",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.34.woff2",
+      "sha": "3cc0b4e2ec537afb75b3d5ab1202bb8f132256ca",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.35.woff2",
+      "sha": "c6d452f3be058895bcfb4fe408049a501baa96c7",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.36.woff2",
+      "sha": "d549819a831532c7bc6cc4173f5e336738a2401a",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.37.woff2",
+      "sha": "31b1a22ee6103bd53029d9de792f06a7873acc4c",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.38.woff2",
+      "sha": "8866b03ee4cc77a9560781f96916d607e654ed4b",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.39.woff2",
+      "sha": "f165e2c8f2a72bf5b1ef8d5635b81a0a5b8cb29c",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.4.woff2",
+      "sha": "33f9cf65dec5dac180424154b3476f910a9ba720",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.40.woff2",
+      "sha": "521ec28d9ece022ef1bb773505d8b23cf353abbf",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.41.woff2",
+      "sha": "96b01ce0d9905e38d5ba70d7a9cbb09795e82da9",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.42.woff2",
+      "sha": "0f0b66d2edda5af368da826a960683776525f69d",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.43.woff2",
+      "sha": "b470a9094717de710cb960c2beba18b533e7a3f5",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.44.woff2",
+      "sha": "96a3e1d493c4ae5cb28fa0b2c714f25846fc0822",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.45.woff2",
+      "sha": "31e4cecaff982991b438fb813d63ece3d7477da2",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.46.woff2",
+      "sha": "d0ae0923ac171cd2413bd6070cbc4aa287eaace9",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.47.woff2",
+      "sha": "3b41251d081a1b14fa533acb73aa011cb2e5f642",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.48.woff2",
+      "sha": "ce02f5bd830fb86b2fd154d3a56849c9e5fd9040",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.49.woff2",
+      "sha": "0e7d1fe826dc98e6476d706d033bb3dc20ee8f7b",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.5.woff2",
+      "sha": "0eaa11cd5de117a57c4b6b6e4b4c5bb4ed9be67a",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.50.woff2",
+      "sha": "9c91849ef2e84662be86195a260cc2426b6832ea",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.51.woff2",
+      "sha": "e8e3b4e4043b2baddc7a5fad00e1d408d9df8889",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.52.woff2",
+      "sha": "62291a7a6fbb8c5439c2fbae1272ffd5b537c271",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.53.woff2",
+      "sha": "74c0d7c4ba8dd16634e39a5fc04e55741f322e71",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.54.woff2",
+      "sha": "37685e26cea2866b07f5a976d772172150dd2b7b",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.55.woff2",
+      "sha": "c99ef873cfc47dd358aaed3bb2832a3ad7bfa3a4",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.56.woff2",
+      "sha": "bd18b2e8b0d14b3f8bee003b1b4552d071bb0a52",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.57.woff2",
+      "sha": "ebdd968852367455886e004bffc4995f7bf06d85",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.58.woff2",
+      "sha": "d8daf95e4013b8e96dbdf44f9369ebf80b98b8b0",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.59.woff2",
+      "sha": "b6783fe3cad28c152eb7af13d010812325e999c8",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.6.woff2",
+      "sha": "4ecbbbcf3a5305e195627e6d6c5cb8f811f2f24d",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.60.woff2",
+      "sha": "ec52a94d55a28d09185f14b413c200b96928c50d",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.61.woff2",
+      "sha": "02215b6b11eb2e0f8147e22f385fe13da1a72229",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.62.woff2",
+      "sha": "0acb5f676fadf81e4dcd38057efc735fa30f9257",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.63.woff2",
+      "sha": "9bd774ea6020ea517dc0eae5fe91ca22d79ed073",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.64.woff2",
+      "sha": "5dd145f4746307cd5e680cb0341c159be771d4cc",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.65.woff2",
+      "sha": "de7c978234d068f83da5f4b017da3b0e798323a6",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.66.woff2",
+      "sha": "ac74c4f2f091a625a1e1f68efbcc320529ebdde9",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.67.woff2",
+      "sha": "f029a1facaa3a7d16c6d932d2b0754a9d3d74c93",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.68.woff2",
+      "sha": "df664c5890bfdb85860e6a7acf43013772d08ee0",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.69.woff2",
+      "sha": "37d6d6f6a9140ac95394b292fb5e75b0b45a2ae2",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.7.woff2",
+      "sha": "9f08418e3bafbaaa07d06551805327dd503552ce",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.70.woff2",
+      "sha": "056b0f5257a7d5099221585f5afe7ddb27bfc4bc",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.71.woff2",
+      "sha": "73688e4c67179a7d6ebd3690e68e5757222a6816",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.72.woff2",
+      "sha": "d298292db8a3ad8211197fc31352c9a335054a0e",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.73.woff2",
+      "sha": "18b8b22ba0724632a10bc903e6eae8e3a2f0ac88",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.74.woff2",
+      "sha": "da514f498c39ce5737a30e69cac31daeae21c078",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.75.woff2",
+      "sha": "be2d1b180f4c4a1dcb132dd316a50853870754bf",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.76.woff2",
+      "sha": "202befb97a029dfddb06c0aca11cf697c03b400e",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.77.woff2",
+      "sha": "b945efbb49c8039e327a9d8844fc52010ba097b3",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.78.woff2",
+      "sha": "55e04b633df7813734b6c11223dd2851e7502bfe",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.79.woff2",
+      "sha": "cd1a71ca5e69053f436c080ae1dc1617e6f29cea",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.8.woff2",
+      "sha": "1b84ede3e1d63c0a0cb2dbf02fe9c6f135407590",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.80.woff2",
+      "sha": "fe0831c9428e33b077164e81645f5371d0f948f1",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.81.woff2",
+      "sha": "3f6583e2b0900c1c2ba2fae269bc3d25d240042d",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.82.woff2",
+      "sha": "e8880fea2b7c145330dc4e90e276c56b5ebf4675",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.83.woff2",
+      "sha": "275966175accb7adda138da9a4b57ddf73c585c0",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.84.woff2",
+      "sha": "a923ff4071dd86c3a75cdc5e9d613776c70f4ea6",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.85.woff2",
+      "sha": "98625bbc74927f8a83075547da6a092a32745571",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.86.woff2",
+      "sha": "6c33d5547b50ea9c6208d12c68e127b3b11e7b75",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.87.woff2",
+      "sha": "17e44938bd72e9cd9c78abc119825e8cfb1876fa",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.88.woff2",
+      "sha": "13f3d635187099b8e053d618013250aa93462124",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.89.woff2",
+      "sha": "0e0c9902f009d7eed763b1bea237e27a2b3fcdaa",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.9.woff2",
+      "sha": "3cb1bb9b3cc8d469e431634a3bd5eccef8f017fb",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.90.woff2",
+      "sha": "a9f66ece45bc214f4f8986f3c55a82af86c5d364",
+      "mode": "100644"
+    },
+    {
+      "path": "public/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.91.woff2",
+      "sha": "8b897e0e8ce16d73d6bf92000b86cea992e7b6dd",
+      "mode": "100644"
+    },
+    {
+      "path": "public/ryong-hand.webp",
+      "sha": "c631c01af96956ac171aa4e08233cb4cd0bb93c8",
+      "mode": "100644"
+    },
+    {
+      "path": "public/ryong-mark.svg",
+      "sha": "91ba59244d6087fd1b1dcbd7540a508df807dc03",
+      "mode": "100644"
+    },
+    {
+      "path": "public/vite.svg",
+      "sha": "ee9fadaf9c4a762ac0ec010ca16ce8fa39a09e56",
+      "mode": "100644"
+    },
+    {
+      "path": "public/zmk-mac-app-icon.webp",
+      "sha": "b97b76376663cf96abf3e00e11699ec253e3891c",
+      "mode": "100644"
+    },
+    {
+      "path": "public/zmk-mac.png",
+      "sha": "3667e68e0d2a4363ebaf792bedd075573dd6422b",
+      "mode": "100644"
+    },
+    {
+      "path": "public/zmk.svg",
+      "sha": "31977a60a0031615ba20355a95cc3ca2e8cfa43d",
+      "mode": "100644"
+    },
+    {
+      "path": "release-please-config.json",
+      "sha": "b5399d3a8a4f64589937bdb8b3d9d222e97f9721",
+      "mode": "100644"
+    },
+    {
+      "path": "requirements.txt",
+      "sha": "416634f5288f7f60a9b9f68eb63afd0bed3443a2",
+      "mode": "100644"
+    },
+    {
+      "path": "ryong-app/icon.png",
+      "sha": "0263b4f175fc7ca006be558c614706428c42dbc7",
+      "mode": "100644"
+    },
+    {
+      "path": "ryong-app/prepare.mjs",
+      "sha": "57beba1ce3e094dd65c6bde1ef161a3ddcb4ab2d",
+      "mode": "100644"
+    },
+    {
+      "path": "ryong-app/ryong.rs",
+      "sha": "85d7ea9b0ee5f81a84cfc4bd0413efc74b2d398a",
+      "mode": "100644"
+    },
+    {
+      "path": "ryong-app/tauri.ryong.json",
+      "sha": "14397e0c8be43291834766229c39eaae2d8bb326",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/functions/tsconfig.json",
+      "sha": "573f00b181e78ce441ce70eeab661c5ce69dbc33",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/functions/types.d.ts",
+      "sha": "a0ae96026183c6fb9fc8d63ad889205d17b2b691",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/generate-release-data.js",
+      "sha": "9349c352298bc7c7bd66b2a90e295c0e79b97166",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/ryong-build.sh",
+      "sha": "919e5cea8a3840f35c27825a2e5dda940c049194",
+      "mode": "100755"
+    },
+    {
+      "path": "src-tauri/.gitignore",
+      "sha": "502406b4eda73fa30dafae86da100dc1197e0c93",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/Cargo.lock",
+      "sha": "91fbadf21c0dc53d438fedf06e84fee254868575",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/Cargo.toml",
+      "sha": "3de9d2ae76ac38945355d1879257e4fab6e3fc1b",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/Info.plist",
+      "sha": "3fc104d36c871133bd2c18d66f04a69f28e32ce5",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/build.rs",
+      "sha": "d860e1e6a7cac333c3cc0bc9cb67faf286b07d69",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/capabilities/default.json",
+      "sha": "ca7ad8ff044555dc6001f1bf854c79a507fa4b5d",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/128x128.png",
+      "sha": "877e7487a6fe99b232dd66633b23a8dcb83c6ef8",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/128x128@2x.png",
+      "sha": "cb909c96eb20afbea7fb05b46dc17d65590db602",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/32x32.png",
+      "sha": "3462acbeeb70b1e9604908cbeb1992c6a1bbec82",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/Square107x107Logo.png",
+      "sha": "45f56cb377e324c38e443a63cef833067414793e",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/Square142x142Logo.png",
+      "sha": "3f086b820ed93cba22b3f9f20c8efe251d8784e0",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/Square150x150Logo.png",
+      "sha": "273214376cff2bbb42b16b54e798f949d7946d50",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/Square284x284Logo.png",
+      "sha": "8bebf92e19b1cc77b494ac4175e1f3209625c91e",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/Square30x30Logo.png",
+      "sha": "ab272b28c0a6b704b4bc7b091189cab0aff45d82",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/Square310x310Logo.png",
+      "sha": "d2ac98c0529f75b883b6f5fd4977b68e08256826",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/Square44x44Logo.png",
+      "sha": "2ec4545e677b21687b780fb9e6d5e5a8851238e1",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/Square71x71Logo.png",
+      "sha": "24d7cca58436218d8a74e2caf3850c2a46e37fb4",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/Square89x89Logo.png",
+      "sha": "11844f6f6731f65ea3e4a5237df69d5e2f66bffd",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/StoreLogo.png",
+      "sha": "99229415bc5302e8b204871feb04a1676b6870a7",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/icon.icns",
+      "sha": "b895d75a556a9005896f53590e6452cef0cccd6e",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/icon.ico",
+      "sha": "017827ff69c1d6a66750d581a055b38a9e10ec0b",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/icons/icon.png",
+      "sha": "e4a03c310e1dc4161089cb6f6cbdd125fdc1f7c4",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/src/lib.rs",
+      "sha": "3b48e91a2ddf7e3023088394ee28133ac237dbdd",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha": "e9d7348e3661119c36b5eac3dd0a4a024e6615f2",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/src/transport/commands.rs",
+      "sha": "8b63853559797e5011dd235e9923493ddd05ab72",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/src/transport/gatt.rs",
+      "sha": "357fc25c9df1de3410bf4cc86952d9a2953181f9",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/src/transport/mod.rs",
+      "sha": "61492f914282232ba54282c5c847a8bcb7979957",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/src/transport/serial.rs",
+      "sha": "3b5415259371f2a8ab42013b7cafb76d71c5e834",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/tauri.conf.json",
+      "sha": "8fd57bfd47d3c50567f22286def3012fc4211356",
+      "mode": "100644"
+    },
+    {
+      "path": "src-tauri/trusted-signing-metadata.json",
+      "sha": "c177f1917402cce6b511c367a4127aedf98cb892",
+      "mode": "100644"
+    },
+    {
+      "path": "src/AboutModal.tsx",
+      "sha": "8ecf59405128d1edc7d984c13296664c8640a26b",
+      "mode": "100644"
+    },
+    {
+      "path": "src/App.tsx",
+      "sha": "da440d877e67b19ca304d68a1a0829273983c46c",
+      "mode": "100644"
+    },
+    {
+      "path": "src/AppFooter.tsx",
+      "sha": "ba8cde95b0f6b43f65f30acdc579ba87cd28db55",
+      "mode": "100644"
+    },
+    {
+      "path": "src/AppHeader.stories.ts",
+      "sha": "62ff88b0a1561320f85f6661821bcf9371cafe73",
+      "mode": "100644"
+    },
+    {
+      "path": "src/AppHeader.tsx",
+      "sha": "710f64a9b4e195deba475d7f7c0a68790986e94a",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ConnectModal.tsx",
+      "sha": "8814dcfd5b2fae3500398788979db2ecfd8ff9d1",
+      "mode": "100644"
+    },
+    {
+      "path": "src/DownloadPage.tsx",
+      "sha": "19e01d7b833c12e7ad461cb58faef679c943d5f1",
+      "mode": "100644"
+    },
+    {
+      "path": "src/GenericModal.tsx",
+      "sha": "8aad01b6230d9c6ea26ebf9dfbc8545e2dd41cb5",
+      "mode": "100644"
+    },
+    {
+      "path": "src/HidUsageTables-1.5.json",
+      "sha": "3ffe6e252a844b006edb22516814de2ee0f84b36",
+      "mode": "100644"
+    },
+    {
+      "path": "src/UnlockModal.tsx",
+      "sha": "b000f1da6976ffaba114a8bd9965189875debcc1",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/cannonkeys-dark-mode.png",
+      "sha": "9de56abcd066dc49abbae935338242ffa35e0695",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/cannonkeys.png",
+      "sha": "55fc2fd9da70882b29a50899af8edca561f38d27",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/deskhero-dark-mode.webp",
+      "sha": "6601dcad515aa402fdb10be339b452a0513cddb3",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/deskhero.webp",
+      "sha": "494bdbcd63b92cf5ab574ac018c6a7a7509d5720",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/keebio.avif",
+      "sha": "d7226dbac5ef4bd76129190bc41746297a9759e6",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/keebmaker-dark-mode.png",
+      "sha": "0667c1bcba12f527087af3409c6490f505722be3",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/keebmaker.png",
+      "sha": "1d4561031e2b99f5d230010c5cba61e527c292d4",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/keycapsss-dark-mode.png",
+      "sha": "1dcd65bfb0bd720b21c8911f6ee630ba30390643",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/keycapsss.png",
+      "sha": "e5e722eed7829bc7403bfc80c88b1885a30ab337",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/keychron-dark-mode.png",
+      "sha": "88ba0e5ef42f3bfc1c82657ec0dbacef2c88fe29",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/keychron.png",
+      "sha": "1ebef3817fe2e57b69d1a6cb01a001f2c46b5a49",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/kinesis-dark-mode.png",
+      "sha": "e211169b89cfab09d8027350cb1ba9c827c4b927",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/kinesis.png",
+      "sha": "7e77c3cc87862b587f57057ef35cb1f6b0a27bc8",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/littlekeyboards-dark-mode.avif",
+      "sha": "290e24c965ccecd9b616102ac512ce1bf323e343",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/littlekeyboards.avif",
+      "sha": "172e2671fb92dfe993a39f6c3f5090c8be2b8025",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/mechlovin-dark-mode.png",
+      "sha": "4f10bd1d87abd0598e054e26e91fb007330d1bf9",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/mechloving.png",
+      "sha": "2a5b688457d65f6ccee3e30033c9733c7218d7a9",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/mekibo-dark-mode.png",
+      "sha": "1defeb2c40f7de26bb4ed7d5868ab2924f0b393b",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/mekibo.png",
+      "sha": "dce43c7d5d9dee3b7d4e3068c34ed528c59fb550",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/mode-dark-mode.png",
+      "sha": "71b00a35238487834cf895a07d4deaff2d39e8c5",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/mode.png",
+      "sha": "662b8405b274b854e71e53068c082386309d49bb",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/mode.svg",
+      "sha": "b8e88dcbe6da4d68e1380de25987a7c27d1b2a4b",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/niceandtyperactive-dark-mode.png",
+      "sha": "0ed8ffef8f68936f0bc2d3a24477c370d712a606",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/niceandtyperactive.png",
+      "sha": "537e559789439c8b3ef833dacb508abfcec5c498",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/phasebyte.png",
+      "sha": "d7c0df57a8d72308f357777e2176801a30c97b88",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/splitkb-dark-mode.png",
+      "sha": "875a202aae8f6b981eee537ecb9228df5808a272",
+      "mode": "100644"
+    },
+    {
+      "path": "src/assets/splitkb.png",
+      "sha": "eb0a4433f9a5252351d63f8924511baee427beb9",
+      "mode": "100644"
+    },
+    {
+      "path": "src/behaviors/BehaviorBindingPicker.stories.ts",
+      "sha": "bc83e03b8812b46501f68db064afa5c23a1498d3",
+      "mode": "100644"
+    },
+    {
+      "path": "src/behaviors/BehaviorBindingPicker.tsx",
+      "sha": "8c3f54e7de50cd74d254bb1b91c21081e3339a24",
+      "mode": "100644"
+    },
+    {
+      "path": "src/behaviors/BehaviorParametersPicker.stories.ts",
+      "sha": "8c085bc1c7b7640f41a1e7d15ee9c37ccfda6109",
+      "mode": "100644"
+    },
+    {
+      "path": "src/behaviors/BehaviorParametersPicker.tsx",
+      "sha": "1a1f035b9f4fda5b2ad3ab69e20dc73a3d38db0c",
+      "mode": "100644"
+    },
+    {
+      "path": "src/behaviors/HidUsagePicker.stories.ts",
+      "sha": "e0618df13288b47b958c99f7708b6a131738bfd8",
+      "mode": "100644"
+    },
+    {
+      "path": "src/behaviors/HidUsagePicker.tsx",
+      "sha": "5a8f8e5ed0cdbc2e37b5279bc71813198254e1c8",
+      "mode": "100644"
+    },
+    {
+      "path": "src/behaviors/ParameterValuePicker.stories.ts",
+      "sha": "cbd0db8e9a69c855525fc78224f1c1e073341244",
+      "mode": "100644"
+    },
+    {
+      "path": "src/behaviors/ParameterValuePicker.tsx",
+      "sha": "ca0aaae45374b9ac1ab9e1835ddf783d21995c61",
+      "mode": "100644"
+    },
+    {
+      "path": "src/behaviors/parameters.ts",
+      "sha": "96f915278a5ee0932324ce7244773db683c871cb",
+      "mode": "100644"
+    },
+    {
+      "path": "src/download.tsx",
+      "sha": "180a70d26d9ddd3900a3353d2eccd9feb8a7cf06",
+      "mode": "100644"
+    },
+    {
+      "path": "src/hid-usage-name-overrides.json",
+      "sha": "f2773ff55312cf10c6c8d5b26fc8ba9308c11e7c",
+      "mode": "100644"
+    },
+    {
+      "path": "src/hid-usages.ts",
+      "sha": "a3e3dd84d4085351d10708352421931c77b1be7a",
+      "mode": "100644"
+    },
+    {
+      "path": "src/index.css",
+      "sha": "3432b94a163ab481f258d8a881ba57bc0ab1212f",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard-and-consumer-usage-tables.json",
+      "sha": "cff60885d85df6694a8186b6bb124e111203487c",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/HidUsageLabel.tsx",
+      "sha": "fb4c304af7d7b91a733a983a76973e237fbff5fc",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/Key.stories.tsx",
+      "sha": "2b81a38ad0d2f639e399a2eff27ca6dbb8ed18db",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/Key.tsx",
+      "sha": "5db68eb217cd1e203de8beda02da44621b34f827",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/Keyboard.tsx",
+      "sha": "005f2b458f5e0a6775b903ae54ba59ea757ae309",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/Keymap.tsx",
+      "sha": "4edb1da1acd2e75290443462bef32da1d854d19e",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/LayerPicker.stories.ts",
+      "sha": "32b28863952d6822ee7e1ae22327a2aa96654169",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/LayerPicker.tsx",
+      "sha": "1584191d1b397b3b286f2e9fce824949eba11704",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/PhysicalLayout.stories.tsx",
+      "sha": "07e6d41be1d91ba31d99770c7745a4c3f229e0ca",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/PhysicalLayout.tsx",
+      "sha": "ec5248fbf61158d4b792dde477e07744450c1349",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/PhysicalLayoutPicker.stories.ts",
+      "sha": "9ab11688283d3876f3574e6315840b4dc8d66c69",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/PhysicalLayoutPicker.tsx",
+      "sha": "5d0f0a3a7e2aad09b36fa659f5b8cd279f5e1b50",
+      "mode": "100644"
+    },
+    {
+      "path": "src/keyboard/behavior-short-names.json",
+      "sha": "2f702edee0355448593ad0bd2c8d3ec5b20e3f4f",
+      "mode": "100644"
+    },
+    {
+      "path": "src/main.tsx",
+      "sha": "32a40e7f6ad4754ff4c7daba03e3f736ea41e3d7",
+      "mode": "100644"
+    },
+    {
+      "path": "src/misc/ExternalLink.tsx",
+      "sha": "cbf1f70d9c244502f98ddf9010866ee85965623b",
+      "mode": "100644"
+    },
+    {
+      "path": "src/misc/LicenseNoticeModal.tsx",
+      "sha": "62500a6585fac16c98325a41314f8aabc40f83e5",
+      "mode": "100644"
+    },
+    {
+      "path": "src/misc/Tooltip.tsx",
+      "sha": "5839383d58d6cc0ab401e70845b23059049f22f8",
+      "mode": "100644"
+    },
+    {
+      "path": "src/misc/async.ts",
+      "sha": "5c683609d6992b3a29ce4c0a2bf9606cf6bd6793",
+      "mode": "100644"
+    },
+    {
+      "path": "src/misc/useLocalStorageState.ts",
+      "sha": "e06621290f4f7e401c2cb6254ee951474d69354c",
+      "mode": "100644"
+    },
+    {
+      "path": "src/misc/useModalRef.ts",
+      "sha": "30205cd4d9340aa96cee7d95788e360d06e8e5c9",
+      "mode": "100644"
+    },
+    {
+      "path": "src/react-extra.d.ts",
+      "sha": "8588fdd82e30fce9a82977c84cfd929b08982772",
+      "mode": "100644"
+    },
+    {
+      "path": "src/rpc/ConnectionContext.ts",
+      "sha": "1ffad3c98648c1311fc6ecf4480bb802b712f316",
+      "mode": "100644"
+    },
+    {
+      "path": "src/rpc/LockStateContext.ts",
+      "sha": "5d2dec1d14803fc23d41cb8ea9598dbcdabbfb02",
+      "mode": "100644"
+    },
+    {
+      "path": "src/rpc/logging.ts",
+      "sha": "706d980b8f626dbd8f2bafe3cb94039eaf64fe6c",
+      "mode": "100644"
+    },
+    {
+      "path": "src/rpc/useConnectedDeviceData.ts",
+      "sha": "b64e41d5058ba18bb3d828e87a8e9775a5c2dc49",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/Backup.tsx",
+      "sha": "0668a93ab4f75989132879359e10fd4306756f2f",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/BrandFloat.tsx",
+      "sha": "0d3f9ecc5850806deda1ab72613c261ca3e02aff",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/ErrorScreen.tsx",
+      "sha": "c6ddd6268f54fe2abfdfcaf4eaded5b64d253424",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/Firmware.tsx",
+      "sha": "cd8002282d16bacb0ea9ee58ad9d262deb7ec7a3",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/FirstRun.tsx",
+      "sha": "7d014628110366e446bacfeaeb0b8b8d5410d327",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/Guide.tsx",
+      "sha": "a2bf4d575c996e9bd35b52f7caea8ae4b9d32aeb",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/Hub.tsx",
+      "sha": "7f5a9b53f3869fec2649f8b7ad6f1311e1cab356",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/KeyIcon.tsx",
+      "sha": "ebb5320044a731e7efc514a051f01ffb29da9349",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/KeysWatcher.tsx",
+      "sha": "82c34f990c57d553e6b7c3fb41c2cf19eebd9b52",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/LangToggle.tsx",
+      "sha": "47761e89492ba968cd17c101713609e9ca9f7ae3",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/PowerInfo.tsx",
+      "sha": "2c9628bdfdb80d740b130e6f1fc26eb49c7a0b50",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/RyongMark.tsx",
+      "sha": "f7d51c3bef4b1bac4ceef2a32ec9e9784ba5f1d6",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/Scenes.tsx",
+      "sha": "063a5ba90a52910213f04952a00053129eb94917",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/SignIn.tsx",
+      "sha": "6f4d57cdea90a83501be353532d4732b2e650d60",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/UnlockAnim.tsx",
+      "sha": "bde28c667b14b76a7aa27513eaa42d28084ed4dd",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/UnlockHelp.tsx",
+      "sha": "f2f4d2559be25e4713a4d467e2105c5f3f4d3fbb",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/api.ts",
+      "sha": "94dc6694d51fb7a890849257e571ca797b640471",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/app.ts",
+      "sha": "7a1c48a29c37b511a7324ab0eed46577a7b22aa7",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/backup.ts",
+      "sha": "e7fdbcfa626e9dc7ba96d7cf6fbd97eb91a9b1b9",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/behaviors/BehaviorsEditor.tsx",
+      "sha": "a6bf1b97dd9672c3fdedd0d7a234d91f37855c61",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/behaviors/BindingPicker.tsx",
+      "sha": "5dd6fbee6d423db7a3d009e2d8632ecd77040278",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/behaviors/features.ts",
+      "sha": "c0fcf4716fec23f6181905810bd2de9603fd8432",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/behaviors/importKeymap.ts",
+      "sha": "cc7e249f0c23180683a9e5b9331603f70631db60",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/behaviors/keycodes.json",
+      "sha": "d881d8dbf170b28cbec36dd005b1463dff204aa8",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/behaviors/keymapFile.ts",
+      "sha": "f2393224acfa481078c84b36bfd4d0dfdf4e29ad",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/behaviors/layouts.ts",
+      "sha": "5ee7a5cfa3c5576c9390d98e1fd98061a6d351d5",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/behaviors/model.ts",
+      "sha": "3c72b8a50900f45c1e787f26c0bb88a7769cfb1b",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/boardKeys.ts",
+      "sha": "b5a0cce06d06d06d8fbf563715ebdab5d298c4d3",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/hidLabels.ts",
+      "sha": "4e411f1d6c90e5f85fa8c28f8106a86e6bd3fc47",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/i18n.ts",
+      "sha": "b523fc9d00be6a8828a578d70c6317a9d4678d03",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/keyLegend.tsx",
+      "sha": "e064768d97a2c1f742dc8c035d82b2f8167e9968",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/keyboards.ts",
+      "sha": "b85f3910e5fac18d549d4d878612611f43a90488",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/power.ts",
+      "sha": "0d1a72bf01b4c926dbb09f3ac09c1e46aa82efd3",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/ryong.css",
+      "sha": "d7a889aeaef855395bf22ee81bb4a0038712dba4",
+      "mode": "100644"
+    },
+    {
+      "path": "src/ryong/unlockHint.ts",
+      "sha": "ee129f04a3be638f058eb906d7ddb335348c1a10",
+      "mode": "100644"
+    },
+    {
+      "path": "src/tauri/ble.ts",
+      "sha": "90ca63eab21f32a49641fa09e1bb80e0bef13396",
+      "mode": "100644"
+    },
+    {
+      "path": "src/tauri/index.ts",
+      "sha": "4d24c74350d6f6030ba1639e348969a1380ac942",
+      "mode": "100644"
+    },
+    {
+      "path": "src/tauri/serial.ts",
+      "sha": "806049d6d247021dcbd1728606fa316c47db1234",
+      "mode": "100644"
+    },
+    {
+      "path": "src/undoRedo.ts",
+      "sha": "5690830ccc215fa5bed4f46a09750681245de161",
+      "mode": "100644"
+    },
+    {
+      "path": "src/usePubSub.ts",
+      "sha": "fa2bfe4219ebac851a9ad923a18f1395b72e2642",
+      "mode": "100644"
+    },
+    {
+      "path": "src/vite-env.d.ts",
+      "sha": "11f02fe2a0061d6e6e1f271b21da95423b448b32",
+      "mode": "100644"
+    },
+    {
+      "path": "tailwind.config.js",
+      "sha": "7b75d5fe798cbcbf192a4cecd2b8e77fda131944",
+      "mode": "100644"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha": "a7fc6fbf23de2a53e36754bc4a2c306d0291d7b2",
+      "mode": "100644"
+    },
+    {
+      "path": "tsconfig.node.json",
+      "sha": "97ede7ee6f2d37bd2d76e60c0b6a447bee718b05",
+      "mode": "100644"
+    },
+    {
+      "path": "vite.config.ts",
+      "sha": "46cb69a637456c653ebd12aeb3a6cc5284470b73",
+      "mode": "100644"
+    }
+  ]
+}
