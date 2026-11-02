@@ -2,54 +2,60 @@
 
 ## Protected baseline
 
-Never modify hiryong/keys-ryong or deploy keys.ryong.com. All development is in
-hiryong/ryong-firmware, dev/keys-ryong-runtime. Preserve the 298 original blobs
-under apps/keys-ryong; edit only apps/keys-ryong-runtime.
-Production already fully supports the owner's BT60 v2. BT60 is the real
+Never write to hiryong/keys-ryong or deploy keys.ryong.com. Work only in
+hiryong/ryong-firmware, dev/keys-ryong-runtime. Preserve all 298 baseline blobs
+under apps/keys-ryong; edit the independent apps/keys-ryong-runtime copy.
+Production already fully supports the owner's BT60 v2. BT60 is the actual
 development fixture while Ryong60 hardware is unavailable.
 
-## Completed software milestones
+## Implemented development software
 
-- [x] Host C core and GCC/Clang CI.
-- [x] Original full app copy and exact source hash verification.
-- [x] Pinned runtime combo/macro modules and secured RPC registrations.
-- [x] Actual baseline/runtime ZMK compilation for Ryong60 and BT60 independently.
-- [x] Seven module native event snapshots and build isolation/security checks.
-- [x] Compatible custom Studio client, shared connection and bounded codecs.
-- [x] Existing combo/macro editor reused in isolated runtime app.
-- [x] Read/edit/save/readback implementation with optimistic state check,
-  durable browser journal, reference-aware rename/delete and no blind retries.
-- [x] Mock restart, lock, stale-state, concurrency and interrupted-save tests.
-- [x] Real-browser editor save/rename/delete/reload tests.
-- [x] Standalone browser-only HTML preview with device transports disabled.
+- [x] GCC/Clang host core and build/security regression checks.
+- [x] Original app copy, immutable source hash verification and independent build.
+- [x] Pinned combo/macro/Tap Dance modules and secured custom RPC registrations.
+- [x] Selected, hardened MIT Hold-Tap port with stable explicit storage slots.
+- [x] Independent BT60 and Ryong60 baseline/runtime ZMK compilation.
+- [x] Compatible custom Studio client on the original shared connection.
+- [x] Reuse existing combo, macro, Tap Dance and Hold-Tap option editors.
+- [x] Read/edit/save/readback with bounds, unlock, stale-state and concurrency checks.
+- [x] Symbolic combo -> dance -> macro references and reference-aware macro rename.
+- [x] Semantic dynamic backup import/export and interrupted-save recovery review.
+- [x] Browser-storage offline preview; USB/BLE transports disabled in that build.
+- [x] Separate firmware-update explanation; existing Firmware tab preserved.
 
-## Next software gates
+## Automated verification
 
-- [ ] Complete recovery UI for retained journals and partial multi-module saves.
-- [ ] Migrate original SETTINGS_TABLE behavior IDs to runtime CRC16 IDs safely.
-- [ ] Preserve original keymaps and BLE bonds; test rollback.
-- [ ] Integrate and test Tap Dance, then evaluate dynamic Hold-Tap.
-- [ ] Device/native interaction tests: overlap, layer and Hold-Tap ordering,
-  cancellation and release guarantees during configuration changes.
+- [x] Core tests and 5 Python/C isolation, security and settings-store tests.
+- [x] Model/service restart, lock, stale-state, journal failure and concurrency cases.
+- [x] Macro rename/delete: 20 interruption/ACK-loss points.
+- [x] Cross-feature links and 50 modeled save/ACK-loss scenarios.
+- [x] Existing editor browser and direct file:// preview checks, including
+  Tap Dance actions, Hold-Tap values, dynamic backup download/import and reload.
+- [x] Final 12 native snapshots (5 combo, 2 macro, 2 Tap Dance, 3 Hold-Tap): passed in run 41384769725.
 
-## Physical verification (not yet done)
+## Physical verification and migration remain open
 
-- [ ] Confirm BT60 unit, known-good restoration firmware and reliable physical
-  bootloader entry after an application failure.
-- [ ] Actual USB/BLE runtime RPC and locked-write enforcement.
-- [ ] Actual reboot persistence and interrupted-flash recovery.
-- [ ] Typing, BLE bonds, USB HID, sleep/wake and power regression.
+- [ ] Confirm actual BT60 revision, bootloader and known-good restoration image.
+- [ ] Prove physical bootloader entry even when application firmware is unresponsive.
+- [ ] Test original SETTINGS_TABLE -> runtime CRC16 keymap migration and rollback.
+- [ ] Preserve BLE bonds through the actual upgrade.
+- [ ] USB/BLE runtime RPC and firmware-side locked-write enforcement.
+- [ ] Reboot persistence, interrupted flash, concurrent playback/editing and key release.
+- [ ] Typing, USB HID, sleep/wake and power regression.
 - [ ] Resolve separate Ryong60 DCDC/LDO source/hardware discrepancy.
 
-## Release gates (closed)
+## Product release gates (closed)
 
-- [ ] Board/model checks and practical emergency recovery.
-- [ ] Signed, verified firmware update pipeline.
-- [ ] Settings migration, downgrade policy and staged QA.
-- [ ] Independent official-ZMK baseline comparison and production sign-off.
+- [ ] Versioned storage schema and tested downgrade policy.
+- [ ] Board/model identity and signed update validation.
+- [ ] User-friendly firmware update transport and practical emergency recovery.
+- [ ] Independent official-ZMK comparison, staging and production sign-off.
 
-No installable firmware is distributed. Browser/mock tests are not hardware
-verification. Standard keymap editing already exists in the preserved Studio
-app; a new keymap editor is not needed. No production deployment is authorized.
+Standard Studio already provides keymap/layer editing. Hold-Tap edits existing
+mt/lt timing/flavor; arbitrary new child-behavior types are outside this increment.
+Tap Dance is bounded to three actions and one shared interval. Whole-profile
+storage is not atomic across modules. No installable firmware is distributed,
+no physical test is requested, and no production deployment is authorized.
 
-See RUNTIME_INTEGRATION.md for exact test runs and limitations.
+See RUNTIME_INTEGRATION.md for exact source/run evidence and
+FIRMWARE_UPDATES.ko.md for the Korean update/recovery guide.

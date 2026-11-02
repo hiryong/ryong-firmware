@@ -20,7 +20,7 @@ Build a VIA-like runtime configuration experience on top of **ZMK**, retaining i
 
 Host-testable C prototype covers bounded profile validation, RAM edit transactions and pure combo matching. It does NOT implement live ZMK key-event interception, HID output, flash persistence, USB settings RPC or browser firmware updating.
 
-Actual isolated Ryong60 baseline and external-module builds now pass; this does not establish safe installation or functioning browser runtime editing. The original app source/assets copy also builds independently. See [integration checkpoint](docs/RUNTIME_INTEGRATION.md) for exact limitations.
+Actual Ryong60 and BT60 baseline/runtime builds pass. The isolated original editor now supports runtime combo, macro, Tap Dance and existing Hold-Tap timing configuration, with dynamic backup/recovery review. Browser/mock tests and native snapshots pass; live-device persistence, upgrade migration and recovery are still unverified. No installable development image is distributed. See the [integration checkpoint](docs/RUNTIME_INTEGRATION.md) and [Korean update guide](docs/FIRMWARE_UPDATES.ko.md) for evidence and limits.
 
 See [AGENTS.md](AGENTS.md), [docs/ROADMAP.md](docs/ROADMAP.md), and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Do not claim a ZMK/Zephyr build or hardware test unless one has actually passed.
 
