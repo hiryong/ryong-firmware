@@ -1,0 +1,23 @@
+# EXPERIMENT ONLY — NOT A RELEASE OR AN INSTALLABLE FIRMWARE.
+# Pinned external sources inspected on 2026-11-02.
+# Use instead of the ORIGINAL ZMK west manifest only in an isolated build workspace.
+manifest:
+  remotes:
+    - name: cormoran
+      url-base: https://github.com/cormoran
+  projects:
+    - name: zmk
+      remote: cormoran
+      revision: 1fc72aaff7a42bd533c1f4c9b3f23c5317c745f4
+      import: app/west.yml
+    - name: zmk-feature-runtime-combo
+      remote: cormoran
+      revision: d9490e7b5d41c516221d131241009e81740efcee
+    - name: zmk-feature-runtime-macro
+      remote: cormoran
+      revision: 38530962eb7061b60efcb98e84585cfb1f0cb6de
+    - name: zmk-feature-custom-settings
+      remote: cormoran
+      revision: c6a7fef3a3be3d3ace5de9a4b0628c6418cd1f3f
+  self:
+    path: config
