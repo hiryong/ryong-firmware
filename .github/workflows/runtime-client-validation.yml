@@ -18,6 +18,14 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - name: Build pinned custom client
         run: bash experiments/runtime-client/prepare.sh "$GITHUB_WORKSPACE/vendor/runtime-studio-client"
+      - name: Generate MIT runtime protocol codecs
+        run: |
+          mkdir -p generated-runtime-proto
+          protoc --plugin=protoc-gen-ts_proto="$GITHUB_WORKSPACE/vendor/runtime-studio-client/node_modules/.bin/protoc-gen-ts_proto" --ts_proto_out=generated-runtime-proto --ts_proto_opt=env=browser,esModuleInterop=true --proto_path=experiments/runtime-client/proto experiments/runtime-client/proto/*.proto
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-runtime-protocol
+          path: generated-runtime-proto
       - name: Install preserved web app
         working-directory: apps/keys-ryong
         run: npm ci
