@@ -1,0 +1,2 @@
+/* Add the runtime macro behavior without changing the imported keymap. */
+#include <behaviors/runtime_macro.dtsi>

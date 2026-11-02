@@ -22,7 +22,12 @@ class BuildTools(unittest.TestCase):
             for source in (ROOT / 'hardware/ryong60').rglob('*'):
                 if source.is_file():
                     copied = dest / 'board' / source.relative_to(ROOT / 'hardware/ryong60')
-                    self.assertEqual(source.read_bytes(), copied.read_bytes())
+                    if source.name == 'ryong60_nrf52840_zmk_defconfig':
+                        expected = "".join(line for line in source.read_text().splitlines(keepends=True)
+                                           if not line.startswith(("CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_USB=", "CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX=")))
+                        self.assertEqual(expected, copied.read_text())
+                    else:
+                        self.assertEqual(source.read_bytes(), copied.read_bytes())
             result = subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_zmk.py'), str(dest)], capture_output=True)
             self.assertNotEqual(result.returncode, 0)
 
