@@ -37,17 +37,30 @@ ry_result_t ry_profile_validate(const ry_profile_t *p) {
             m->step_count > RY_MAX_MACRO_STEPS) return RY_ERR_LIMIT;
         for (uint8_t j = 0; j < i; ++j)
             if (p->macros[j].id == m->id) return RY_ERR_DUPLICATE;
+        bool held[256] = {false};
+        uint32_t duration_ms = 0;
         for (uint8_t s = 0; s < m->step_count; ++s) {
             const ry_macro_step_t *st = &m->steps[s];
             if (st->type == RY_MACRO_DELAY) {
                 if (st->code != 0 || st->delay_ms == 0 || st->delay_ms > 5000)
                     return RY_ERR_INVALID;
+                duration_ms += st->delay_ms;
+                if (duration_ms > 10000) return RY_ERR_LIMIT;
             } else if (st->type == RY_MACRO_PRESS ||
                        st->type == RY_MACRO_RELEASE) {
                 if (st->code == 0 || st->code > 0xFFu || st->delay_ms != 0)
                     return RY_ERR_INVALID;
+                if (st->type == RY_MACRO_PRESS) {
+                    if (held[st->code]) return RY_ERR_INVALID;
+                    held[st->code] = true;
+                } else {
+                    if (!held[st->code]) return RY_ERR_INVALID;
+                    held[st->code] = false;
+                }
             } else return RY_ERR_INVALID;
         }
+        for (unsigned code = 1; code < 256; ++code)
+            if (held[code]) return RY_ERR_INVALID;
     }
 
     for (uint8_t i = 0; i < p->combo_count; ++i) {
@@ -163,3 +176,4 @@ int ry_combo_match(const ry_profile_t *p, const uint8_t *held,
     }
     return -1;
 }
+

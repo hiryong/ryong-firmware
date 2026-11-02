@@ -5,6 +5,7 @@ on:
       - 'src/**'
       - 'include/**'
       - 'tests/**'
+      - 'scripts/**'
       - 'CMakeLists.txt'
       - '.github/workflows/host-tests.yml'
   pull_request:
@@ -12,6 +13,7 @@ on:
       - 'src/**'
       - 'include/**'
       - 'tests/**'
+      - 'scripts/**'
       - 'CMakeLists.txt'
       - '.github/workflows/host-tests.yml'
 permissions:
@@ -30,5 +32,7 @@ jobs:
         run: cmake -S . -B build -DCMAKE_C_COMPILER=${{ matrix.compiler }} -DCMAKE_BUILD_TYPE=Debug
       - name: Compile
         run: cmake --build build --parallel 2
+      - name: Build isolation and security tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Test
         run: ctest --test-dir build --output-on-failure

@@ -123,7 +123,36 @@ static void test_bounds_and_conflicts(void) {
     assert(ry_store_abort(&s) == RY_OK);
 }
 
+static void test_macro_release_safety(void) {
+    ry_profile_t p = default_profile();
+    p.macro_count = 1;
+    ry_macro_t *m = &p.macros[0];
+    m->step_count = 1;
+    m->steps[0] = (ry_macro_step_t){.type = RY_MACRO_PRESS, .code = 4};
+    assert(ry_profile_validate(&p) == RY_ERR_INVALID); /* missing release */
+    m->steps[0].type = RY_MACRO_RELEASE;
+    assert(ry_profile_validate(&p) == RY_ERR_INVALID); /* release not owned */
+    m->steps[0].type = RY_MACRO_PRESS;
+    m->step_count = 3;
+    m->steps[1] = m->steps[0];
+    m->steps[2] = (ry_macro_step_t){.type = RY_MACRO_RELEASE, .code = 4};
+    assert(ry_profile_validate(&p) == RY_ERR_INVALID); /* repeated press */
+    m->steps[1] = (ry_macro_step_t){.type = RY_MACRO_DELAY, .delay_ms = 5000};
+    assert(ry_profile_validate(&p) == RY_OK);
+    m->step_count = 5;
+    m->steps[2] = m->steps[1];
+    m->steps[3] = (ry_macro_step_t){.type = RY_MACRO_DELAY, .delay_ms = 1};
+    m->steps[4] = (ry_macro_step_t){.type = RY_MACRO_RELEASE, .code = 4};
+    assert(ry_profile_validate(&p) == RY_ERR_LIMIT);
+    m->steps[3].delay_ms = 0;
+    assert(ry_profile_validate(&p) == RY_ERR_INVALID);
+    m->step_count = 4;
+    m->steps[3] = m->steps[4];
+    assert(ry_profile_validate(&p) == RY_OK); /* exact 10s bound */
+}
+
 int main(void) {
+    test_macro_release_safety();
     test_initialization_and_transaction();
     test_invalid_commit_is_non_destructive();
     test_macro_and_combo_refs();
@@ -132,3 +161,4 @@ int main(void) {
     puts("Ryong core host tests: all passed");
     return 0;
 }
+
