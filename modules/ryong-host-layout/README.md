@@ -19,8 +19,10 @@ layout changes wait for tracked keys to release. Release uses the exact usage
 latched at press, even when endpoint or settings change. All hot-path storage
 is fixed (96 positions), with no per-key flash writes or dynamic allocation.
 
-Known gates: no physical verification; the detector's persisted BLE override
-currently follows the profile slot rather than a verified bond identity. Do not
-ship this experiment or request flashing until re-pair reset is implemented and
-verified. A successful board compile would establish API/build compatibility,
+A private versioned owner record binds each profile's detected cache and manual
+override to its actual BLE peer address. On a changed/missing owner, both values
+are cleared durably before adopting the new owner. Failed writes fail closed and
+keep the old owner for retry. No peer address is exposed through RPC.
+Known gates: no physical verification; the new bond-reset adapter needs fault
+coverage and a real unpair/re-pair test before release. Do not ship or request flashing. A successful board compile would establish API/build compatibility,
 not OS classification accuracy, BLE bond continuity or release safety.

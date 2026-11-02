@@ -50,6 +50,22 @@ class BuildTools(unittest.TestCase):
             paths.append(path)
         return paths
 
+    def test_os_adapter_anchor_failure_leaves_every_source_untouched(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            paths = self.fixture(root)
+            os_root = root / 'zmk-feature-os-detection/src'
+            handler = os_root / 'studio/os_detection_handler.c'
+            handler.parent.mkdir(parents=True)
+            handler.write_text(OLD)
+            core = os_root / 'os_detection_core.c'
+            core.write_text('changed upstream')
+            paths.extend([handler, core])
+            before = [p.read_bytes() for p in paths]
+            result = subprocess.run([sys.executable, str(ROOT / 'scripts/secure_runtime_rpc.py'), temp], capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(before, [p.read_bytes() for p in paths])
+
     def test_all_handlers_require_unlock(self):
         with tempfile.TemporaryDirectory() as temp:
             paths = self.fixture(Path(temp))

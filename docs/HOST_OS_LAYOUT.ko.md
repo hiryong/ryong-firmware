@@ -57,3 +57,19 @@ The detector is pinned to 3052679f645b8fc1997275c2eaa6b86bdd55ca01; its custom
 Studio handler is secured by the fail-closed source patch.
 Do not call this real-device verified. Bond-identity reset, integrated OS UI,
 physical classification and native ZMK event snapshots remain open.
+
+
+## Host profile UI and bond-owner guard
+
+The integrated host-layout section uses the detector's generated protobuf codec,
+requires Studio unlock, reads current profile state before writes, validates the
+acknowledgement and reads back without automatic retries after a lost reply.
+AUTO / Apple / Windows standard are offered per bonded profile.
+
+A local private `bond_owner_v1` custom-settings record now associates each slot
+with its actual paired BLE address. A missing/changed owner clears the override
+and detected cache durably before committing the new owner. Failure leaves the
+old owner tag and fails closed. The firmware guard source passes a compiled
+host shim test including reboot after each of its three write failure points.
+The upstream adapter patch validates every anchor before changing any source.
+Hardware pairing and flash behavior remain unverified.
