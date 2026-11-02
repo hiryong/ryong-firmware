@@ -806,3 +806,8 @@ dialog:focus, dialog:focus-visible { outline: none; }
 .ry-via-tabs { justify-content: space-between; align-items: center; }
 .ry-via-tablist { display: flex; flex-wrap: wrap; gap: 6px; }
 .ry-via-current { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; margin: 0; height: 36px; overflow: hidden; color: var(--soft); font-size: 13px; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Runtime copy: layer list floats at the keyboard's left; the key picker gets the full width */
+.ry-layer-float { position: absolute; left: 12px; top: 12px; z-index: 10; width: max-content; min-width: 160px; max-width: 220px; max-height: calc(100% - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--line-strong); border-radius: 12px; background: rgba(13, 13, 13, 0.92); backdrop-filter: blur(8px); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5); }
+.ry-canvas-float .ry-keys-float { padding-left: 184px; }
+@media (max-width: 760px) { .ry-layer-float { min-width: 0; max-width: 120px; left: 8px; top: 8px; padding: 8px; } .ry-canvas-float .ry-keys-float { padding-left: 128px; } }

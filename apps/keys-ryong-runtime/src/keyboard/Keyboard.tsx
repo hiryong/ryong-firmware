@@ -509,9 +509,13 @@ export default function Keyboard() {
   }, [keymap, selectedLayerIndex]);
 
   return (
-    <div className="ry-canvas grid grid-cols-[auto_1fr] grid-rows-[1fr_minmax(10em,auto)] bg-base-300 max-w-full min-w-0 min-h-0">
-      <div className="p-2 flex flex-col gap-2 bg-base-200 row-span-2">
-        {layouts && (
+    <div className={viaFirst
+      ? "ry-canvas ry-canvas-float relative grid grid-cols-[minmax(0,1fr)] grid-rows-[1fr_auto] bg-base-300 max-w-full min-w-0 min-h-0"
+      : "ry-canvas grid grid-cols-[auto_1fr] grid-rows-[1fr_minmax(10em,auto)] bg-base-300 max-w-full min-w-0 min-h-0"}>
+      {/* runtime copy: layers float beside the keyboard instead of taking a full-height column */}
+      <div className={viaFirst ? "ry-layer-float" : "p-2 flex flex-col gap-2 bg-base-200 row-span-2"}>
+        {/* the keyboard reports its own layouts; a single one is not a choice, so it is not shown */}
+        {layouts && (!viaFirst || layouts.length > 1) && (
           <div className="col-start-3 row-start-1 row-end-2">
             <PhysicalLayoutPicker
               layouts={layouts}
@@ -538,7 +542,7 @@ export default function Keyboard() {
         )}
       </div>
       {layouts && keymap && behaviors && (
-        <div className="p-2 col-start-2 row-start-1 grid items-center justify-center relative min-w-0">
+        <div className={(viaFirst ? "ry-keys-float " : "") + "p-2 " + (viaFirst ? "col-start-1" : "col-start-2") + " row-start-1 grid items-center justify-center relative min-w-0"}>
           <div className={keymapView === "3d" ? "ry-view-3d" : "ry-view-2d"}>
           <div className="ry-tilt" key={keymapView}>
           <KeymapComp
@@ -591,7 +595,7 @@ export default function Keyboard() {
         </div>
       )}
       {keymap && selectedBinding && (
-        <div className="p-2 col-start-2 row-start-2 bg-base-200">
+        <div className={"p-2 " + (viaFirst ? "col-start-1" : "col-start-2") + " row-start-2 bg-base-200"}>
           {viaFirst && <ViaKeyGrid behaviors={Object.values(behaviors)} binding={selectedBinding}
             layers={keymap.layers.map(({ id, name }) => ({ id, name }))} onChange={doUpdateBinding}
             detail={detailPicker} onDetail={setDetailPicker} />}
