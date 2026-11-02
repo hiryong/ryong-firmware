@@ -1,0 +1,57 @@
+name: Ryong60 compile validation
+on:
+  push:
+    branches: [dev/keys-ryong-runtime]
+    paths: ['hardware/**', 'experiments/**', 'scripts/**', '.github/workflows/zmk-validation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    container: zmkfirmware/zmk-build-arm:stable
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [baseline, runtime]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare isolated workspace
+        run: python3 scripts/prepare_zmk.py /tmp/ryong-build
+      - name: Resolve pinned dependencies
+        working-directory: /tmp/ryong-build
+        run: |
+          west init -l config
+          west update --fetch-opt=--filter=tree:0
+          west zephyr-export
+          west manifest --freeze > resolved-manifest.yml
+      - name: Require Studio unlock in external modules
+        if: matrix.variant == 'runtime'
+        run: python3 scripts/secure_runtime_rpc.py /tmp/ryong-build
+      - name: Compile exact Ryong60 target
+        working-directory: /tmp/ryong-build
+        shell: bash
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          EXTRA=()
+          if [ "$VARIANT" = runtime ]; then EXTRA=("-DEXTRA_CONF_FILE=$GITHUB_WORKSPACE/experiments/dya-runtime/ryong60-runtime.conf"); fi
+          west build -s zmk/app -d build -b ryong60//zmk -S studio-rpc-usb-uart -- -DZMK_CONFIG=/tmp/ryong-build/config -DZMK_EXTRA_MODULES=/tmp/ryong-build/board "${EXTRA[@]}"
+      - name: Collect diagnostic reports only
+        if: always()
+        working-directory: /tmp/ryong-build
+        run: |
+          mkdir -p reports
+          cp resolved-manifest.yml reports/ || true
+          for f in .config zephyr.dts zephyr.map; do
+            if [ -f "build/zephyr/$f" ]; then cp "build/zephyr/$f" reports/; fi
+          done
+          if [ -f build/zephyr/zephyr.elf ]; then
+            arm-zephyr-eabi-size build/zephyr/zephyr.elf > reports/size.txt
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diagnostic-${{ matrix.variant }}
+          path: /tmp/ryong-build/reports
+# Deliberately never upload UF2, HEX, BIN or ELF: not hardware approved.
