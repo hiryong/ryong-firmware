@@ -35,6 +35,16 @@ import { useSub } from "../../usePubSub";
 import { WakePicker } from "../PowerInfo";
 import { KeyPress } from "../UnlockAnim";
 
+import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
+import { compileDocument, loadRuntimeView, RuntimeView, viewDocument } from "../runtime/modelBridge";
+import { makePreviewView } from "../runtime/preview";
+
+const RUNTIME_BOARD: Board = {
+  id: "runtime-development", name: "Runtime", note: "", repo: "hiryong/ryong-firmware",
+  branch: "dev/keys-ryong-runtime", workflow: "", artifact: "", keymap: "device",
+  match: ["BT60 V2", "ryong60"], layout: "60-ansi",
+};
+
 type Section = "combos" | "macros" | "tapDances";
 type Tab = Section | "settings";
 
@@ -82,6 +92,8 @@ interface Loaded {
 export const BehaviorsEditor = ({ connectedName }: { connectedName?: string }) => {
   const me = useMe();
   const mine = useMyBoards(me);
+  const { conn } = useContext(ConnectionContext);
+  const [preview, setPreview] = useState(false);
   const intro = (
     <div className="ry-sec">
       <h1 className="ry-h1">{t("Combos & Macros", "콤보·매크로")}</h1>
@@ -93,6 +105,20 @@ export const BehaviorsEditor = ({ connectedName }: { connectedName?: string }) =
       </p>
     </div>
   );
+  if (import.meta.env.VITE_RYONG_RUNTIME === "1") {
+    const runtimeIntro = <div className="ry-sec">
+      <h1 className="ry-h1">{t("Combos & Macros", "콤보·매크로")}</h1>
+      <p className="ry-lead">{preview
+        ? t("Preview · stored in this browser only. No keyboard is changed.", "미리보기 · 이 브라우저에만 저장하며 실제 키보드는 변경하지 않습니다.")
+        : t("Runtime development · edit the connected keyboard without rebuilding.", "런타임 개발본 · 연결한 키보드에 재빌드 없이 저장합니다.")}</p>
+    </div>;
+    if (!conn && !preview) return <div className="ry-beh">{runtimeIntro}
+      <p className="ry-note">{t("Connect a supported test keyboard and unlock Studio.", "시험용 키보드를 연결하고 Studio 잠금을 풀어 주세요.")}</p>
+      <button className="ry-primary" onClick={() => setPreview(true)}>{t("Explore preview", "연결 없이 미리보기")}</button>
+    </div>;
+    return <Editor key={preview ? "preview" : conn?.label} boards={[RUNTIME_BOARD]}
+      connectedName={connectedName} intro={runtimeIntro} runtimeConn={preview ? undefined : conn ?? undefined} preview={preview} />;
+  }
   if (me.loading) return intro;
   if (!me.user || me.repos.length === 0)
     return (
@@ -224,13 +250,19 @@ const Editor = ({
   connectedName,
   intro,
   onDirty,
+  runtimeConn,
+  preview = false,
 }: {
   boards: Board[];
   connectedName?: string;
   intro: ReactNode;
   onDirty?: (d: boolean) => void;
+  runtimeConn?: RpcConnection;
+  preview?: boolean;
 }) => {
   const lang = useLang();
+  const runtime = !!runtimeConn || preview;
+  const [runtimeView, setRuntimeView] = useState<RuntimeView | null>(null);
   const [kb, setKb] = useState<Board>(() => {
     const want = preferred;
     preferred = null;
@@ -264,6 +296,14 @@ const Editor = ({
     setError(null);
     setSaved(null);
     try {
+      if (runtime) {
+        const view = preview ? await makePreviewView() : await loadRuntimeView(runtimeConn!);
+        const d = viewDocument(view);
+        setRuntimeView(view);
+        setLoaded({ keymap: "", doc: d, savedJson: JSON.stringify(d), layers: view.layerNames, conf: "", board: null });
+        setDoc(d); setMovedKeymap(null); setConfEdits({}); setWakeNow(null); setOpenId(null);
+        return;
+      }
       const [keymap, json, conf, board] = await Promise.all([
         readFile(kb.repo, kb.branch, kb.keymap),
         readFile(kb.repo, kb.branch, jsonPath),
@@ -284,7 +324,7 @@ const Editor = ({
     } finally {
       setLoading(false);
     }
-  }, [kb, jsonPath]);
+  }, [kb, jsonPath, runtimeConn, preview, runtime]);
 
   useEffect(() => {
     load();
@@ -327,6 +367,31 @@ const Editor = ({
     setSaving(true);
     setError(null);
     try {
+      if (runtime) {
+        if (!runtimeView) throw new Error("Runtime device has not loaded.");
+        const desired = compileDocument(doc, runtimeView);
+        const journalKey = "ryong-runtime-pending:" + (preview ? "preview" : runtimeConn!.label);
+        const result = await runtimeView.session.save(runtimeView.snapshot, desired, {
+          prepare(before, next) {
+            localStorage.setItem(journalKey, JSON.stringify({ version: 1, device: connectedName, at: Date.now(), before, desired: next }));
+          },
+          complete() {
+            const pending = localStorage.getItem(journalKey);
+            if (pending) {
+              const historyKey = journalKey + ":history";
+              const history = JSON.parse(localStorage.getItem(historyKey) || "[]");
+              localStorage.setItem(historyKey, JSON.stringify([JSON.parse(pending), ...history].slice(0, 5)));
+            }
+            localStorage.removeItem(journalKey);
+          },
+        });
+        const view = { ...runtimeView, snapshot: result };
+        const nextDoc = viewDocument(view);
+        setRuntimeView(view); setDoc(nextDoc);
+        setLoaded({ ...loaded, doc: nextDoc, savedJson: JSON.stringify(nextDoc) });
+        setSaved(preview ? "preview" : "runtime");
+        return;
+      }
       const files = [
         { path: jsonPath, content: JSON.stringify(doc, null, 2) + "\n" },
         { path: dtsiPath, content: dtsi },
@@ -421,7 +486,7 @@ const Editor = ({
   return (
     <div className="ry-beh">
       {intro}
-      {intro !== null && <AccountRow />}
+      {intro !== null && !runtime && <AccountRow />}
 
       {boards.length > 1 && (
         <div className="ry-gap" role="tablist" aria-label={t("Keyboard", "키보드")}>
@@ -435,12 +500,16 @@ const Editor = ({
 
       {loading && <p className="ry-muted">{t("Loading {f}…", "{f} 불러오는 중…", { f: kb.keymap })}</p>}
       {error && <p className="ry-note ry-danger">{error}</p>}
+      {runtime && !loading && <div className="ry-row">
+        <p className="ry-faint">{t("Existing firmware defaults remain active. This list edits additional runtime entries.", "기존 펌웨어 기본 동작은 유지됩니다. 이 목록에서는 추가 동적 설정을 편집합니다.")}</p>
+        <button className="ry-text" onClick={load}>{t("Reload device", "다시 불러오기")}</button>
+      </div>}
 
       {loaded && (
         <>
           <div className="ry-row" style={{ borderBottom: "1px solid var(--line)" }}>
             <div className="ry-tabs">
-              {SECTIONS.map((s) => (
+              {SECTIONS.filter(s => !runtime || s.id === "combos" || s.id === "macros").map((s) => (
                 <button key={s.id} className="ry-tab" aria-pressed={section === s.id} onClick={() => setSection(s.id)}>
                   {s.label()}
                   <span className="ry-count">{(doc[s.id] ?? []).length}</span>
@@ -668,6 +737,9 @@ const Editor = ({
           )}
 
           <div className="ry-savebar">
+            {(saved === "runtime" || saved === "preview") && !dirty && <p className="ry-note">
+              {saved === "preview" ? t("Preview saved in this browser.", "미리보기를 이 브라우저에 저장했습니다.") : t("Saved to the keyboard. No firmware rebuild was requested.", "키보드에 저장했습니다. 펌웨어 재빌드는 요청하지 않았습니다.")}
+            </p>
             {issues.length > 0 && (
               <ul className="ry-issues">
                 {issues.map((p) => (
@@ -675,7 +747,7 @@ const Editor = ({
                 ))}
               </ul>
             )}
-            {saved && !dirty && (
+            {saved && saved !== "runtime" && saved !== "preview" && !dirty && (
               <p className="ry-note">
                 {L(
                   <>
@@ -702,7 +774,7 @@ const Editor = ({
               <span className="ry-faint ry-status">
                 <span className={`ry-dot ${dirty ? "is-busy-still" : "is-ok"}`} aria-hidden="true" />
                 {dirty ? t("Unsaved changes", "저장 안 된 변경") : t("All saved", "모두 저장됨")}
-                {loaded && !hasInclude(loaded.keymap)
+                {!runtime && loaded && !hasInclude(loaded.keymap)
                   ? t(" · The first save also adds one #include line to the keymap.", " · 처음 저장할 때 키맵에 #include 한 줄이 추가돼요.")
                   : ""}
               </span>
@@ -721,7 +793,7 @@ const Editor = ({
                   </button>
                 )}
                 <button className="ry-primary" disabled={!dirty || issues.length > 0 || saving} onClick={save}>
-                  {saving ? t("Saving…", "저장 중…") : t("Save & build firmware", "저장하고 펌웨어 빌드")}
+                  {saving ? t("Saving…", "저장 중…") : runtime ? (preview ? t("Save preview", "미리보기 저장") : t("Save to keyboard", "키보드에 저장")) : t("Save & build firmware", "저장하고 펌웨어 빌드")}
                 </button>
               </div>
             </div>

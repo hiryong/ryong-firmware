@@ -137,6 +137,7 @@ export async function readFile(repo: string, branch: string, path: string): Prom
 
 /** Writes all files as one commit on the branch. Returns the commit's web URL. */
 export async function commitFiles(repo: string, branch: string, files: { path: string; content: string }[], message: string): Promise<string> {
+  throw new Error("GitHub writes are disabled in this isolated runtime development copy.");
   const ref = await gh<{ object: { sha: string } }>(`/repos/${repo}/git/ref/heads/${encodeURIComponent(branch)}`);
   const parent = ref.object.sha;
   const commit = await gh<{ tree: { sha: string } }>(`/repos/${repo}/git/commits/${parent}`);

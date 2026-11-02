@@ -1,6 +1,6 @@
 import { call_rpc } from "@zmkfirmware/zmk-studio-ts-client/index";
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
-import type { BehaviorDoc, Binding, Mod } from "../behaviors/model";
+import type { BehaviorDoc, Binding, Mod, MacroStep as EditorStep } from "../behaviors/model";
 import { emptyDoc, textToKeys } from "../behaviors/model";
 import values from "./keycode-values.json";
 import * as C from "./proto/runtime_combo";
@@ -47,7 +47,7 @@ export async function loadRuntimeView(conn: RpcConnection): Promise<RuntimeView>
 
 export function keyValue(key: string, depth = 0): number {
   if (depth > 8) throw new Error("Modifier nesting exceeds limits.");
-  if (Object.hasOwn(codes, key) && !key.startsWith("__")) return codes[key];
+  if (Object.prototype.hasOwnProperty.call(codes, key) && !key.startsWith("__")) return codes[key];
   const match = /^(LC|LS|LA|LG|RC|RS|RA|RG)\((.+)\)$/.exec(key);
   if (match) return (keyValue(match[2], depth + 1) | codes["__mod_" + match[1]]) >>> 0;
   throw new Error("Unsupported key: " + key);
@@ -98,7 +98,7 @@ export function viewDocument(view: RuntimeView): BehaviorDoc {
   const doc = emptyDoc();
   doc.macros = view.snapshot.macros.map(macro => ({
     id: "runtime_macro_" + macro.slot, name: macro.name, tap: view.snapshot.macroLimits.tapMs, wait: 0,
-    steps: macro.steps.flatMap(step => {
+    steps: macro.steps.flatMap<EditorStep>(step => {
       if (step.delay) return [{ t: "wait" as const, ms: step.delay.delayMs }];
       if (step.keyTapSequence) {
         return Array.from(step.keyTapSequence.packedKeys, packed => ({
