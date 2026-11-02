@@ -61,6 +61,9 @@ function onto(w: number, h: number, p: [number, number][]) {
   return `matrix3d(${m.map((v) => +v.toFixed(6)).join(",")})`;
 }
 
+const WEBKIT = typeof navigator !== "undefined" && /AppleWebKit/.test(navigator.userAgent) &&
+  (!/Chrome|Chromium|Edg|OPR/.test(navigator.userAgent) || /CriOS|FxiOS|EdgiOS/.test(navigator.userAgent));
+
 const Key = ({ cx, w, dy, label, legend, role, uid }: { cx: number; w: number; dy: number; label: string; legend: number; role: string; uid: string }) => {
   const x1 = cx - w / 2, x2 = cx + w / 2;
   const TOP = TOP0 - dy, EDGE = EDGE0 - dy, BASE = BASE0 - dy;
@@ -85,11 +88,18 @@ const Key = ({ cx, w, dy, label, legend, role, uid }: { cx: number; w: number; d
         <path className="ua-dish" d={rounded([[df1, TOP + ins], [df2, TOP + ins], [dn2, EDGE - ins], [dn1, EDGE - ins]], 7)} />
         {/* printed on the top: the word is laid out flat, then mapped onto the key top's four corners
             (a true perspective, so it narrows toward the back like the top does, rather than slanting) */}
+        {/* WebKit (Safari and every iPhone browser) places transformed HTML inside SVG relative to the page,
+            so the printed word floats away from the key there; draw it as SVG text instead. */}
+        {WEBKIT ? (
+          <text className="ua-legend" x={legend} y={TOP + (EDGE - TOP) * 0.42} textAnchor="middle" dominantBaseline="middle"
+            transform={`translate(${legend} ${TOP}) scale(1 0.82) translate(${-legend} ${-TOP})`}>{label}</text>
+        ) : (
         <foreignObject x={0} y={0} width={1} height={1} overflow="visible">
           <div className="ua-legend-flat ua-legend" style={{ width: x2 - x1, height: FLAT_H, transform: onto(x2 - x1, FLAT_H, [[f1, TOP], [f2, TOP], [x2, EDGE], [x1, EDGE]]) }}>
             <span style={{ left: legend - x1 }}>{label}</span>
           </div>
         </foreignObject>
+        )}
       </g>
     </g>
   );
