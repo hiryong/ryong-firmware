@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { markSignInFailed, takeReturn } from "./api";
 import { Firmware } from "./Firmware";
-import { Backup } from "./Backup";
+import { Backup } from "./BackupPage";
 import { Guide } from "./Guide";
 import { t } from "./i18n";
 import { LangToggle } from "./LangToggle";
