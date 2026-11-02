@@ -111,12 +111,14 @@ assert.equal((await call(h.login, "POST", "/api/admin/login", { body: { password
 assert.equal((await call(h.builds, "POST", "/api/admin/builds", { body: { target: "esp32" } })).status, 400);
 assert.equal((await call(h.builds, "POST", "/api/admin/builds", { body: { target: "bt60", idle_timeout_s: 5 } })).status, 400);
 assert.equal((await call(h.builds, "POST", "/api/admin/builds", { body: { target: "bt60", label: "x;rm -rf" } })).status, 400);
-r = await call(h.builds, "POST", "/api/admin/builds", { body: { target: "bt60", label: "절전 테스트", sleep_min: 10, tx_power: "plus8" } });
+r = await call(h.builds, "POST", "/api/admin/builds", { body: { target: "bt60", label: "절전 테스트", sleep_min: 10, tx_power: "plus8", keyboard_name: "Cheeto" } });
 assert.equal(r.status, 200);
 assert.ok(r.json.id > 200, "found the dispatched run");
 const d = gh.dispatches.at(-1).body;
 assert.equal(d.ref, "dev/keys-ryong-runtime");
-assert.deepEqual(Object.keys(d.inputs).sort(), ["debounce_press_ms", "debounce_release_ms", "idle_timeout_s", "label", "request_id", "sleep_min", "target", "tx_power"]);
+assert.deepEqual(Object.keys(d.inputs).sort(), ["debounce_press_ms", "debounce_release_ms", "idle_timeout_s", "keyboard_name", "label", "request_id", "sleep_min", "target", "tx_power"]);
+assert.equal(d.inputs.keyboard_name, "Cheeto");
+assert.equal((await call(h.builds, "POST", "/api/admin/builds", { body: { target: "bt60", keyboard_name: "치토\"; x" } })).status, 400);
 assert.ok(Object.values(d.inputs).every((v) => typeof v === "string"));
 r = await call(h.builds, "GET", "/api/admin/builds");
 assert.equal(r.json.builds.find((b) => b.id === 101).target, "bt60");

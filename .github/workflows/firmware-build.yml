@@ -18,6 +18,7 @@ on:
       debounce_press_ms: { description: "Press debounce (ms)", required: false, default: "5" }
       debounce_release_ms: { description: "Release debounce (ms)", required: false, default: "5" }
       tx_power: { description: "default | plus4 | plus8", required: false, default: default }
+      keyboard_name: { description: "Bluetooth name (empty = board default)", required: false, default: "" }
       request_id: { description: "Set by the admin page to find this run", required: false, default: req-manual }
 permissions:
   contents: read
@@ -41,6 +42,7 @@ jobs:
           DP: ${{ inputs.debounce_press_ms }}
           DR: ${{ inputs.debounce_release_ms }}
           TX: ${{ inputs.tx_power }}
+          KBNAME: ${{ inputs.keyboard_name }}
           REQ: ${{ inputs.request_id }}
         run: |
           set -euo pipefail
@@ -51,6 +53,7 @@ jobs:
           int "$IDLE" 10 3600 idle_timeout_s; int "$SLEEP" 0 1440 sleep_min
           int "$DP" 1 30 debounce_press_ms; int "$DR" 1 30 debounce_release_ms
           [[ "$TX" == default || "$TX" == plus4 || "$TX" == plus8 ]] || { echo "::error::bad tx_power"; exit 1; }
+          [[ -z "$KBNAME" || "$KBNAME" =~ ^[A-Za-z0-9][A-Za-z0-9\ _-]{0,15}$ ]] || { echo "::error::bad keyboard_name"; exit 1; }
           if (( 10#$SLEEP > 0 && 10#$SLEEP * 60 <= 10#$IDLE )); then echo "::error::sleep must be longer than idle"; exit 1; fi
           {
             echo "CONFIG_ZMK_IDLE_TIMEOUT=$(( 10#$IDLE * 1000 ))"
@@ -59,6 +62,7 @@ jobs:
             echo "CONFIG_ZMK_KSCAN_DEBOUNCE_RELEASE_MS=$(( 10#$DR ))"
             if [ "$TX" = plus4 ]; then echo "CONFIG_BT_CTLR_TX_PWR_PLUS_4=y"; fi
             if [ "$TX" = plus8 ]; then echo "CONFIG_BT_CTLR_TX_PWR_PLUS_8=y"; fi
+            if [ -n "$KBNAME" ]; then echo "CONFIG_ZMK_KEYBOARD_NAME=\"$KBNAME\""; fi
           } > /tmp/admin-settings.conf
           cat /tmp/admin-settings.conf
       - name: Prepare workspace

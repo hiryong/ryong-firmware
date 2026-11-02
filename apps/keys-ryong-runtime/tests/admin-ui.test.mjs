@@ -77,11 +77,12 @@ for (const viewport of [{ width: 1280, height: 860 }, { width: 390, height: 844 
   await step("start a build with the chosen settings", async () => {
     await page.getByRole("button", { name: "빌드", exact: true }).click();
     await page.getByRole("radio", { name: "BT60 v2" }).click();
-    await page.getByLabel("이름").fill("Oreo 조명 테스트");
+    await page.getByLabel("이름", { exact: true }).fill("Oreo 조명 테스트");
+    await page.getByLabel("Bluetooth 이름").fill("Cheeto");
     await page.getByRole("button", { name: "빌드 시작" }).click();
     await page.getByText("빌드 r777를 시작했어요", { exact: false }).waitFor();
     const b = sent.findLast((x) => x.p === "/builds").body;
-    assert.equal(b.target, "bt60"); assert.equal(b.label, "Oreo 조명 테스트"); assert.equal(b.idle_timeout_s, 30); assert.equal(b.tx_power, "default");
+    assert.equal(b.target, "bt60"); assert.equal(b.label, "Oreo 조명 테스트"); assert.equal(b.keyboard_name, "Cheeto"); assert.equal(b.idle_timeout_s, 30); assert.equal(b.tx_power, "default");
     await page.screenshot({ path: `${output}/${tag}-2-build.png`, fullPage: true });
   });
   await step("bench-test record: verdict follows the checklist, then saved", async () => {

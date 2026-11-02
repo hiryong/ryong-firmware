@@ -193,6 +193,7 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (t: "test",
   const [label, setLabel] = useState("");
   const [vals, setVals] = useState<{ [k: string]: number }>(() => Object.fromEntries(FIELDS.map((f) => [f.id, f.def])));
   const [tx, setTx] = useState("default");
+  const [kbName, setKbName] = useState("");
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState<string | null>(null);
   const list = useLoad<{ builds: BuildRow[] }>("/builds", onError);
@@ -204,7 +205,7 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (t: "test",
   const start = async (e: FormEvent) => {
     e.preventDefault(); setBusy(true); setStarted(null);
     try {
-      const r = await api<{ id: number | null; url?: string }>("/builds", { method: "POST", body: JSON.stringify({ target, label, ...vals, tx_power: tx }) });
+      const r = await api<{ id: number | null; url?: string }>("/builds", { method: "POST", body: JSON.stringify({ target, label, ...vals, tx_power: tx, keyboard_name: kbName }) });
       setStarted(r.id ? `빌드 r${r.id}를 시작했어요. 보통 5–10분 걸려요.` : "빌드를 요청했어요. 목록에 곧 나타나요.");
       setTimeout(list.reload, 1500);
     } catch (err) { onError(err); } finally { setBusy(false); }
@@ -225,6 +226,10 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (t: "test",
             <span className="kc-num"><input type="number" min={f.min} max={f.max} value={vals[f.id]} required
               onChange={(e) => setVals({ ...vals, [f.id]: Number(e.target.value) })} /><span className="ry-faint">{f.unit}</span></span>
             {f.hint && <span className="ry-faint">{f.hint}</span>}</label>)}
+          <label className="kc-field"><span className="ry-label">Bluetooth 이름</span>
+            <input type="text" maxLength={16} placeholder={target === "bt60" ? "비우면 BT60 V2" : "비우면 Ryong60"} value={kbName}
+              onChange={(e) => setKbName(e.target.value)} pattern="[A-Za-z0-9][A-Za-z0-9 _\-]{0,15}" />
+            <span className="ry-faint">컴퓨터·폰에 보이는 이름. 영문·숫자 16자 (예: Cheeto)</span></label>
           <label className="kc-field"><span className="ry-label">Bluetooth 신호 세기</span>
             <select value={tx} onChange={(e) => setTx(e.target.value)}>
               <option value="default">기본 (0 dBm)</option><option value="plus4">강하게 (+4 dBm)</option><option value="plus8">가장 강하게 (+8 dBm)</option>

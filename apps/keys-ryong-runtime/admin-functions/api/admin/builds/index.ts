@@ -3,9 +3,9 @@ import { BUILD_WORKFLOW, gh, ghJson, GitHubError, isGitHubError, listValidated, 
 
 export interface BuildSettings {
   target: string; label: string; idle_timeout_s: number; sleep_min: number;
-  debounce_press_ms: number; debounce_release_ms: number; tx_power: string;
+  debounce_press_ms: number; debounce_release_ms: number; tx_power: string; keyboard_name: string;
 }
-export const DEFAULTS: Omit<BuildSettings, "target" | "label"> = { idle_timeout_s: 30, sleep_min: 15, debounce_press_ms: 5, debounce_release_ms: 5, tx_power: "default" };
+export const DEFAULTS: Omit<BuildSettings, "target" | "label"> = { idle_timeout_s: 30, sleep_min: 15, debounce_press_ms: 5, debounce_release_ms: 5, tx_power: "default", keyboard_name: "" };
 
 const int = (v: unknown, min: number, max: number, name: string) => {
   const n = Number(v);
@@ -27,7 +27,10 @@ export function settingsFrom(body: unknown): BuildSettings {
     debounce_press_ms: int(b.debounce_press_ms ?? DEFAULTS.debounce_press_ms, 1, 30, "누름 디바운스"),
     debounce_release_ms: int(b.debounce_release_ms ?? DEFAULTS.debounce_release_ms, 1, 30, "뗌 디바운스"),
     tx_power: String(b.tx_power ?? DEFAULTS.tx_power),
+    keyboard_name: String(b.keyboard_name ?? "").trim(),
   };
+  // Shown to computers when pairing. ZMK allows 16 bytes; keep it plain ASCII so every host shows it.
+  if (s.keyboard_name && !/^[A-Za-z0-9][A-Za-z0-9 _-]{0,15}$/.test(s.keyboard_name)) throw new Error("Bluetooth 이름은 영문·숫자·공백·-·_ 16자 이내예요.");
   if (!["default", "plus4", "plus8"].includes(s.tx_power)) throw new Error("Bluetooth 출력 값이 올바르지 않아요.");
   if (s.sleep_min > 0 && s.sleep_min * 60 <= s.idle_timeout_s) throw new Error("절전 시간은 유휴 판단 시간보다 길어야 해요.");
   return s;
