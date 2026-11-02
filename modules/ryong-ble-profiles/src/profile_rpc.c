@@ -3,9 +3,12 @@
 #include <string.h>
 #include <pb_decode.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 #include <zmk/studio/custom.h>
 #include <ryong/ble_profiles.pb.h>
 #include <ryong/ble_profile_store.h>
+
+LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #define RYONG_BLE_PROFILES_PROTOCOL 1
 BUILD_ASSERT(sizeof(((ryong_ble_profiles_Profile *)0)->name) == RY_BT_NAME_MAX + 1);
