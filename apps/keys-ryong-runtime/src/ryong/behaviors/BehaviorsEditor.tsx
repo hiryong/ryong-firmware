@@ -522,7 +522,7 @@ const Editor = ({
         <p className="ry-faint">{t("Existing firmware defaults remain active. This list edits additional runtime entries.", "기존 펌웨어 기본 동작은 유지됩니다. 이 목록에서는 추가 동적 설정을 편집합니다.")}</p>
         <button className="ry-text" disabled={saving} onClick={load}>{t("Reload device", "다시 불러오기")}</button>
         <button className="ry-text" disabled={saving || !runtimeView} onClick={()=>runtimeView && downloadText("ryong-dynamic-backup.json",exportProfile(doc,runtimeView))}>{t("Export dynamic settings","동적 설정 백업")}</button>
-        <label className="ry-text">{t("Import backup","백업 불러오기")}<input aria-label={t("Import runtime backup","동적 설정 백업 불러오기")} type="file" accept=".json,application/json" disabled={saving} onChange={async e=>{
+        <label className="ry-text">{t("Import backup","백업 불러오기")}<input aria-label={t("Import runtime backup","동적 설정 백업 불러오기")} type="file" hidden accept=".json,application/json" disabled={saving} onChange={async e=>{
           const file=e.currentTarget.files?.[0];e.currentTarget.value="";
           if(!file || !runtimeView)return;
           try {if(file.size>262144)throw new Error("Backup exceeds 256 KiB.");setDoc(importProfile(await file.text(),runtimeView));setError(null);}
