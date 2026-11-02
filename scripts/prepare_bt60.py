@@ -62,6 +62,16 @@ if "--host-layout" in sys.argv[2:]:
     if base.count(right) != 1:
         raise SystemExit("Re-audit BT60 right modifier positions")
     base = base.replace(right, "&kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL")
-    keymap.write_text(text[:start] + base + text[end:])
+    # Fn+Tab (&tog 1, the "os" layer) used to force the other OS's order by hand. With automatic
+    # keys a fixed layer would mask detection, so it now means "the other OS's order" relative to
+    # the detected host: Windows host → Mac order, Apple host → Windows order. Off at power-up.
+    os_end = text.index("    raise {", end)
+    os_layer = text[end:os_end]
+    os_row = {"cheeto": "&trans &kp LALT &kp LGUI &trans &kp RGUI &kp RALT &trans &trans",
+              "oreo": "&trans &kp LGUI &kp LALT &trans &kp RALT &kp C_MENU &trans &trans"}[VARIANT]
+    if os_layer.count(os_row) != 1 or "&tog 1" not in text[os_end:]:
+        raise SystemExit("Re-audit BT60 os layer (Fn+Tab)")
+    os_layer = os_layer.replace(os_row, "&trans &ry_host LALT LGUI &ry_host LGUI LALT &trans &ry_host RGUI RALT &ry_host RALT C_MENU &trans &trans")
+    keymap.write_text(text[:start] + base + os_layer + text[os_end:])
 
 

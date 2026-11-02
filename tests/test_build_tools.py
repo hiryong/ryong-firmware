@@ -42,7 +42,10 @@ class BuildTools(unittest.TestCase):
             self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL', base)
             self.assertEqual(base.count('&ry_host'), 4)
             original = (ROOT / 'hardware/test-fixtures/bt60-v2/config/bt60.keymap').read_text()
-            self.assertEqual(generated.split('    os {', 1)[1], original.split('    os {', 1)[1])
+            os_layer = generated.split('    os {', 1)[1].split('    raise {', 1)[0]
+            self.assertIn('&trans &ry_host LALT LGUI &ry_host LGUI LALT &trans &ry_host RGUI RALT &ry_host RALT C_MENU &trans &trans', os_layer)  # Fn+Tab: the other OS's order, relative to detection
+            self.assertNotIn('&kp LALT', os_layer)
+            self.assertEqual(generated.split('    raise {', 1)[1], original.split('    raise {', 1)[1])
             self.assertNotIn('&ry_host', original)
 
     def test_oreo_variant_gives_the_same_adaptive_row(self):
@@ -52,6 +55,7 @@ class BuildTools(unittest.TestCase):
             generated = (dest / 'config/bt60.keymap').read_text()
             base = generated.split('    base {', 1)[1].split('    os {', 1)[0]
             self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL', base)
+            self.assertIn('&trans &ry_host LALT LGUI &ry_host LGUI LALT &trans &ry_host RGUI RALT &ry_host RALT C_MENU &trans &trans', generated.split('    os {', 1)[1].split('    raise {', 1)[0])
             self.assertIn('&bl BL_TOG', generated)  # Oreo's backlight keys stay
 
     def test_simulation_requires_hardened_metadata(self):
