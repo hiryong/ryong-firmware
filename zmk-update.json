@@ -1,0 +1,6 @@
+{
+  "checked_at": "2026-11-03T00:30:00Z",
+  "current": { "zmk": "ed56d81", "label": "공식 ZMK main 2026-05-26 + 자체 보관 확장" },
+  "latest_release": "v0.3.0",
+  "note": "v0.3.0 (2025-08-01) is older than our base; nothing to port."
+}
