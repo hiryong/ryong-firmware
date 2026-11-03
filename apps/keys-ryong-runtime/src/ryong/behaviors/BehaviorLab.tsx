@@ -159,7 +159,50 @@ function explain(lab: Lab, res: Result): string {
   return (w ? t(w[0], w[1]) + " → " : "") + o.label + (delayed ? t(" · the other key waited for the decision", " · 다른 키는 판정이 끝난 뒤 입력됐어요") : "");
 }
 
-export function BehaviorLab(props: { lab: Lab }) {
+/** Names of a KeyboardEvent the way key labels are written here ("Q", "1", "F1", "Enter"). */
+function keyName(e: KeyboardEvent): string {
+  if (e.key.length === 1) return e.key === " " ? "Space" : e.key.toUpperCase();
+  return e.key;
+}
+
+/**
+ * Combo on a connected keyboard: the person presses the real keys; the computer receives what the
+ * keyboard sends, so this shows whether the combo fired (its output arrived) or the keys came
+ * one by one. Only listens while the box has the focus, so typing elsewhere is never caught.
+ */
+function RealComboTry({ keys, out, timeout, saved }: { keys: string[]; out: string; timeout: number; saved: boolean }) {
+  const [focused, setFocused] = useState(false);
+  const [typed, setTyped] = useState<string[]>([]);
+  const [verdict, setVerdict] = useState<"ok" | "apart" | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const norm = (x: string) => x.trim().toUpperCase();
+  const outKey = norm(out), parts = keys.map(norm);
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Tab") return;
+    e.preventDefault();
+    if (e.repeat) return;
+    const k = keyName(e.nativeEvent);
+    setTyped((x) => [...x, k].slice(-16));
+    if (norm(k) === outKey) setVerdict("ok");
+    else if (parts.includes(norm(k))) setVerdict("apart");
+  };
+  return <div className="ry-lab-try">
+    <span className="ry-lab-trylabel">{t("Try it on the keyboard", "키보드로 직접 해보기")}</span>
+    {!saved && <p className="ry-note">{t("Save first: the keyboard uses the saved combo.", "먼저 저장하세요. 키보드는 저장된 콤보로 동작해요.")}</p>}
+    <div className={"ry-lab-real" + (focused ? " is-on" : "") + (verdict ? " is-" + verdict : "")} ref={boxRef} tabIndex={0} role="textbox" aria-label={t("Test area", "테스트 칸")}
+      onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onKeyDown={onKey}>
+      {!focused ? t("Click here, then press {keys} together on the keyboard.", "여기를 누른 뒤, 키보드에서 {keys}를 동시에 눌러 보세요.", { keys: keys.join(" + ") })
+        : verdict === "ok" ? t("{out} came in: the combo works.", "{out}이(가) 입력됐어요. 콤보가 동작해요.", { out })
+        : verdict === "apart" ? t("The keys came in one by one. Press them closer together (within {ms} ms).", "키가 하나씩 따로 입력됐어요. 더 동시에 눌러 보세요 ({ms}ms 안에).", { ms: timeout })
+        : t("Listening… press {keys} together.", "기다리는 중… {keys}를 동시에 눌러 보세요.", { keys: keys.join(" + ") })}
+    </div>
+    {typed.length > 0 && <div className="ry-lab-typed"><span className="ry-label">{t("Received", "들어온 키")}</span>
+      <div>{typed.map((x, i) => <kbd key={i}>{x}</kbd>)}</div>
+      <button className="ry-text" onClick={() => { setTyped([]); setVerdict(null); boxRef.current?.focus(); }}>{t("Clear", "지우기")}</button></div>}
+  </div>;
+}
+
+export function BehaviorLab(props: { lab: Lab; real?: { saved: boolean } }) {
   const { lab } = props;
   const list = useMemo(() => scenarios(lab), [JSON.stringify(lab)]);
   const [mode, setMode] = useState<"demo" | "try">("try");
@@ -235,6 +278,10 @@ export function BehaviorLab(props: { lab: Lab }) {
     onPointerDown: (e: React.PointerEvent) => { try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* synthetic or already released */ } press(k, true); },
     onPointerUp: () => press(k, false), onPointerCancel: () => press(k, false), onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
   });
+  if (lab.kind === "combo" && props.real) return <section className="ry-lab" aria-label={t("How it works", "어떻게 동작하나요")}>
+    <Equations lab={lab} />
+    <RealComboTry keys={lab.keyLabels} out={lab.comboLabel} timeout={lab.timeout} saved={props.real.saved} />
+  </section>;
   return <section className="ry-lab" aria-label={t("How it works", "어떻게 동작하나요")}>
     <Equations lab={lab} />
     <div className="ry-lab-try">

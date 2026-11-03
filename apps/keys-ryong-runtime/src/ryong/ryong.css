@@ -1041,3 +1041,7 @@ span.ry-chip { display: inline-flex; align-items: center; justify-content: cente
 .ry-workspace-tabs { padding-inline: max(24px, calc((100% - var(--ry-maxw)) / 2 + 24px)); }
 .ry-workspace-keymap:not([hidden]) { width: 100%; max-width: var(--ry-maxw); margin-inline: auto; }
 @media (max-width: 650px) { .ry-workspace-top { padding-inline: 16px; } .ry-workspace-tabs { padding-inline: 12px; } }
+.ry-lab-real { min-height: 56px; display: flex; align-items: center; padding: 14px 16px; border: 1px dashed var(--line-strong); border-radius: 10px; color: var(--mute); font-size: 14px; cursor: text; outline: none; }
+.ry-lab-real.is-on { border-style: solid; border-color: var(--ink); color: var(--ink); }
+.ry-lab-real.is-ok { border-color: #34c759; }
+.ry-lab-real.is-apart { border-color: #ff9f0a; }

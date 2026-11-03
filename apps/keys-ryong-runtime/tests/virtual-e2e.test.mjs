@@ -188,19 +188,17 @@ await step("combo: create A+S(+D, then remove D) = 4 using picker tiles", async 
   await page.screenshot({ path: `${output}/03-combo.png`, fullPage: true });
 });
 
-await step("combo: try-it lab — press A and S together on the real keyboard → 4", async () => {
+await step("combo: try it with the real keys (what the keyboard sends) → 4", async () => {
   const lab = page.locator(".ry-item.is-open .ry-lab").first();
   await lab.scrollIntoViewIfNeeded();
-  await page.keyboard.down("f"); await page.keyboard.down("j");
-  await page.waitForTimeout(60);
-  await page.keyboard.up("f"); await page.keyboard.up("j");
-  await page.waitForFunction(() => document.querySelector(".ry-item.is-open .ry-lab-typed kbd")?.textContent === "4", null, { timeout: 3000 });
-  assert.equal((await lab.locator(".ry-lab-result").innerText()).trim(), "4");
-  // Too far apart → each key types itself
+  const box = lab.getByRole("textbox", { name: "테스트 칸" });
+  await box.click();
+  await page.keyboard.press("4"); // what the keyboard sends when A + S fire the combo
+  await lab.getByText(/4이\(가\) 입력됐어요/).waitFor({ timeout: 3000 });
   await lab.getByRole("button", { name: "지우기" }).click();
-  await page.keyboard.down("f"); await page.waitForTimeout(250); await page.keyboard.down("j");
-  await page.keyboard.up("f"); await page.keyboard.up("j");
-  await page.waitForFunction(() => [...document.querySelectorAll(".ry-item.is-open .ry-lab-typed kbd")].map((k) => k.textContent).join("") === "AS", null, { timeout: 3000 });
+  await page.keyboard.press("a"); // the keys one by one
+  await lab.getByText(/하나씩 따로 입력됐어요/).waitFor({ timeout: 3000 });
+  assert.equal(await page.locator(".ry-item.is-open .ry-lab-pads").count(), 0, "no simulated key pads for combos on a keyboard");
 });
 
 await step("combo: assign by pressing a key on the computer keyboard", async () => {

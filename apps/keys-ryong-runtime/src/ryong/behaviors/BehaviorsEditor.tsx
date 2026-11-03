@@ -362,6 +362,10 @@ const Editor = ({
   useEffect(() => { if (runtimeView) onView?.(runtimeView); }, [runtimeView, onView]);
 
   const rewake = !!loaded?.board && wakeNow !== null && wakeNow !== loaded.board.wake;
+  /* the combo as it is on the keyboard right now (the real-key test needs that) */
+  const savedCombo = (c: { id: string }) => {
+    try { return JSON.stringify((JSON.parse(loaded!.savedJson).combos ?? []).find((x: { id: string }) => x.id === c.id)) === JSON.stringify(c); } catch { return false; }
+  };
   const dirty = !!loaded && (JSON.stringify(doc) !== loaded.savedJson || movedKeymap !== null || Object.keys(confEdits).length > 0 || rewake);
   useEffect(() => onDirty?.(dirty), [dirty, onDirty]);
   const draftKey = "ryong-runtime-editor-draft:" + (preview ? "preview" : runtimeConn?.label ?? "unknown");
@@ -678,7 +682,8 @@ const Editor = ({
                   >
                     {c.keys.length >= 2 && c.keys.length <= 4 && (
                       <BehaviorLab lab={{ kind: "combo", timeout: c.timeout, comboLabel: friendlyLabel(c.binding, doc, layers),
-                        keyLabels: c.keys.map((p) => comboKeys[p]?.[4] ?? String(p)) }} />
+                        keyLabels: c.keys.map((p) => comboKeys[p]?.[4] ?? String(p)) }}
+                        real={runtime ? { saved: savedCombo(c) } : undefined} />
                     )}
                     <Field label={t("Name", "이름")}>
                       <input type="text" value={c.name} onChange={(e) => update("combos", c.id, { name: e.target.value })} />
