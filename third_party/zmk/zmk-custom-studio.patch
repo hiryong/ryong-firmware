@@ -2096,7 +2096,7 @@ index 0000000000000000000000000000000000000000..b2096405bbe045bf04fc7234ec4f46d9
 +SYS_INIT(custom_subsystem_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 +#endif
 diff --git a/app/src/studio/gatt_rpc_transport.c b/app/src/studio/gatt_rpc_transport.c
-index dff1825908b8f8c54bce758aa8701a25ce928d20..24ba011d963c5a819f307eb767f72aa86ad0a7a8 100644
+index dff1825908b8f8c54bce758aa8701a25ce928d20..c6aa9f8b032ab69a61b8ac2d4ff045381b729657 100644
 --- a/app/src/studio/gatt_rpc_transport.c
 +++ b/app/src/studio/gatt_rpc_transport.c
 @@ -16,7 +16,6 @@
@@ -2107,7 +2107,25 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..24ba011d963c5a819f307eb767f72aa8
  #include "uuid.h"
  
  #include <zephyr/logging/log.h>
-@@ -61,11 +60,14 @@ static ssize_t read_rpc_resp(struct bt_conn *conn, const struct bt_gatt_attr *at
+@@ -41,10 +40,13 @@ static void rpc_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
+         uint8_t latency = notif_enabled ? CONFIG_ZMK_STUDIO_TRANSPORT_BLE_PREF_LATENCY
+                                         : CONFIG_BT_PERIPHERAL_PREF_LATENCY;
+ 
+-        int ret = bt_conn_le_param_update(
+-            conn,
+-            BT_LE_CONN_PARAM(CONFIG_BT_PERIPHERAL_PREF_MIN_INT, CONFIG_BT_PERIPHERAL_PREF_MAX_INT,
+-                             latency, CONFIG_BT_PERIPHERAL_PREF_TIMEOUT));
++        /* Ryong: while Studio is active use an interval range macOS accepts (min 15 ms, max 30 ms);
++         * with ZMK's default minimum (7.5 ms) a Mac rejects the request and keeps the latency. */
++        int ret = notif_enabled
++                      ? bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(12, 24, latency, 400))
++                      : bt_conn_le_param_update(
++                            conn, BT_LE_CONN_PARAM(CONFIG_BT_PERIPHERAL_PREF_MIN_INT, CONFIG_BT_PERIPHERAL_PREF_MAX_INT,
++                                                   latency, CONFIG_BT_PERIPHERAL_PREF_TIMEOUT));
+         if (ret < 0) {
+             LOG_WRN("Failed to request lower latency while studio is active (%d)", ret);
+         }
+@@ -61,11 +63,14 @@ static ssize_t read_rpc_resp(struct bt_conn *conn, const struct bt_gatt_attr *at
      return 0;
  }
  
@@ -2122,7 +2140,7 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..24ba011d963c5a819f307eb767f72aa8
  
      uint32_t copied = 0;
      struct ring_buf *rpc_buf = zmk_rpc_get_rx_buf();
-@@ -196,7 +198,21 @@ static void gatt_tx_notify(struct ring_buf *tx_buf, size_t added, bool msg_done,
+@@ -196,7 +201,21 @@ static void gatt_tx_notify(struct ring_buf *tx_buf, size_t added, bool msg_done,
      atomic_t ns = atomic_get(&notify_size);
  
      if (msg_done || state->pending_notify > ns) {
@@ -2147,10 +2165,10 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..24ba011d963c5a819f307eb767f72aa8
  }
 diff --git a/app/src/studio/hid_rpc_transport.c b/app/src/studio/hid_rpc_transport.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..36ea29ae8781f89691e4d4278c27484c9d30376a
+index 0000000000000000000000000000000000000000..717bf66d4a2606199e0b023a59d84cea0c216f72
 --- /dev/null
 +++ b/app/src/studio/hid_rpc_transport.c
-@@ -0,0 +1,261 @@
+@@ -0,0 +1,270 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -2222,9 +2240,18 @@ index 0000000000000000000000000000000000000000..36ea29ae8781f89691e4d4278c27484c
 +static void slow_work_cb(struct k_work *work);
 +static K_WORK_DELAYABLE_DEFINE(slow_work, slow_work_cb);
 +
++/* Within Apple's accessory rules (interval min >= 15 ms, max >= min + 15 ms, timeout 2-6 s): macOS
++ * rejects requests outside them, and ZMK's own preference (min 7.5 ms) is outside, so asking with it
++ * silently changed nothing on a Mac. Windows and others accept these too. */
++#define STUDIO_INT_MIN 12 /* 15 ms */
++#define STUDIO_INT_MAX 24 /* 30 ms */
++#define STUDIO_TIMEOUT 400 /* 4 s */
++
 +static void set_latency(struct bt_conn *conn, uint16_t latency) {
-+    int err = bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(CONFIG_BT_PERIPHERAL_PREF_MIN_INT, CONFIG_BT_PERIPHERAL_PREF_MAX_INT,
-+                                                             latency, CONFIG_BT_PERIPHERAL_PREF_TIMEOUT));
++    int err = latency == 0
++                  ? bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(STUDIO_INT_MIN, STUDIO_INT_MAX, 0, STUDIO_TIMEOUT))
++                  : bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(CONFIG_BT_PERIPHERAL_PREF_MIN_INT, CONFIG_BT_PERIPHERAL_PREF_MAX_INT,
++                                                                   latency, CONFIG_BT_PERIPHERAL_PREF_TIMEOUT));
 +    if (err < 0 && err != -EALREADY) {
 +        LOG_WRN("Studio HID: connection parameter update failed (%d)", err);
 +    }

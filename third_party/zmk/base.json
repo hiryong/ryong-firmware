@@ -6,8 +6,8 @@
       "file": "zmk-custom-studio.patch",
       "repo_path": "zmk",
       "applies_to": "ed56d81db79cf3a6e5dc02697277c0fad880ad34",
-      "sha256": "99736b28781e419935f45369935f21a06b46566e597a2d2cb4f616221f1b94da",
-      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx); backlight.c: perceptual brightness for PWM LEDs (duty = brightness^2/100, ZMK_BACKLIGHT_PERCEPTUAL); hid_rpc_transport: no peripheral latency while Studio talks over BLE HID (restored after 20 s idle); hid_rpc_transport never keeps references to closed connections"
+      "sha256": "d40ef3394be5441c9be318fb30474e5d06d4325f75cf7ee7527b66c50e7a00d3",
+      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx); backlight.c: perceptual brightness for PWM LEDs (duty = brightness^2/100, ZMK_BACKLIGHT_PERCEPTUAL); hid_rpc_transport: no peripheral latency while Studio talks over BLE HID (restored after 20 s idle); hid_rpc_transport never keeps references to closed connections; Studio fast mode (HID and GATT) asks for Apple-accepted connection parameters (15-30 ms, latency 0)"
     },
     {
       "file": "zmk-studio-messages-custom.patch",
