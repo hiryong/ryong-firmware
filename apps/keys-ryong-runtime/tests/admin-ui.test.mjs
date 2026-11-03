@@ -78,6 +78,14 @@ for (const viewport of [{ width: 1280, height: 860 }, { width: 390, height: 844 
     await page.getByRole("button", { name: "빌드", exact: true }).click();
     await page.getByRole("radio", { name: "BT60 Cheeto" }).click();
     await page.getByLabel("이름", { exact: true }).fill("Oreo 조명 테스트");
+    assert.equal(await page.getByLabel("Bluetooth 이름").inputValue(), "Cheeto");  // per-board default
+    await page.getByLabel("Bluetooth 이름").fill("Cheeto2");
+    await page.getByRole("radio", { name: "BT60 Oreo" }).click();
+    assert.equal(await page.getByLabel("Bluetooth 이름").inputValue(), "Oreo");  // not carried over
+    await page.getByRole("radio", { name: "Ryong60" }).click();
+    assert.equal(await page.getByLabel("Bluetooth 이름").inputValue(), "");
+    await page.getByRole("radio", { name: "BT60 Cheeto" }).click();
+    assert.equal(await page.getByLabel("Bluetooth 이름").inputValue(), "Cheeto2");  // its own edit kept
     await page.getByLabel("Bluetooth 이름").fill("Cheeto");
     await page.getByRole("button", { name: "빌드 시작" }).click();
     await page.getByText("빌드 r777를 시작했어요", { exact: false }).waitFor();

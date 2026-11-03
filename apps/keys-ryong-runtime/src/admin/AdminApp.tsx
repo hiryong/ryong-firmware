@@ -219,7 +219,10 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (t: "test",
   const [label, setLabel] = useState("");
   const [vals, setVals] = useState<{ [k: string]: number }>(() => Object.fromEntries(FIELDS.map((f) => [f.id, f.def])));
   const [tx, setTx] = useState("default");
-  const [kbName, setKbName] = useState("");
+  // Each keyboard keeps its own Bluetooth name; switching boards never carries the previous one over.
+  const [names, setNames] = useState<{ [target: string]: string }>({ bt60: "Cheeto", "bt60-oreo": "Oreo", ryong60: "" });
+  const kbName = names[target] ?? "";
+  const setKbName = (v: string) => setNames((n) => ({ ...n, [target]: v }));
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState<string | null>(null);
   const list = useLoad<{ builds: BuildRow[] }>("/builds", onError);
