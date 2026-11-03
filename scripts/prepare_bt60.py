@@ -11,6 +11,10 @@ source = root / "hardware/test-fixtures/bt60-v2"
 shutil.copytree(source, dest / "bt60-module")
 shutil.copytree(source / "config", dest / "config")
 shutil.copy2(root / "docs/build-evidence/34a0f3d-baseline-west.yml", dest / "config/west.yml")
+# Official ZMK + our vendored Studio extension instead of a third-party fork (vendor/zmk/README.md).
+sys.path.insert(0, str(root / "scripts"))
+import vendor_zmk
+vendor_zmk.manifest(dest / "config/west.yml")
 # Owner's LED board ("Oreo"): same fixture, only its Mac-based keymap differs (variants/oreo/README.md).
 VARIANT = sys.argv[sys.argv.index("--variant") + 1] if "--variant" in sys.argv else "cheeto"
 if VARIANT not in ("cheeto", "oreo"):

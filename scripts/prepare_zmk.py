@@ -10,6 +10,10 @@ if dest.exists():
 (dest / "config").mkdir(parents=True)
 shutil.copytree(root / "hardware/ryong60", dest / "board")
 shutil.copy2(root / "experiments/dya-runtime/west.yml", dest / "config/west.yml")
+# Official ZMK + our vendored Studio extension instead of a third-party fork (vendor/zmk/README.md).
+sys.path.insert(0, str(root / "scripts"))
+import vendor_zmk
+vendor_zmk.manifest(dest / "config/west.yml")
 
 # These options have no effect with underglow disabled, but newer Kconfig
 # rejects their unsatisfied dependencies. Normalize only the disposable copy.

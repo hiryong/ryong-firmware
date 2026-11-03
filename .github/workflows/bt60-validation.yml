@@ -2,7 +2,7 @@ name: BT60 v2 test fixture compile
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['hardware/test-fixtures/bt60-v2/**', 'experiments/bt60-runtime/**', 'scripts/prepare_bt60.py', 'scripts/runtime_defaults.py', 'scripts/secure_runtime_rpc.py', 'modules/**', 'experiments/host-layout/**', 'experiments/dya-runtime/**', '.github/workflows/bt60-validation.yml']
+    paths: ['hardware/test-fixtures/bt60-v2/**', 'experiments/bt60-runtime/**', 'scripts/prepare_bt60.py', 'scripts/vendor_zmk.py', 'vendor/zmk/**', 'scripts/runtime_defaults.py', 'scripts/secure_runtime_rpc.py', 'modules/**', 'experiments/host-layout/**', 'experiments/dya-runtime/**', '.github/workflows/bt60-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
             /tmp/bt60-build/zmk-feature-runtime-combo
             /tmp/bt60-build/zmk-feature-runtime-macro
             /tmp/bt60-build/zmk-feature-custom-settings
-          key: bt60-deps-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml') }}
+          key: bt60-deps-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'vendor/zmk/base.json') }}
       - name: Resolve fully pinned test dependencies
         working-directory: /tmp/bt60-build
         run: |
@@ -40,6 +40,7 @@ jobs:
           west update --fetch-opt=--filter=tree:0
           west forall -c 'git restore --source=HEAD --worktree --staged .'
           west zephyr-export
+          python3 "$GITHUB_WORKSPACE/scripts/vendor_zmk.py" apply .
       - name: Secure runtime RPC
         if: matrix.variant != 'baseline'
         run: python3 scripts/secure_runtime_rpc.py /tmp/bt60-build

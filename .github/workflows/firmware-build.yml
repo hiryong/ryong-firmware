@@ -83,7 +83,7 @@ jobs:
             /tmp/fw/zmk-feature-runtime-combo
             /tmp/fw/zmk-feature-runtime-macro
             /tmp/fw/zmk-feature-custom-settings
-          key: fw-${{ inputs.target == 'ryong60' && 'ryong60' || 'bt60' }}-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'experiments/dya-runtime/west.yml') }}
+          key: fw-${{ inputs.target == 'ryong60' && 'ryong60' || 'bt60' }}-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'experiments/dya-runtime/west.yml', 'vendor/zmk/base.json') }}
       - name: Resolve pinned dependencies
         working-directory: /tmp/fw
         run: |
@@ -91,6 +91,7 @@ jobs:
           west update --fetch-opt=--filter=tree:0
           west forall -c 'git restore --source=HEAD --worktree --staged .'
           west zephyr-export
+          python3 "$GITHUB_WORKSPACE/scripts/vendor_zmk.py" apply .
       - name: Require Studio unlock in external modules
         run: python3 scripts/secure_runtime_rpc.py /tmp/fw
       - name: Compile (same module set as the CI-validated runtime build)

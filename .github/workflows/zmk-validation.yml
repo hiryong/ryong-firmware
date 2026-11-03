@@ -2,7 +2,7 @@ name: Ryong60 compile validation
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['hardware/ryong60/**', 'modules/**', 'experiments/host-layout/runtime-settings.conf', 'experiments/dya-runtime/**', 'scripts/prepare_zmk.py', 'scripts/runtime_defaults.py', 'scripts/secure_runtime_rpc.py', 'scripts/run_module_simulations.py', '.github/workflows/zmk-validation.yml']
+    paths: ['hardware/ryong60/**', 'modules/**', 'experiments/host-layout/runtime-settings.conf', 'experiments/dya-runtime/**', 'scripts/prepare_zmk.py', 'scripts/vendor_zmk.py', 'vendor/zmk/**', 'scripts/runtime_defaults.py', 'scripts/secure_runtime_rpc.py', 'scripts/run_module_simulations.py', '.github/workflows/zmk-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,7 +29,7 @@ jobs:
             /tmp/ryong-build/zmk-feature-runtime-combo
             /tmp/ryong-build/zmk-feature-runtime-macro
             /tmp/ryong-build/zmk-feature-custom-settings
-          key: zmk-deps-${{ runner.os }}-${{ hashFiles('experiments/dya-runtime/west.yml') }}
+          key: zmk-deps-${{ runner.os }}-${{ hashFiles('experiments/dya-runtime/west.yml', 'vendor/zmk/base.json') }}
       - name: Resolve pinned dependencies
         working-directory: /tmp/ryong-build
         run: |
@@ -37,6 +37,7 @@ jobs:
           west update --fetch-opt=--filter=tree:0
           west forall -c 'git restore --source=HEAD --worktree --staged .'
           west zephyr-export
+          python3 "$GITHUB_WORKSPACE/scripts/vendor_zmk.py" apply .
           west manifest --freeze --active-only > resolved-manifest.yml
       - name: Require Studio unlock in external modules
         if: matrix.variant == 'runtime'
