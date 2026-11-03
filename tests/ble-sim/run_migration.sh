@@ -25,8 +25,13 @@ run() { # $1 = old|new, $2.. = central lines
 run old "./ble_test_central.exe" "./ble_test_central.exe -wait_on_start=1300"
 run new "./ble_test_central.exe"
 echo "### Upgrade with paired slots ($label)"
+ready='Bluetooth slots ready|zmk_ble_ready: ready'
+paired='Slot [0-9] paired|set_profile_address: Setting profile addr for ble/profiles/[0-9] to [0-9A-F]'
 for v in old new; do
   f=$out/$v.log
-  echo "- $v: start-up finished: $(grep -c 'zmk_ble_ready: ready' "$f"), pairings: $(grep -c 'Pairing complete' "$f"), key reports: $(grep -c 'notify_func: payload' "$f"), older pairings removed: $(grep -c 'removing older pairings' "$f"), errors: $(grep -cE 'FATAL|ASSERTION|panic|Fault|timeout' "$f")"
+  echo "- $v: Bluetooth started: $(grep -cE "$ready" "$f"), slots paired: $(grep -cE "$paired" "$f"), key reports received: $(grep -c 'notify_func: payload' "$f"), older pairings removed: $(grep -c 'removing older pairings' "$f"), crashes: $(grep -cE 'FATAL|ASSERTION|panic|Fault' "$f")"
 done
-grep -q 'zmk_ble_ready: ready' "$out/new.log" && grep -q 'notify_func: payload' "$out/new.log"
+# the old firmware must have left paired slots behind, and the new one must start, pair a new
+# computer and deliver keys to it
+grep -qE "$paired" "$out/old.log" && grep -qE "$ready" "$out/new.log" && grep -qE "$paired" "$out/new.log" \
+  && grep -q 'notify_func: payload' "$out/new.log" && ! grep -qE 'FATAL|ASSERTION|panic|Fault' "$out/new.log"
