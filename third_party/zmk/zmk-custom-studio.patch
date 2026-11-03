@@ -332,6 +332,48 @@ index 0eb63ad73d56feb9d4e814f1cb0db3a87c3a24bf..f728555c4fd40fe681fe61179cbaf875
 +
 +#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
 \ No newline at end of file
+diff --git a/app/include/zmk/hid.h b/app/include/zmk/hid.h
+index 962180e706d6952061e255551d89096faf5038c0..5197da25b60bc04a6d12e5e9e94f3bf8f830ef29 100644
+--- a/app/include/zmk/hid.h
++++ b/app/include/zmk/hid.h
+@@ -77,6 +77,14 @@
+ #define ZMK_HID_REPORT_ID_CONSUMER 0x02
+ #define ZMK_HID_REPORT_ID_MOUSE 0x03
+ 
++/* Ryong: ZMK Studio RPC over HID reports (app/src/studio/hid_rpc_transport.c). A vendor-defined
++ * collection, so hosts leave it alone and WebHID can open it while the keyboard stays connected.
++ * Each report: byte 0 = number of valid bytes (0..31), then up to 31 bytes of the Studio stream. */
++#define ZMK_HID_REPORT_ID_STUDIO 0x10
++#define ZMK_HID_STUDIO_REPORT_SIZE 32
++#define ZMK_HID_STUDIO_USAGE_PAGE_LO 0x5A
++#define ZMK_HID_STUDIO_USAGE_PAGE_HI 0xFF
++
+ #ifndef HID_ITEM_TAG_PUSH
+ #define HID_ITEM_TAG_PUSH 0xA
+ #endif
+@@ -253,6 +261,22 @@ static const uint8_t zmk_hid_report_desc[] = {
+     HID_END_COLLECTION,
+     HID_END_COLLECTION,
+ #endif // IS_ENABLED(CONFIG_ZMK_POINTING)
++
++#if IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
++    0x06, ZMK_HID_STUDIO_USAGE_PAGE_LO, ZMK_HID_STUDIO_USAGE_PAGE_HI, /* Usage Page (Vendor 0xFF5A) */
++    HID_USAGE(0x01),
++    HID_COLLECTION(HID_COLLECTION_APPLICATION),
++    HID_REPORT_ID(ZMK_HID_REPORT_ID_STUDIO),
++    HID_LOGICAL_MIN8(0x00),
++    HID_LOGICAL_MAX16(0xFF, 0x00),
++    HID_REPORT_SIZE(0x08),
++    HID_REPORT_COUNT(ZMK_HID_STUDIO_REPORT_SIZE),
++    HID_USAGE(0x02),
++    HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
++    HID_USAGE(0x03),
++    HID_OUTPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
++    HID_END_COLLECTION,
++#endif // IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
+ };
+ 
+ #if IS_ENABLED(CONFIG_ZMK_USB_BOOT)
 diff --git a/app/include/zmk/split/bluetooth/uuid.h b/app/include/zmk/split/bluetooth/uuid.h
 index c9a63efa7022366357f77a075b7b5eeaefedeb9a..069bb4dbfaa855bd0ca285885edff9c52b55b75f 100644
 --- a/app/include/zmk/split/bluetooth/uuid.h
@@ -573,6 +615,46 @@ index 0000000000000000000000000000000000000000..f9033a4127980f3f09dd683fcd490d28
 + */
 +#define ZMK_RPC_CUSTOM_SUBSYSTEM_RESPONSE_BUFFER_ALLOCATE(_subsystem_identifier, encode_response)  \
 +    zmk_rpc_custom_subsystem_response_buffer_allocate_##_subsystem_identifier(encode_response)
+diff --git a/app/include/zmk/studio/hid_transport.h b/app/include/zmk/studio/hid_transport.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..07ea65aa6a1c0bf5a9f710ca2036669b3580b25a
+--- /dev/null
++++ b/app/include/zmk/studio/hid_transport.h
+@@ -0,0 +1,20 @@
++/*
++ * Copyright (c) 2026 The ZMK Contributors
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#pragma once
++
++#include <stddef.h>
++#include <stdint.h>
++
++struct bt_conn;
++
++/* One Studio output report body (without report ID) from a host. conn is NULL for USB.
++ * Safe to call from BT/USB callbacks: it only queues the bytes. */
++void zmk_studio_hid_rx(struct bt_conn *conn, const uint8_t *body, size_t len);
++
++/* Send one input report: BLE body only (HOG adds no ID), USB with the report ID first. */
++int zmk_hog_send_studio_report(struct bt_conn *conn, const uint8_t *body, size_t len);
++int zmk_usb_hid_send_studio_report(const uint8_t *report, size_t len);
+diff --git a/app/include/zmk/studio/rpc.h b/app/include/zmk/studio/rpc.h
+index e223b7a5af98325d3b0224fa33307e8c00d515b2..b6aa0749096488196231b4a6a2833a17aad88589 100644
+--- a/app/include/zmk/studio/rpc.h
++++ b/app/include/zmk/studio/rpc.h
+@@ -219,6 +219,9 @@ struct ring_buf *zmk_rpc_get_tx_buf(void);
+ struct ring_buf *zmk_rpc_get_rx_buf(void);
+ void zmk_rpc_rx_notify(void);
+ 
++struct zmk_rpc_transport;
++void zmk_rpc_use_transport(const struct zmk_rpc_transport *t);
++
+ #define ZMK_RPC_TRANSPORT(name, _transport, _rx_start, _rx_stop, _tx_user_data, _tx_notify)        \
+     STRUCT_SECTION_ITERABLE(zmk_rpc_transport, name) = {                                           \
+         .transport = _transport,                                                                   \
 diff --git a/app/src/ble.c b/app/src/ble.c
 index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..ef4cb597682431594e1088d4f5a79eeb8686afeb 100644
 --- a/app/src/ble.c
@@ -620,6 +702,96 @@ index c28da97f5944fff51fada51a146b8989a0245bfc..037c647e831c1c29905bfcb7b636e5f2
 +ZMK_EVENT_IMPL(zmk_relay_event_received);
 +
 +#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
+diff --git a/app/src/hog.c b/app/src/hog.c
+index c7d9b861d4ae9df67e264126be033baf281c3124..7f3800546808bbb12035f192f262382e10bd9756 100644
+--- a/app/src/hog.c
++++ b/app/src/hog.c
+@@ -248,6 +248,44 @@ static ssize_t write_ctrl_point(struct bt_conn *conn, const struct bt_gatt_attr
+     return len;
+ }
+ 
++#if IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
++#include <zmk/studio/hid_transport.h>
++
++static struct hids_report studio_input = {
++    .id = ZMK_HID_REPORT_ID_STUDIO,
++    .type = HIDS_INPUT,
++};
++
++static struct hids_report studio_output = {
++    .id = ZMK_HID_REPORT_ID_STUDIO,
++    .type = HIDS_OUTPUT,
++};
++
++static ssize_t read_hids_studio_input_report(struct bt_conn *conn, const struct bt_gatt_attr *attr,
++                                             void *buf, uint16_t len, uint16_t offset) {
++    static const uint8_t empty[ZMK_HID_STUDIO_REPORT_SIZE];
++    return bt_gatt_attr_read(conn, attr, buf, len, offset, empty, sizeof(empty));
++}
++
++static ssize_t write_hids_studio_output_report(struct bt_conn *conn,
++                                               const struct bt_gatt_attr *attr, const void *buf,
++                                               uint16_t len, uint16_t offset, uint8_t flags) {
++    if (offset != 0) {
++        return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
++    }
++    if (len == 0 || len > ZMK_HID_STUDIO_REPORT_SIZE) {
++        return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
++    }
++    zmk_studio_hid_rx(conn, buf, len);
++    return len;
++}
++
++static void studio_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value) {
++    ARG_UNUSED(attr);
++    ARG_UNUSED(value);
++}
++#endif // IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
++
+ /* HID Service Declaration */
+ BT_GATT_SERVICE_DEFINE(
+     hog_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
+@@ -298,7 +336,39 @@ BT_GATT_SERVICE_DEFINE(
+ #endif // IS_ENABLED(CONFIG_ZMK_HID_INDICATORS)
+ 
+     BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT, BT_GATT_CHRC_WRITE_WITHOUT_RESP,
+-                           BT_GATT_PERM_WRITE, NULL, write_ctrl_point, &ctrl_point));
++                           BT_GATT_PERM_WRITE, NULL, write_ctrl_point, &ctrl_point)
++#if IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
++    /* Keep these last: zmk_hog_send_studio_report() finds its attribute from the end. */
++    ,
++    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
++                           BT_GATT_PERM_READ_ENCRYPT, read_hids_studio_input_report, NULL, NULL),
++    BT_GATT_CCC(studio_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
++    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref,
++                       NULL, &studio_input),
++    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT,
++                           BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | BT_GATT_CHRC_WRITE_WITHOUT_RESP,
++                           BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT,
++                           read_hids_studio_input_report, write_hids_studio_output_report, NULL),
++    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref,
++                       NULL, &studio_output)
++#endif // IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
++);
++
++#if IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
++#define STUDIO_INPUT_ATTR (&hog_svc.attrs[hog_svc.attr_count - 6])
++
++int zmk_hog_send_studio_report(struct bt_conn *conn, const uint8_t *data, size_t len) {
++    if (!conn) {
++        return -ENOTCONN;
++    }
++    if (bt_gatt_get_mtu(conn) < len + 3) {
++        LOG_WRN("Studio HID report needs ATT MTU %d, have %d", (int)(len + 3), bt_gatt_get_mtu(conn));
++        return -EMSGSIZE;
++    }
++    struct bt_gatt_notify_params params = {.attr = STUDIO_INPUT_ATTR, .data = data, .len = len};
++    return bt_gatt_notify_cb(conn, &params);
++}
++#endif // IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
+ 
+ K_THREAD_STACK_DEFINE(hog_q_stack, CONFIG_ZMK_BLE_THREAD_STACK_SIZE);
+ 
 diff --git a/app/src/split/Kconfig b/app/src/split/Kconfig
 index 00ce08407796b7c2520ebf4ec2f79ecebf60e5a8..ab1af7158d4e554cc8f4666e59cb56c16feb4589 100644
 --- a/app/src/split/Kconfig
@@ -1572,7 +1744,7 @@ index d48f29b787800f7abb381113ac2af3fe8a03b718..c03f70fb2b1cb281e2fb42b8b3a38afd
  
  typedef void (*zmk_split_wired_process_tx_callback_t)(void);
 diff --git a/app/src/studio/CMakeLists.txt b/app/src/studio/CMakeLists.txt
-index a8417dd768885482a44cc8d8b0883ddb6903fd2a..3a5f02062cc0d090e8e25de1fa7bcf1caffc6aca 100644
+index a8417dd768885482a44cc8d8b0883ddb6903fd2a..491ea44fedb6f2b48b8ca860ed9cbf42bc712222 100644
 --- a/app/src/studio/CMakeLists.txt
 +++ b/app/src/studio/CMakeLists.txt
 @@ -6,6 +6,7 @@ zephyr_linker_sources(SECTIONS ../../include/linker/zmk-rpc-subsystem-handlers.l
@@ -1583,16 +1755,19 @@ index a8417dd768885482a44cc8d8b0883ddb6903fd2a..3a5f02062cc0d090e8e25de1fa7bcf1c
  
  target_sources(app PRIVATE msg_framing.c)
  target_sources(app PRIVATE rpc.c)
-@@ -13,5 +14,6 @@ target_sources(app PRIVATE core.c)
+@@ -13,5 +14,7 @@ target_sources(app PRIVATE core.c)
  target_sources(app PRIVATE behavior_subsystem.c)
  target_sources(app PRIVATE core_subsystem.c)
  target_sources(app PRIVATE keymap_subsystem.c)
 +target_sources(app PRIVATE custom_subsystem.c)
  target_sources_ifdef(CONFIG_ZMK_STUDIO_TRANSPORT_UART app PRIVATE uart_rpc_transport.c)
- target_sources_ifdef(CONFIG_ZMK_STUDIO_TRANSPORT_BLE app PRIVATE gatt_rpc_transport.c)
+-target_sources_ifdef(CONFIG_ZMK_STUDIO_TRANSPORT_BLE app PRIVATE gatt_rpc_transport.c)
+\ No newline at end of file
++target_sources_ifdef(CONFIG_ZMK_STUDIO_TRANSPORT_BLE app PRIVATE gatt_rpc_transport.c)
++target_sources_ifdef(CONFIG_ZMK_STUDIO_TRANSPORT_HID app PRIVATE hid_rpc_transport.c)
 \ No newline at end of file
 diff --git a/app/src/studio/Kconfig b/app/src/studio/Kconfig
-index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..ce9f67b484681e7e4490618ca5398149ef00b972 100644
+index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..890f095c75c0a9e7c133cbef24dabf7caf1b060b 100644
 --- a/app/src/studio/Kconfig
 +++ b/app/src/studio/Kconfig
 @@ -29,6 +29,13 @@ config ZMK_STUDIO_LOCK_ON_DISCONNECT
@@ -1609,7 +1784,22 @@ index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..ce9f67b484681e7e4490618ca5398149
  menuconfig ZMK_STUDIO_RPC
      bool "Remote Procedure Calls (RPC)"
      select NANOPB
-@@ -109,6 +116,25 @@ config ZMK_STUDIO_RPC_TX_BUF_SIZE
+@@ -73,6 +80,14 @@ config ZMK_STUDIO_TRANSPORT_UART_RX_PRIORITY
+ 
+ endif
+ 
++config ZMK_STUDIO_TRANSPORT_HID
++    bool "HID reports (USB and BLE HID; reachable from WebHID while the keyboard stays connected)"
++    select RING_BUFFER
++    default y
++
++config HID_INTERRUPT_EP_MPS
++    default 64 if ZMK_STUDIO_TRANSPORT_HID && ZMK_USB
++
+ config ZMK_STUDIO_TRANSPORT_BLE
+     bool "BLE (GATT)"
+     select RING_BUFFER
+@@ -109,6 +124,25 @@ config ZMK_STUDIO_RPC_TX_BUF_SIZE
      int "TX Buffer Size"
      default 64
  
@@ -1865,8 +2055,202 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..0e020dc5df9ce37676bfcb48bb8b3753
          state->pending_notify = 0;
      }
  }
+diff --git a/app/src/studio/hid_rpc_transport.c b/app/src/studio/hid_rpc_transport.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..cf3dc0b68a104ed8d38b424184e541ecd41e2519
+--- /dev/null
++++ b/app/src/studio/hid_rpc_transport.c
+@@ -0,0 +1,188 @@
++/*
++ * Copyright (c) 2026 The ZMK Contributors
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++/*
++ * ZMK Studio RPC over a vendor-defined HID collection (Ryong).
++ *
++ * Browsers cannot reach a Bluetooth keyboard that is already connected to the computer over Web
++ * Bluetooth, but WebHID can open any connected HID device, USB or Bluetooth. The keyboard exposes
++ * one extra collection (usage page 0xFF5A) with a 32-byte input and output report:
++ *   byte 0 = number of valid bytes (0..31), bytes 1.. = the Studio byte stream (same framing as
++ *   the serial and GATT transports).
++ * The transport takes over Studio whenever a request arrives on it (zmk_rpc_use_transport), and
++ * answers on the same link: the BLE connection the request came from, or USB.
++ */
++
++#include <zephyr/kernel.h>
++#include <zephyr/init.h>
++#include <zephyr/sys/ring_buffer.h>
++#include <zephyr/bluetooth/conn.h>
++#include <string.h>
++
++#include <zmk/hid.h>
++#include <zmk/studio/rpc.h>
++#include <zmk/studio/hid_transport.h>
++
++#include <zephyr/logging/log.h>
++LOG_MODULE_DECLARE(zmk_studio, CONFIG_ZMK_STUDIO_LOG_LEVEL);
++
++#define PAYLOAD (ZMK_HID_STUDIO_REPORT_SIZE - 1)
++
++struct rx_item {
++    struct bt_conn *conn; /* referenced; NULL = USB */
++    uint8_t len;
++    uint8_t data[PAYLOAD];
++};
++
++K_MSGQ_DEFINE(hid_rx_q, sizeof(struct rx_item), 16, 4);
++
++static K_THREAD_STACK_DEFINE(hid_rpc_stack, 1536);
++static struct k_work_q hid_rpc_q;
++
++static K_MUTEX_DEFINE(peer_lock);
++static struct bt_conn *peer_conn; /* referenced; NULL with peer_usb = USB */
++static bool peer_usb;
++static bool handling_rx;
++
++static void tx_work_cb(struct k_work *work);
++static K_WORK_DEFINE(tx_work, tx_work_cb);
++
++static int hid_start_rx(void) {
++    handling_rx = true;
++    return 0;
++}
++
++static int hid_stop_rx(void) {
++    handling_rx = false;
++    return 0;
++}
++
++static void hid_tx_notify(struct ring_buf *tx_buf, size_t added, bool msg_done, void *user_data) {
++    ARG_UNUSED(added);
++    ARG_UNUSED(user_data);
++    if (msg_done || ring_buf_size_get(tx_buf) >= PAYLOAD) {
++        k_work_submit_to_queue(&hid_rpc_q, &tx_work);
++    }
++}
++
++/* Never matches an endpoint, so endpoint changes never pick it; it is chosen by its own traffic. */
++ZMK_RPC_TRANSPORT(studio_hid_transport, ZMK_TRANSPORT_NONE, hid_start_rx, hid_stop_rx, NULL, hid_tx_notify);
++
++void zmk_studio_hid_rx(struct bt_conn *conn, const uint8_t *body, size_t len) {
++    if (len < 1) {
++        return;
++    }
++    struct rx_item item = {.len = MIN(body[0], MIN(len - 1, PAYLOAD))};
++    memcpy(item.data, body + 1, item.len);
++    item.conn = conn ? bt_conn_ref(conn) : NULL;
++    if (k_msgq_put(&hid_rx_q, &item, K_NO_WAIT) < 0) {
++        LOG_WRN("Studio HID RX queue full, dropping a report");
++        if (item.conn) {
++            bt_conn_unref(item.conn);
++        }
++        return;
++    }
++}
++
++static void set_peer(struct bt_conn *conn) {
++    k_mutex_lock(&peer_lock, K_FOREVER);
++    if (peer_conn) {
++        bt_conn_unref(peer_conn);
++    }
++    peer_conn = conn; /* takes over the reference */
++    peer_usb = conn == NULL;
++    k_mutex_unlock(&peer_lock);
++}
++
++/* Own thread, not a work item: taking over the transport may wait for a reply still being sent on
++ * another transport, whose draining runs on the system work queue or our TX queue. */
++static void rx_main(void) {
++    struct rx_item item;
++    while (k_msgq_get(&hid_rx_q, &item, K_FOREVER) == 0) {
++        set_peer(item.conn);
++        if (!handling_rx) {
++            zmk_rpc_use_transport(&studio_hid_transport);
++        }
++        struct ring_buf *rx = zmk_rpc_get_rx_buf();
++        uint32_t copied = 0;
++        while (copied < item.len) {
++            uint32_t n = ring_buf_put(rx, item.data + copied, item.len - copied);
++            if (n == 0) {
++                zmk_rpc_rx_notify();
++                k_sleep(K_MSEC(1));
++                continue;
++            }
++            copied += n;
++        }
++        zmk_rpc_rx_notify();
++    }
++}
++
++K_THREAD_DEFINE(studio_hid_rx, 1024, rx_main, NULL, NULL, NULL, 6, 0, 0);
++
++static int send_one(const uint8_t *report_body) {
++    struct bt_conn *conn = NULL;
++    bool usb;
++    k_mutex_lock(&peer_lock, K_FOREVER);
++    usb = peer_usb;
++    if (peer_conn) {
++        conn = bt_conn_ref(peer_conn);
++    }
++    k_mutex_unlock(&peer_lock);
++
++    int err;
++    if (usb) {
++#if IS_ENABLED(CONFIG_ZMK_USB)
++        uint8_t report[ZMK_HID_STUDIO_REPORT_SIZE + 1];
++        report[0] = ZMK_HID_REPORT_ID_STUDIO;
++        memcpy(report + 1, report_body, ZMK_HID_STUDIO_REPORT_SIZE);
++        err = zmk_usb_hid_send_studio_report(report, sizeof(report));
++#else
++        err = -ENOTSUP;
++#endif
++    } else {
++#if IS_ENABLED(CONFIG_ZMK_BLE)
++        err = zmk_hog_send_studio_report(conn, report_body, ZMK_HID_STUDIO_REPORT_SIZE);
++#else
++        err = -ENOTSUP;
++#endif
++    }
++    if (conn) {
++        bt_conn_unref(conn);
++    }
++    return err;
++}
++
++static void tx_work_cb(struct k_work *work) {
++    ARG_UNUSED(work);
++    struct ring_buf *tx = zmk_rpc_get_tx_buf();
++    uint8_t body[ZMK_HID_STUDIO_REPORT_SIZE];
++    while (ring_buf_size_get(tx) > 0) {
++        memset(body, 0, sizeof(body));
++        body[0] = ring_buf_get(tx, body + 1, PAYLOAD);
++        int err = -EAGAIN;
++        for (int tries = 0; tries < 200; tries++) {
++            err = send_one(body);
++            if (err != -ENOMEM && err != -EAGAIN && err != -EBUSY) {
++                break;
++            }
++            k_sleep(K_MSEC(2)); /* BLE TX buffers busy: wait for the controller */
++        }
++        if (err < 0) {
++            LOG_WRN("Studio HID report send failed (%d), dropping the rest", err);
++            ring_buf_reset(tx);
++            return;
++        }
++    }
++}
++
++static int hid_rpc_transport_init(void) {
++    k_work_queue_start(&hid_rpc_q, hid_rpc_stack, K_THREAD_STACK_SIZEOF(hid_rpc_stack), 5, NULL);
++    k_thread_name_set(&hid_rpc_q.thread, "studio_hid");
++    return 0;
++}
++
++SYS_INIT(hid_rpc_transport_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 diff --git a/app/src/studio/rpc.c b/app/src/studio/rpc.c
-index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..4f4d613ae3538ac3e92426b44a94d9654125eec8 100644
+index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..c04d543fe0e184e3489c79fcab3ab9b89102c5b9 100644
 --- a/app/src/studio/rpc.c
 +++ b/app/src/studio/rpc.c
 @@ -131,6 +131,13 @@ static bool rpc_tx_buffer_write(pb_ostream_t *stream, const uint8_t *buf, size_t
@@ -1949,3 +2333,70 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..4f4d613ae3538ac3e92426b44a94d965
  }
  
  static void rpc_main(void) {
+@@ -279,6 +315,22 @@ exit_refresh:
+     k_mutex_unlock(&rpc_transport_mutex);
+ }
+ 
++/* Ryong: a transport that is not tied to the selected endpoint (Studio over HID reports) takes
++ * over when a request arrives on it. Called from a work item, never from a BT/USB callback. */
++void zmk_rpc_use_transport(const struct zmk_rpc_transport *t) {
++    k_mutex_lock(&rpc_transport_mutex, K_FOREVER);
++    if (selected_transport != t) {
++        if (selected_transport && selected_transport->rx_stop) {
++            selected_transport->rx_stop();
++        }
++        selected_transport = t;
++        if (t->rx_start) {
++            t->rx_start();
++        }
++    }
++    k_mutex_unlock(&rpc_transport_mutex);
++}
++
+ static int zmk_rpc_init(void) {
+     int prev_choice = -1;
+     struct zmk_rpc_subsystem *prev_sub = NULL;
+diff --git a/app/src/usb_hid.c b/app/src/usb_hid.c
+index 9adc7db809252d2f1dfa8f4d8ec8d1d4d97fc834..bb3af9d54885229904cfba59ccaa3f4e34342fc8 100644
+--- a/app/src/usb_hid.c
++++ b/app/src/usb_hid.c
+@@ -24,6 +24,10 @@
+ 
+ #include <zmk/event_manager.h>
+ 
++#if IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
++#include <zmk/studio/hid_transport.h>
++#endif
++
+ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
+ 
+ static const struct device *hid_dev;
+@@ -161,6 +165,15 @@ static int set_report_cb(const struct device *dev, struct usb_setup_packet *setu
+             }
+             break;
+ #endif // IS_ENABLED(CONFIG_ZMK_HID_INDICATORS)
++#if IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
++        case ZMK_HID_REPORT_ID_STUDIO:
++            /* SET_REPORT carries the report ID first. */
++            if (*len < 2 || *len > ZMK_HID_STUDIO_REPORT_SIZE + 1) {
++                return -EINVAL;
++            }
++            zmk_studio_hid_rx(NULL, *data + 1, *len - 1);
++            break;
++#endif // IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
+         default:
+             LOG_ERR("Invalid report ID %d requested", setup->wValue & HID_GET_REPORT_ID_MASK);
+             return -EINVAL;
+@@ -205,6 +218,12 @@ static int zmk_usb_hid_send_report(const uint8_t *report, size_t len) {
+     }
+ }
+ 
++#if IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
++int zmk_usb_hid_send_studio_report(const uint8_t *report, size_t len) {
++    return zmk_usb_hid_send_report(report, len);
++}
++#endif
++
+ int zmk_usb_hid_send_keyboard_report(void) {
+     size_t len;
+     uint8_t *report = get_keyboard_report(&len);

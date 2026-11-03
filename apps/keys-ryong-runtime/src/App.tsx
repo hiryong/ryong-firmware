@@ -13,6 +13,7 @@ import { ConnectModal, TransportFactory } from "./ConnectModal";
 
 import type { RpcTransport } from "@zmkfirmware/zmk-studio-ts-client/transport/index";
 import { connect as gatt_connect } from "./ryong/runtime/gattConnect";
+import { connect as hid_connect, webHid } from "./ryong/runtime/hidConnect";
 import { connect as serial_connect } from "@zmkfirmware/zmk-studio-ts-client/transport/serial";
 import {
   connect as tauri_ble_connect,
@@ -52,13 +53,16 @@ declare global {
 const VIRTUAL: TransportFactory[] = import.meta.env.VITE_RYONG_RUNTIME === "1" ? [{ label: t("Virtual keyboard", "가상 키보드"), connect: virtualConnect }] : [];
 const TRANSPORTS: TransportFactory[] = import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1" ? VIRTUAL : [...VIRTUAL,
   navigator.serial && { label: "USB", connect: serial_connect },
-  // Web Bluetooth wherever the browser has it. On Windows/macOS a keyboard already connected to the
-  // computer is invisible to the browser until Studio is unlocked: the firmware then advertises again
-  // (ZMK_STUDIO_LOCK_BLE_DIRECT_ADVERTISING_ON_UNLOCK), so the label says to unlock first.
-  // Safari and other iOS browsers have no navigator.bluetooth (Bluefy does).
-  ...(navigator.bluetooth
-    ? [{ label: /Linux|iPhone|iPad/.test(navigator.userAgent) ? "Bluetooth" : t("Bluetooth (unlock first)", "블루투스 (먼저 잠금 해제)"), connect: gatt_connect }]
-    : []),
+  // Bluetooth: WebHID on desktop Chrome/Edge (reaches the keyboard while it stays connected to the
+  // computer; Ryong firmware's Studio HID report). Elsewhere (Android Chrome, Bluefy on iPhone) Web
+  // Bluetooth. Not in the desktop app, which has its own Bluetooth.
+  ...(window.__TAURI_INTERNALS__
+    ? []
+    : webHid()
+      ? [{ label: t("Bluetooth", "블루투스"), connect: hid_connect }]
+      : navigator.bluetooth
+        ? [{ label: t("Bluetooth", "블루투스"), connect: gatt_connect }]
+        : []),
   ...(window.__TAURI_INTERNALS__
     ? [
         {

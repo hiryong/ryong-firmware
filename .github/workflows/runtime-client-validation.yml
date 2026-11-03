@@ -47,6 +47,7 @@ jobs:
           node tests/host-device.test.mjs
           node tests/ble-profiles.test.mjs
           node tests/virtual-keyboard.test.mjs
+          node tests/hid-transport.test.mjs
           node tests/behavior-lab.test.mjs
           node tests/runtime-bindings.test.mjs
           node tests/runtime-device.test.mjs

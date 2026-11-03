@@ -1,0 +1,112 @@
+// ZMK Studio over WebHID (Ryong firmware): reaches the keyboard while it stays connected to the
+// computer, over Bluetooth or USB. Web Bluetooth cannot see an already-connected keyboard on
+// Windows/macOS; WebHID opens it like any other HID device.
+//
+// Firmware side: third_party/zmk patch, app/src/studio/hid_rpc_transport.c. One vendor collection
+// (usage page 0xFF5A, usage 1), report 0x10, 32 bytes both ways: byte 0 = valid length (0..31),
+// then the Studio byte stream (same framing as serial and GATT).
+import { UserCancelledError } from "@zmkfirmware/zmk-studio-ts-client/transport/errors";
+import type { RpcTransport } from "@zmkfirmware/zmk-studio-ts-client/transport/index";
+import { t } from "../i18n";
+
+export const STUDIO_USAGE_PAGE = 0xff5a;
+export const STUDIO_USAGE = 0x01;
+export const STUDIO_REPORT_ID = 0x10;
+export const REPORT_SIZE = 32;
+const PAYLOAD = REPORT_SIZE - 1;
+
+/* Minimal WebHID typing (not in TypeScript's DOM lib). */
+type HidCollection = { usagePage: number; usage: number };
+export type HidDevice = EventTarget & {
+  opened: boolean; productName: string; collections: HidCollection[];
+  open(): Promise<void>; close(): Promise<void>; sendReport(id: number, data: BufferSource): Promise<void>;
+};
+type Hid = EventTarget & {
+  getDevices(): Promise<HidDevice[]>;
+  requestDevice(o: { filters: { usagePage?: number; usage?: number }[] }): Promise<HidDevice[]>;
+};
+export const webHid = (): Hid | undefined => (navigator as unknown as { hid?: Hid }).hid;
+
+const isStudio = (d: HidDevice) => d.collections.some((c) => c.usagePage === STUDIO_USAGE_PAGE && c.usage === STUDIO_USAGE);
+
+/** Split a Studio byte stream into report bodies. */
+export function toReports(chunk: Uint8Array): Uint8Array[] {
+  const out: Uint8Array[] = [];
+  for (let i = 0; i < chunk.length; i += PAYLOAD) {
+    const part = chunk.subarray(i, i + PAYLOAD);
+    const body = new Uint8Array(REPORT_SIZE);
+    body[0] = part.length;
+    body.set(part, 1);
+    out.push(body);
+  }
+  return out;
+}
+
+/** Bytes carried by one input report body. */
+export function fromReport(view: DataView): Uint8Array {
+  const n = Math.min(view.getUint8(0), PAYLOAD, view.byteLength - 1);
+  return new Uint8Array(view.buffer, view.byteOffset + 1, n).slice();
+}
+
+const NOT_FOUND = () => t(
+  "No keyboard found. Install the newest Ryong firmware, then remove the keyboard in the computer's Bluetooth settings and pair it again (the computer has to re-read the keyboard once).",
+  "키보드를 찾지 못했어요. 최신 Ryong 펌웨어를 설치한 뒤, 컴퓨터의 블루투스 설정에서 키보드를 지우고 다시 페어링하세요 (컴퓨터가 키보드 정보를 한 번 새로 읽어야 해요).");
+
+async function pick(hid: Hid): Promise<HidDevice> {
+  // Already allowed on this site: connect without asking again.
+  const known = (await hid.getDevices()).filter(isStudio);
+  if (known.length === 1) return known[0];
+  let chosen: HidDevice[];
+  try { chosen = await hid.requestDevice({ filters: [{ usagePage: STUDIO_USAGE_PAGE, usage: STUDIO_USAGE }] }); }
+  catch (e) {
+    if (e instanceof DOMException && e.name === "NotFoundError") throw new UserCancelledError("User cancelled the connection attempt", { cause: e });
+    throw e;
+  }
+  const d = chosen.find(isStudio);
+  if (!d) throw new Error(NOT_FOUND());
+  return d;
+}
+
+export async function connect(): Promise<RpcTransport> {
+  const hid = webHid();
+  if (!hid) throw new Error(t("This browser has no WebHID. Use Chrome or Edge.", "이 브라우저는 WebHID를 지원하지 않아요. Chrome이나 Edge를 쓰세요."));
+  const dev = await pick(hid);
+  if (!dev.opened) await dev.open();
+  const label = dev.productName || "Keyboard";
+  const abortController = new AbortController();
+  let onReport: ((e: Event) => void) | undefined;
+  let onGone: ((e: Event) => void) | undefined;
+  const readable = new ReadableStream<Uint8Array>({
+    start(controller) {
+      onReport = (e: Event) => {
+        const ev = e as Event & { reportId: number; data: DataView };
+        if (ev.reportId !== STUDIO_REPORT_ID) return;
+        const bytes = fromReport(ev.data);
+        if (bytes.length) controller.enqueue(bytes);
+      };
+      onGone = (e: Event) => {
+        if ((e as Event & { device: HidDevice }).device !== dev) return;
+        cleanup();
+        try { controller.close(); } catch { /* already closed */ }
+      };
+      dev.addEventListener("inputreport", onReport);
+      hid.addEventListener("disconnect", onGone);
+    },
+  });
+  const cleanup = () => {
+    if (onReport) dev.removeEventListener("inputreport", onReport);
+    if (onGone) hid.removeEventListener("disconnect", onGone);
+  };
+  let sending = Promise.resolve();
+  const writable = new WritableStream<Uint8Array>({
+    write(chunk) {
+      // Reports go out in order, one at a time.
+      sending = sending.then(async () => { for (const r of toReports(chunk)) await dev.sendReport(STUDIO_REPORT_ID, r); });
+      return sending;
+    },
+  });
+  const sig = abortController.signal;
+  const abort = () => { sig.removeEventListener("abort", abort); cleanup(); dev.close().catch(() => {}); };
+  sig.addEventListener("abort", abort);
+  return { label, abortController, readable, writable };
+}
