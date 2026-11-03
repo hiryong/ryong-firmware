@@ -1,0 +1,74 @@
+# Bluetooth simulation (BabbleSim) of the patched ZMK: the keyboard firmware and simulated
+# computers run together on a simulated radio. Catches hangs, crashes and wrong connection
+# behaviour before anything is flashed on a real keyboard. Nothing is published.
+#  - upstream: ZMK's own BLE tests with our patch (default build, one Bluetooth identity)
+#  - identities: the same scenarios with one identity per profile (BT_ID_MAX = profiles), checked
+#    for crashes/hangs and for every simulated computer pairing and receiving key reports
+name: BLE simulation
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev/keys-ryong-runtime]
+    paths: ['third_party/zmk/**', 'tests/ble-sim/**', '.github/workflows/ble-sim.yml']
+permissions:
+  contents: read
+concurrency:
+  group: ble-sim
+  cancel-in-progress: true
+jobs:
+  sim:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container:
+      image: docker.io/zmkfirmware/zmk-build-arm:4.1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ryong
+      - name: Official ZMK at the pinned commit + our patch
+        run: |
+          set -eu
+          ZMK=$(python3 -c "import json;print(json.load(open('ryong/third_party/zmk/base.json'))['zmk'])")
+          git clone --filter=blob:none https://github.com/zmkfirmware/zmk.git zmk
+          git -C zmk checkout -q "$ZMK"
+          git -C zmk apply --whitespace=nowarn "$GITHUB_WORKSPACE/ryong/third_party/zmk/zmk-custom-studio.patch"
+          echo "ZMK $ZMK + Ryong patch applied"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            zmk/modules/
+            zmk/tools/
+            zmk/zephyr/
+          key: ble-sim-${{ hashFiles('zmk/app/west.yml') }}-v1
+      - name: West workspace with BabbleSim
+        working-directory: zmk
+        run: |
+          [ -d .west ] || west init -l app
+          west config manifest.group-filter -- +babblesim
+          west update --fetch-opt=--filter=tree:0
+          west zephyr-export
+      - name: Build BabbleSim
+        working-directory: zmk/tools/bsim
+        run: make everything -j4 > /dev/null
+      - name: Identity scenarios (copies of ZMK's profile tests, one identity per profile)
+        working-directory: zmk/app
+        run: python3 "$GITHUB_WORKSPACE/ryong/tests/ble-sim/make_identity_cases.py" tests/ble
+      - name: Run upstream and identity scenarios
+        working-directory: zmk/app
+        env:
+          BSIM_COMPONENTS_PATH: ${{ github.workspace }}/zmk/tools/bsim/components
+          BSIM_OUT_PATH: ${{ github.workspace }}/zmk/tools/bsim
+        run: |
+          mkdir -p build/tests
+          ./run-ble-test.sh tests/ble/profiles > /dev/null 2>&1 || true
+          cp build/tests/pass-fail.log build/tests/upstream-pass-fail.log 2>/dev/null || true
+          ./run-ble-test.sh tests/ble/ryong-identities > /dev/null 2>&1 || true
+          echo "### Upstream profile scenarios (our patch, one identity)" >> "$GITHUB_STEP_SUMMARY"
+          sed 's/^/    /' build/tests/upstream-pass-fail.log >> "$GITHUB_STEP_SUMMARY" || true
+          python3 "$GITHUB_WORKSPACE/ryong/tests/ble-sim/check_identity_runs.py" build/tests/ble/ryong-identities tests/ble/ryong-identities | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ble-sim-logs
+          path: |
+            zmk/app/build/tests/**/*.log
