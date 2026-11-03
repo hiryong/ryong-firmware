@@ -1031,3 +1031,13 @@ header .ry-tabs { flex-wrap: nowrap; white-space: nowrap; }
 .ry-why summary { cursor: pointer; }
 .ry-why span { display: block; font-size: 11px; word-break: break-all; }
 span.ry-chip { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+
+/* Wide screens (21:9 and up): the whole UI keeps a maximum width, centred. Bars keep their
+ * full-width lines; their contents and the keyboard area stay inside --ry-maxw, so the layer
+ * list sits next to the keyboard and "Auto" zoom fits that width. */
+:root { --ry-maxw: 1560px; }
+.ry-app > header { padding-inline: max(8px, calc((100% - var(--ry-maxw)) / 2 + 8px)); }
+.ry-workspace-top { padding-inline: max(24px, calc((100% - var(--ry-maxw)) / 2 + 24px)); }
+.ry-workspace-tabs { padding-inline: max(24px, calc((100% - var(--ry-maxw)) / 2 + 24px)); }
+.ry-workspace-keymap:not([hidden]) { width: 100%; max-width: var(--ry-maxw); margin-inline: auto; }
+@media (max-width: 650px) { .ry-workspace-top { padding-inline: 16px; } .ry-workspace-tabs { padding-inline: 12px; } }

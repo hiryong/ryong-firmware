@@ -544,8 +544,9 @@ export default function Keyboard() {
       {/* runtime copy: layers float beside the keyboard instead of taking a full-height column */}
       <div className={viaFirst ? "ry-layer-float" : "p-2 flex flex-col gap-2 bg-base-200 row-span-2"} ref={layerMenuRef}
         style={viaFirst ? (layerMenuPos ? { left: layerMenuPos.left, top: layerMenuPos.top } : { visibility: "hidden" }) : undefined}>
-        {/* the keyboard reports its own layouts; a single one is not a choice, so it is not shown */}
-        {layouts && (!viaFirst || layouts.length > 1) && (
+        {/* runtime copy: the layout comes with the keyboard (every Ryong board is 60% ANSI), so the
+            choice is not shown; the keyboard's own selected layout is used */}
+        {layouts && !viaFirst && (
           <div className="col-start-3 row-start-1 row-end-2">
             <PhysicalLayoutPicker
               layouts={layouts}

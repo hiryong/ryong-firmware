@@ -12,51 +12,6 @@
 };
 
 / {
-    /* Slot keys from older keymaps. Slot switching itself now ends the other links (each slot
-     * has its own Bluetooth address), so they only select; new keymaps use &bt BT_SEL n. */
-    macros {
-        BT_Profile0: BT_Profile0 {
-            compatible = "zmk,behavior-macro";
-            #binding-cells = <0>;
-            display-name = "BT_PROFILE0";
-            wait-ms = <40>;
-            tap-ms = <40>;
-            bindings
-                = <&macro_tap &bt BT_SEL 0>
-                ;
-        };
-        BT_Profile1: BT_Profile1 {
-            compatible = "zmk,behavior-macro";
-            #binding-cells = <0>;
-            display-name = "BT_PROFILE1";
-            wait-ms = <40>;
-            tap-ms = <40>;
-            bindings
-                = <&macro_tap &bt BT_SEL 1>
-                ;
-        };
-        BT_Profile2: BT_Profile2 {
-            compatible = "zmk,behavior-macro";
-            #binding-cells = <0>;
-            display-name = "BT_PROFILE2";
-            wait-ms = <40>;
-            tap-ms = <40>;
-            bindings
-                = <&macro_tap &bt BT_SEL 2>
-                ;
-        };
-        BT_Profile3: BT_Profile3 {
-            compatible = "zmk,behavior-macro";
-            #binding-cells = <0>;
-            display-name = "BT_PROFILE3";
-            wait-ms = <40>;
-            tap-ms = <40>;
-            bindings
-                = <&macro_tap &bt BT_SEL 3>
-                ;
-        };
-    };
-
     combos {
         compatible = "zmk,combos";
         ry_combo_studio_unlock {

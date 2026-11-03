@@ -13,15 +13,28 @@ FIX = ROOT / "hardware/test-fixtures/bt60-v2/config"
 class RuntimeDefaults(unittest.TestCase):
     def test_bt60_fixture(self):
         out, combos, macros = rd.convert((FIX / "ryong-behaviors.dtsi").read_text(), rd.json_names(FIX / "ryong-behaviors.json"))
-        self.assertEqual((combos, macros), (1, 4))
+        self.assertEqual((combos, macros), (1, 0))  # the old BT_Profile macros are gone: slot keys are &bt_slot
         self.assertIn("/delete-node/ combos;", out)
         self.assertIn('compatible = "cormoran,runtime-combo-defaults";', out)
         self.assertIn('display-name = "Studio Unlock (Esc + Backspace)";', out)
         self.assertIn("bindings = <&studio_unlock>;", out)
-        for n in range(4):
-            self.assertIn(f'&BT_Profile{n} {{\n    compatible = "ryong,behavior-named-runtime-macro";\n    macro-name = "BT_PROFILE{n}";', out)
+
+    def test_macro(self):
+        src = """/ {
+    macros {
+        BT_Profile0: BT_Profile0 {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            display-name = "BT_PROFILE0";
+            bindings = <&macro_tap &bt BT_SEL 0>;
+        };
+    };
+};"""
+        out, combos, macros = rd.convert(src)
+        self.assertEqual((combos, macros), (0, 1))
+        self.assertIn('&BT_Profile0 {\n    compatible = "ryong,behavior-named-runtime-macro";\n    macro-name = "BT_PROFILE0";', out)
         self.assertIn("bindings = <&macro_tap &bt BT_SEL 0>;", out)
-        self.assertEqual(out.count('compatible = "cormoran,runtime-macro-default";'), 4)
+        self.assertEqual(out.count('compatible = "cormoran,runtime-macro-default";'), 1)
 
     def test_refusals(self):
         param = '/ { macros { m: m { compatible = "zmk,behavior-macro-one-param"; }; x: x { compatible = "zmk,behavior-macro"; #binding-cells = <1>; bindings = <&kp A>; }; }; };'
