@@ -11,7 +11,7 @@ on:
     paths: ['.github/workflows/keys-cutover.yml']
   workflow_dispatch:
     inputs:
-      mode: { description: "plan | cutover", required: true, type: choice, options: [plan, cutover], default: plan }
+      mode: { description: "plan | cutover", required: true, type: choice, options: [plan, cutover, attach], default: plan }
       old_project: { description: "Pages project that serves keys.ryong.com today (from plan)", required: false, default: "" }
       confirm: { description: "Type keys.ryong.com to allow cutover", required: false, default: "" }
 permissions:
@@ -51,6 +51,15 @@ jobs:
           zone=$(api "https://api.cloudflare.com/client/v4/zones?name=$ZONE" | python3 -c 'import json,sys; r=json.load(sys.stdin).get("result") or []; print(r[0]["id"] if r else "")')
           [ -n "$zone" ] || echo "- The token cannot read the $ZONE DNS zone: DNS records are changed by hand (see the end)." | tee -a "$GITHUB_STEP_SUMMARY"
           Z="https://api.cloudflare.com/client/v4/zones/$zone/dns_records"
+          if [ "$MODE" = attach ]; then  # retry attaching keys.ryong.com to the new project only
+            for i in 1 2 3 4 5 6; do
+              r=$(api -X POST "$A/$NEW/domains" --data-raw '{"name":"keys.ryong.com"}')
+              echo "$r" | head -c 400; echo
+              echo "$r" | grep -q '"success":true' && { echo "- attached keys.ryong.com to $NEW" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; }
+              sleep 20
+            done
+            exit 1
+          fi
           [ "$MODE" = cutover ] || { echo "Plan only: nothing changed."; exit 0; }
 
           [ "$CONFIRM" = keys.ryong.com ] || { echo "::error::confirm must be keys.ryong.com"; exit 1; }
