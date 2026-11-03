@@ -392,18 +392,24 @@ await step("keyboard settings: deep sleep off/on and minutes, saved on the keybo
   await page.screenshot({ path: `${output}/09-device-settings.png`, fullPage: true });
 });
 
-await step("keyboard settings: backlight use switch, turn on now, USB-only follows the cable", async () => {
+await step("keyboard settings: backlight use switch, brightness applies at once, USB-only follows the cable", async () => {
   const pane = page.locator("#ry-device-pane");
   const bl = pane.getByLabel("백라이트", { exact: true });
-  assert.equal(await bl.getByRole("button", { name: "켜기" }).count(), 0, "no power button while the feature is off");
+  assert.equal(await bl.getByRole("button", { name: /켜기|끄기/ }).count(), 0, "no 'right now' power button");
   await pane.getByRole("switch", { name: "백라이트 사용" }).click();
-  await bl.getByRole("slider", { name: "밝기" }).focus();
-  for (let i = 0; i < 6; i++) await page.keyboard.press("ArrowRight"); // 40 → 70 in 5% steps
+  await bl.getByRole("switch", { name: "백라이트 켤 때 켜기" }).click();
   await pane.getByRole("button", { name: "키보드에 저장" }).click();
-  await page.waitForFunction(() => window.__ryongVirtual.flash.device?.settings.backlight.use === true && window.__ryongVirtual.flash.device.settings.backlight.brightness === 70, null, { timeout: 5000 });
-  await bl.getByRole("button", { name: "켜기" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device?.settings.backlight.use === true, null, { timeout: 5000 });
+  await power(); // on at start → lit
   await page.waitForFunction(() => window.__ryongVirtual.flash.device.blOn === true, null, { timeout: 5000 });
-  await bl.getByRole("switch", { name: "USB 연결 때만 켜기" }).click();
+  await pane.getByRole("button", { name: "키보드에서 다시 읽기" }).click();
+  const slider = bl.getByRole("slider", { name: "백라이트 밝기" });
+  await slider.focus();
+  for (let i = 0; i < 6; i++) await page.keyboard.press("ArrowRight"); // 40 → 70 in 5% steps
+  // no Save press: the slider writes by itself once let go
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.backlight.brightness === 70, null, { timeout: 5000 });
+  await bl.getByRole("switch", { name: "백라이트: USB 연결 때만 켜기" }).click();
+  assert.equal(await pane.getByRole("switch", { name: "언더글로우: USB 연결 때만 켜기" }).count(), 0, "underglow options hidden while it is off");
   await pane.getByRole("button", { name: "키보드에 저장" }).click();
   await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.backlight.usbOnly === true, null, { timeout: 5000 });
   const usb = page.getByRole("button", { name: /USB 케이블/ });
@@ -422,14 +428,14 @@ await step("keyboard settings: backlight use switch, turn on now, USB-only follo
 await step("keyboard settings: underglow on at start survives a power cycle", async () => {
   const pane = page.locator("#ry-device-pane");
   await pane.getByRole("switch", { name: "RGB 언더글로우 사용" }).click();
-  await pane.getByRole("switch", { name: "켤 때 켜기" }).last().click(); // lights start dark by default
-  await pane.getByRole("switch", { name: "USB 연결 때만 켜기" }).last().click(); // off: also on battery
+  await pane.getByRole("switch", { name: "RGB 언더글로우 켤 때 켜기" }).click(); // lights start dark by default
+  await pane.getByRole("switch", { name: "언더글로우: USB 연결 때만 켜기" }).click(); // off: also on battery
   await pane.getByRole("button", { name: "키보드에 저장" }).click();
   await page.waitForFunction(() => { const u = window.__ryongVirtual.flash.device.settings.underglow; return u.use && u.onAtStart && !u.usbOnly; }, null, { timeout: 5000 });
   await power();
   assert.equal(await page.evaluate(() => window.__ryongVirtual.flash.device.ugOn), true, "on at start");
   await pane.getByRole("button", { name: "키보드에서 다시 읽기" }).click();
-  await pane.getByLabel("RGB 언더글로우", { exact: true }).getByText("켜짐", { exact: true }).waitFor({ timeout: 5000 });
+  await pane.getByLabel("RGB 언더글로우", { exact: true }).getByText(/지금 켜져 있어요/).waitFor({ timeout: 5000 });
 });
 
 await step("no page errors (desktop)", async () => assert.deepEqual(errors, []));

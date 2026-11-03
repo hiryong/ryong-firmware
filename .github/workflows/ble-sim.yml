@@ -63,6 +63,10 @@ jobs:
           ./run-ble-test.sh tests/ble/profiles > /dev/null 2>&1 || true
           cp build/tests/pass-fail.log build/tests/upstream-pass-fail.log 2>/dev/null || true
           ./run-ble-test.sh tests/ble/ryong-identities > /dev/null 2>&1 || true
+          # run-ble-test.sh hides build output: keep one identity build's log for diagnosis
+          c=tests/ble/ryong-identities/connnect-and-output-to-selection
+          west build -p -d build/diag -b nrf52_bsim//zmk_test_mock -- -DZMK_CONFIG="$(pwd)/$c" > build/tests/identity-build.log 2>&1 || true
+          tail -60 build/tests/identity-build.log | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY" || true
           echo "### Upstream profile scenarios (our patch, one identity)" >> "$GITHUB_STEP_SUMMARY"
           sed 's/^/    /' build/tests/upstream-pass-fail.log >> "$GITHUB_STEP_SUMMARY" || true
           python3 "$GITHUB_WORKSPACE/ryong/tests/ble-sim/check_identity_runs.py" build/tests/ble/ryong-identities tests/ble/ryong-identities | tee -a "$GITHUB_STEP_SUMMARY"

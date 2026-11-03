@@ -40,7 +40,7 @@ static bool started;
 static uint32_t last_activity;
 struct light_track { bool wanted, forced_off; int pending; /* -1 none, 0 off, 1 on */ };
 static struct light_track bl_t = {.pending = -1}, ug_t = {.pending = -1};
-static bool bl_brightness_dirty;
+static bool bl_brightness_dirty, ug_brightness_dirty;
 
 static bool usb_powered(void) {
 #if IS_ENABLED(CONFIG_USB_DEVICE_STACK)
@@ -81,16 +81,18 @@ static void ug_set(bool on) {
     ARG_UNUSED(on);
 #endif
 }
-static void ug_clamp(uint8_t max) {
+/* Keeps the underglow at or below its maximum; when the maximum was just changed on the site, the
+ * underglow shows it at once (brighter too), so the slider visibly does something. */
+static void ug_clamp(uint8_t max, bool changed) {
 #if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW)
     if (!ug_is_on()) return;
     struct zmk_led_hsb c = zmk_rgb_underglow_calc_brt(0);
-    if (c.b > max) {
+    if (c.b > max || (changed && c.b != max)) {
         c.b = max;
         zmk_rgb_underglow_set_hsb(c);
     }
 #else
-    ARG_UNUSED(max);
+    ARG_UNUSED(max); ARG_UNUSED(changed);
 #endif
 }
 
@@ -131,8 +133,9 @@ static void tick(struct k_work *work) {
     struct ry_settings s;
     k_mutex_lock(&lock, K_FOREVER);
     s = cur;
-    bool brt = bl_brightness_dirty;
+    bool brt = bl_brightness_dirty, ug_brt = ug_brightness_dirty;
     bl_brightness_dirty = false;
+    ug_brightness_dirty = false;
     k_mutex_unlock(&lock);
     if (!started) return;
     bool usb = usb_powered();
@@ -142,7 +145,7 @@ static void tick(struct k_work *work) {
     }
     if (IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW)) {
         step_light(&s.underglow, &ug_t, usb, ug_is_on, ug_set_l);
-        ug_clamp(s.underglow.brightness);
+        ug_clamp(s.underglow.brightness, ug_brt);
     }
 #if IS_ENABLED(CONFIG_ZMK_SLEEP)
     if (ry_should_sleep(&s, k_uptime_get_32() - last_activity, usb)) {
@@ -250,6 +253,7 @@ int ry_rs_set(const struct ry_settings *s) {
     if (ry_rs_validate(s)) return -EINVAL;
     k_mutex_lock(&lock, K_FOREVER);
     bl_brightness_dirty = s->backlight.brightness != cur.backlight.brightness;
+    ug_brightness_dirty = s->underglow.brightness != cur.underglow.brightness;
     cur = *s;
     k_mutex_unlock(&lock);
     k_work_reschedule(&save_work, K_SECONDS(1));

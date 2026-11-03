@@ -5,7 +5,7 @@ import { ConnectionContext } from "../rpc/ConnectionContext";
 import { LockStateContext } from "../rpc/LockStateContext";
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core";
 import { firmwareDevice } from "./runtime/updateDevice";
-import { BACKLIGHT, connectDeviceSettings, DeviceSettings, DeviceSettingsClient, DeviceState, UNDERGLOW } from "./runtime/deviceSettings";
+import { connectDeviceSettings, DeviceSettings, DeviceSettingsClient, DeviceState } from "./runtime/deviceSettings";
 import type { Light } from "./runtime/proto/settings";
 import { t } from "./i18n";
 
@@ -32,6 +32,8 @@ export function DeviceSettingsPanel() {
   const [confirmDfu, setConfirmDfu] = useState(false), [dfuSent, setDfuSent] = useState(false);
   const [build, setBuild] = useState<string | null>(null);
   const at = useRef(conn); at.current = conn;
+  const brtTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(brtTimer.current), [conn]);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,31 +64,48 @@ export function DeviceSettingsPanel() {
   const set = (patch: Partial<DeviceSettings>) => { setDraft((d) => d && { ...d, ...patch }); setSaved(false); };
   const setLight = (k: "backlight" | "underglow", patch: Partial<Light>) => setDraft((d) => d && { ...d, [k]: { ...d[k]!, ...patch } });
 
+  // The brightness slider is applied (and stored) as soon as it is let go, on its own: a value that
+  // only shows after pressing Save looked like the slider did nothing.
+  async function applyBrightness(k: "backlight" | "underglow", brightness: number) {
+    const base = state?.settings;
+    if (!dev || !base || base[k]!.brightness === brightness) return;
+    const s = await act(() => dev.save({ ...base, [k]: { ...base[k]!, brightness } }));
+    if (s?.settings) setDraft((d) => d && { ...d, [k]: { ...d[k]!, brightness: s.settings![k]!.brightness } });
+  }
+
   const light = (k: "backlight" | "underglow") => {
     const l = draft![k]!, live = state!;
-    const which = k === "backlight" ? BACKLIGHT : UNDERGLOW;
     const isOn = k === "backlight" ? live.backlightOn : live.underglowOn;
-    const savedUse = live.settings![k]!.use, savedUsbOnly = live.settings![k]!.usbOnly;
     const name = k === "backlight" ? t("Backlight", "백라이트") : t("RGB underglow", "RGB 언더글로우");
-    const blockedNow = !savedUse || (savedUsbOnly && !live.usbPowered);
+    const brtTitle = k === "backlight" ? t("Backlight brightness", "백라이트 밝기") : t("Underglow brightness", "언더글로우 밝기");
+    const brtHint = k === "backlight"
+      ? t("Applied when you let go. Brightness keys still work.", "슬라이더를 놓으면 바로 바뀌어요. 밝기 키로도 조절할 수 있어요.")
+      : t("Applied when you let go; brightness keys can't go above it. About 50% is plenty on USB power.", "슬라이더를 놓으면 바로 바뀌고, 밝기 키로도 이 값보다 밝아지지 않아요. 50% 정도면 충분해요.");
+    const usbTitle = k === "backlight" ? t("Backlight only on USB power", "백라이트: USB 연결 때만 켜기") : t("Underglow only on USB power", "언더글로우: USB 연결 때만 켜기");
+    const usbHint = k === "backlight"
+      ? t("The backlight goes dark on battery and comes back when plugged in. The underglow has its own switch.", "배터리로 쓸 때는 백라이트만 꺼지고, 케이블을 꽂으면 다시 켜져요. 언더글로우는 따로 정해요.")
+      : t("The underglow goes dark on battery and comes back when plugged in. The backlight has its own switch.", "배터리로 쓸 때는 언더글로우만 꺼지고, 케이블을 꽂으면 다시 켜져요. 백라이트는 따로 정해요.");
+    // a short pause first, so several arrow-key steps become one write
+    const commit = (e: React.SyntheticEvent<HTMLInputElement>) => {
+      const v = Number(e.currentTarget.value);
+      clearTimeout(brtTimer.current);
+      brtTimer.current = setTimeout(() => void applyBrightness(k, v), 400);
+    };
     return <section className="ry-card ry-setcard" aria-label={name}>
-      <Row title={name} hint={k === "backlight" ? t("Lights under the keys.", "키 아래 조명이에요.") : t("Lights under the board. Off = its LED power is cut too.", "기판 아래 조명이에요. 끄면 LED 전원도 함께 꺼져요.")}>
+      <Row title={name} hint={(k === "backlight" ? t("Lights under the keys.", "키 아래 조명이에요.") : t("Lights under the board. Off = its LED power is cut too.", "기판 아래 조명이에요. 끄면 LED 전원도 함께 꺼져요."))
+        + " " + (isOn ? t("Now on.", "지금 켜져 있어요.") : t("Now off.", "지금 꺼져 있어요."))}>
         <Switch on={l.use} label={t("Use {n}", "{n} 사용", { n: name })} onChange={(use) => setLight(k, { use })} />
       </Row>
       {l.use && <>
-        <Row title={t("Right now", "지금 상태")} hint={isOn ? t("On", "켜짐") : t("Off", "꺼짐")}>
-          <button className="ry-outline" disabled={busy || dirty || (!isOn && blockedNow)} title={dirty ? t("Save first", "먼저 저장하세요") : undefined}
-            onClick={() => act(() => dev!.power(which, !isOn))}>{isOn ? t("Turn off", "끄기") : t("Turn on", "켜기")}</button>
+        <Row title={t("On when the keyboard starts", "켤 때 켜기")}><Switch on={l.onAtStart} label={t("{n} on at start", "{n} 켤 때 켜기", { n: name })} onChange={(onAtStart) => setLight(k, { onAtStart })} /></Row>
+        <Row title={brtTitle} hint={brtHint}>
+          <span className="ry-range"><input type="range" min={5} max={100} step={5} value={l.brightness} disabled={!live.settings![k]!.use}
+            aria-label={brtTitle} title={!live.settings![k]!.use ? t("Save first", "먼저 저장하세요") : undefined}
+            onChange={(e) => setLight(k, { brightness: Number(e.target.value) })}
+            onPointerUp={commit} onKeyUp={commit} onBlur={commit} /><output>{l.brightness}%</output></span>
         </Row>
-        <Row title={t("On when the keyboard starts", "켤 때 켜기")}><Switch on={l.onAtStart} label={t("On at start", "켤 때 켜기")} onChange={(onAtStart) => setLight(k, { onAtStart })} /></Row>
-        <Row title={k === "backlight" ? t("Brightness", "밝기") : t("Maximum brightness", "최대 밝기")}
-          hint={k === "underglow" ? t("About 50% is plenty and keeps USB power in check.", "50% 정도면 충분하고 USB 전력도 여유가 생겨요.") : undefined}>
-          <span className="ry-range"><input type="range" min={k === "backlight" ? 5 : 0} max={100} step={5} value={l.brightness}
-            aria-label={k === "backlight" ? t("Brightness", "밝기") : t("Maximum brightness", "최대 밝기")}
-            onChange={(e) => setLight(k, { brightness: Number(e.target.value) })} /><output>{l.brightness}%</output></span>
-        </Row>
-        <Row title={t("Only on USB power", "USB 연결 때만 켜기")} hint={t("Dark on battery, back on when plugged in.", "배터리로 쓸 때는 꺼지고, 케이블을 꽂으면 다시 켜져요.")}>
-          <Switch on={l.usbOnly} label={t("Only on USB power", "USB 연결 때만 켜기")} onChange={(usbOnly) => setLight(k, { usbOnly })} />
+        <Row title={usbTitle} hint={usbHint}>
+          <Switch on={l.usbOnly} label={usbTitle} onChange={(usbOnly) => setLight(k, { usbOnly })} />
         </Row>
       </>}
     </section>;

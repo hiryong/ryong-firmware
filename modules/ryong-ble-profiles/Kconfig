@@ -7,3 +7,8 @@ config RYONG_BLE_PROFILES
       switching the selected slot and removing the keyboard-side bond plus
       its stored name and per-profile OS preference. Peer addresses and keys
       are never exposed. Physical behaviour is unverified until tested.
+
+config RYONG_FATAL_RECOVERY
+    bool "Restart after a fatal error; into the UF2 bootloader after three quick crashes"
+    depends on RYONG_BLE_PROFILES && SOC_SERIES_NRF52X && REBOOT
+    default y
