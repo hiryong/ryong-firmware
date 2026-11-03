@@ -25,8 +25,8 @@
     "zmk-feature-os-detection": {
       "from": "cormoran/zmk-feature-os-detection@3052679",
       "from_revision": "3052679f645b8fc1997275c2eaa6b86bdd55ca01",
-      "tree_sha256": "f5694a220cee11a232ef607a6d92603a3c5218e4dd7804edb99918dd9fc17427",
-      "ryong_changes": "src/os_detection_ble.c: keep cached OS on weak reconnect fingerprints"
+      "tree_sha256": "047900a8e76fa13b88d0580d00a86af6b5097bef5dba1c30972b77bde7fb492f",
+      "ryong_changes": "keep cached OS on weak reconnect fingerprints; report the last BLE fingerprint over Studio; src/os_detection_ble_probe.c asks the host's Device Information (Apple Inc. + model) - decisive Mac/iPhone vs not Apple"
     },
     "zmk-feature-runtime-combo": {
       "from": "cormoran/zmk-feature-runtime-combo@d9490e7",

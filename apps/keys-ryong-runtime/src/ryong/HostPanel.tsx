@@ -4,12 +4,18 @@ import { LockStateContext } from "../rpc/LockStateContext";
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core";
 import { connectHostDevice, HostDevice, Os } from "./runtime/hostDevice";
 import { BleProfileDevice, connectBleProfiles, normalizeName } from "./runtime/bleProfiles";
-import type { StateResponse } from "./runtime/proto/os_detection";
+import type { StateResponse, BleProfileState as O_BleProfileState } from "./runtime/proto/os_detection";
 import type { State as SlotState } from "./runtime/proto/ble_profiles";
 import { t } from "./i18n";
 
 const apple = (os: Os) => os === Os.OS_MACOS || os === Os.OS_IOS;
 const layout = (os: Os) => apple(os) ? t("Apple · Command / Option", "Apple · Command / Option") : t("Windows standard", "Windows 표준");
+/** How the keyboard decided (firmware's last connection since power-up). */
+const basisLabel = (f: NonNullable<O_BleProfileState["fingerprint"]>) =>
+  f.appleProbe === 2 ? t("the Mac said so", "Mac이 직접 알려줌") : f.appleProbe === 3 ? t("the iPhone/iPad said so", "iPhone·iPad가 직접 알려줌")
+  : f.appleProbe === 1 ? t("host says it is not Apple", "Apple 기기가 아니라고 알려줌") : t("guessed from how it connected", "연결 방식으로 추정");
+const fingerprintText = (f: NonNullable<O_BleProfileState["fingerprint"]>) =>
+  `HID map ${f.reportMap} · HID info ${f.hidsInfo} · report ${f.report} · PnP ${f.pnpId} · appearance ${f.appearance} · MTU ${f.attMtu} · interval ${f.connInterval} · probe ${f.appleProbe}${f.keptCached ? " · kept" : ""}`;
 const detectedLabel = (os: Os) => os === Os.OS_UNKNOWN || os === Os.OS_UNSPECIFIED
   ? t("Not detected yet", "아직 감지 안 됨") : apple(os) ? t("Apple (macOS / iOS)", "Apple 계열 (macOS / iOS)") : t("Windows or other", "Windows 또는 기타");
 
@@ -108,7 +114,8 @@ export function HostPanel() {
         </form> : null}
 
         {os && bonded && <div className="ry-row">
-          <span className="ry-faint">{t("Last detected", "마지막 감지")} · {detectedLabel(os.detected)}</span>
+          <span className="ry-faint">{t("Last detected", "마지막 감지")} · {detectedLabel(os.detected)}
+            {os.fingerprint && <> · <span title={fingerprintText(os.fingerprint)}>{basisLabel(os.fingerprint)}</span></>}</span>
           <label className="ry-field"><span className="ry-label">{t("Key layout", "키 배치")}</span>
             <select value={os.override} disabled={busy || !hostDev} aria-label={t("Slot {n} layout", "슬롯 {n} 배치", { n: index + 1 })}
               onChange={e => { const next = Number(e.target.value) as Os; act(async () => { setHost(await hostDev!.setOverride(index, next, host!)); }); }}>

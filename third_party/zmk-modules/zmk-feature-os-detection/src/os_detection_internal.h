@@ -43,9 +43,22 @@ struct ble_fp_stats {
     uint8_t pnp_id_reads;
     uint8_t appearance_reads;
     bool ancs_or_ams_present; /* only meaningful when the GATT client probe ran */
+    uint8_t apple_probe;      /* Ryong: ZMK_OS_PROBE_* from os_detection_ble_probe.c */
 };
 
 enum zmk_os zmk_os_classify_ble(const struct ble_fp_stats *stats);
+
+/* Ryong: answer of the host's Device Information Service (os_detection_ble_probe.c). */
+#define ZMK_OS_PROBE_NONE 0
+#define ZMK_OS_PROBE_NOT_APPLE 1
+#define ZMK_OS_PROBE_MAC 2
+#define ZMK_OS_PROBE_IOS 3
+uint8_t zmk_os_detection_probe_result(uint8_t profile_index);
+void zmk_os_detection_ble_reclassify(uint8_t profile_index);
+
+/* Ryong: last settled BLE fingerprint of a profile since power-up (false if none). */
+bool zmk_os_detection_ble_last_fingerprint(uint8_t profile_index, struct ble_fp_stats *out,
+                                           enum zmk_os *classified, bool *kept_cached);
 
 /* Called by os_detection_ble.c once a BLE fingerprint has settled for a profile. */
 void zmk_os_detection_report_ble_detected(uint8_t profile_index, enum zmk_os detected);

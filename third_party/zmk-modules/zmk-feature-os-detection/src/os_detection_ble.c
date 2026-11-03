@@ -37,6 +37,13 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
  * at all - a real desktop Linux capture (which reads Appearance) lands on
  * the Windows rule below instead, per the existing ambiguity decision. */
 enum zmk_os zmk_os_classify_ble(const struct ble_fp_stats *stats) {
+    /* Ryong: the host's own Device Information answer beats any read-pattern guess. */
+    if (stats->apple_probe == ZMK_OS_PROBE_IOS) {
+        return ZMK_OS_IOS;
+    }
+    if (stats->apple_probe == ZMK_OS_PROBE_MAC) {
+        return ZMK_OS_MACOS;
+    }
     if (stats->ancs_or_ams_present) {
         /* ANCS/AMS (Apple Notification Center/Media Service) are exposed by
          * iPhones/iPads pairing with accessories, not by macOS acting as a
@@ -71,6 +78,11 @@ enum zmk_os zmk_os_classify_ble(const struct ble_fp_stats *stats) {
      * distinguishes it from real desktop Linux. */
     if (stats->report_map_reads > 0 && stats->hids_info_reads > 0 && stats->appearance_reads == 0) {
         return ZMK_OS_ANDROID;
+    }
+
+    /* Ryong: the host said it is not Apple, so the Apple fallback below cannot be right. */
+    if (stats->apple_probe == ZMK_OS_PROBE_NOT_APPLE) {
+        return ZMK_OS_WINDOWS;
     }
 
     /* Fallback: some HIDS access happened but didn't match a clearer
@@ -108,12 +120,37 @@ static int profile_index_for_conn(struct bt_conn *conn) {
     return zmk_ble_profile_index(bt_conn_get_dst(conn));
 }
 
+/* Ryong: last settled fingerprint per profile (RAM only), reported over Studio for diagnosis. */
+static struct ble_fp_stats last_fp[ZMK_BLE_PROFILE_COUNT];
+static enum zmk_os last_classified[ZMK_BLE_PROFILE_COUNT];
+static bool last_kept[ZMK_BLE_PROFILE_COUNT];
+static bool last_valid[ZMK_BLE_PROFILE_COUNT];
+
+bool zmk_os_detection_ble_last_fingerprint(uint8_t profile_index, struct ble_fp_stats *out,
+                                           enum zmk_os *classified, bool *kept_cached) {
+    if (profile_index >= ZMK_BLE_PROFILE_COUNT || !last_valid[profile_index]) {
+        return false;
+    }
+    *out = last_fp[profile_index];
+    *classified = last_classified[profile_index];
+    *kept_cached = last_kept[profile_index];
+    return true;
+}
+
 static void classify_and_report(int profile_index) {
     if (profile_index < 0 || profile_index >= ZMK_BLE_PROFILE_COUNT) {
         return;
     }
-    const struct ble_fp_stats *stats = &profile_stats[profile_index];
+    struct ble_fp_stats *stats = &profile_stats[profile_index];
+#if IS_ENABLED(CONFIG_ZMK_OS_DETECTION_BLE_GATT_CLIENT_PROBE)
+    stats->apple_probe = zmk_os_detection_probe_result(profile_index);
+#endif
+    bool decisive = stats->apple_probe != ZMK_OS_PROBE_NONE;
     enum zmk_os detected = zmk_os_classify_ble(stats);
+    last_fp[profile_index] = *stats;
+    last_classified[profile_index] = detected;
+    last_kept[profile_index] = false;
+    last_valid[profile_index] = true;
     LOG_DBG("os detection: BLE fingerprint stats profile=%d report_map=%u hids_info=%u "
             "report_ref=%u pnp_id=%u appearance=%u ancs_ams=%d mtu=%u interval=%u -> os=%d",
             profile_index, stats->report_map_reads, stats->hids_info_reads, stats->report_ref_reads,
@@ -125,17 +162,26 @@ static void classify_and_report(int profile_index) {
      * full HID discovery (Report Map read), which only happens on pairing or when the host lost its
      * cache. A wrong result is fixed by the manual per-slot choice. */
     if (detected == ZMK_OS_UNKNOWN) {
+        last_kept[profile_index] = true;
         return;
     }
 #if IS_ENABLED(CONFIG_ZMK_CUSTOM_SETTINGS)
     enum zmk_os cached = zmk_os_detection_settings_get_detected_cache(profile_index);
-    if (cached != ZMK_OS_UNKNOWN && cached != detected && stats->report_map_reads == 0) {
+    if (!decisive && cached != ZMK_OS_UNKNOWN && cached != detected && stats->report_map_reads == 0) {
         LOG_INF("os detection: profile %d keeps %d (reconnect without full discovery suggested %d)",
                 profile_index, cached, detected);
+        last_kept[profile_index] = true;
         return;
     }
 #endif
     zmk_os_detection_report_ble_detected(profile_index, detected);
+}
+
+/* Ryong: the probe answered after (or before) the read burst settled: classify again with it. */
+void zmk_os_detection_ble_reclassify(uint8_t profile_index) {
+    if (profile_index < ZMK_BLE_PROFILE_COUNT && profile_settle[profile_index].settled) {
+        classify_and_report(profile_index);
+    }
 }
 
 static void ble_settle_work_handler(struct k_work *work) {

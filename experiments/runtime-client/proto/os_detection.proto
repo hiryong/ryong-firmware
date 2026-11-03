@@ -24,6 +24,21 @@ message UsbState {
     Os detected = 2;
 }
 
+// Ryong: what the host read while connecting (last connection since power-up), so a wrong guess
+// can be explained and the classifier tuned from real captures.
+message BleFingerprint {
+    uint32 report_map = 1;
+    uint32 hids_info = 2;
+    uint32 report = 3;
+    uint32 pnp_id = 4;
+    uint32 appearance = 5;
+    uint32 att_mtu = 6;
+    uint32 conn_interval = 7; // 1.25 ms units
+    Os classified = 8;
+    bool kept_cached = 9;
+    uint32 apple_probe = 10; // 0 no answer, 1 not Apple, 2 Mac, 3 iPhone/iPad (host's Device Information)
+}
+
 message BleProfileState {
     uint32 index = 1;
     bool bonded = 2;
@@ -31,6 +46,7 @@ message BleProfileState {
     Os detected = 4;
     Os override = 5;
     Os effective = 6;
+    BleFingerprint fingerprint = 7;
 }
 
 message StateResponse {

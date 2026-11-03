@@ -46,6 +46,24 @@ static void fill_ble_profile_state(uint8_t index, cormoran_os_detection_BleProfi
     out->detected = zmk_os_to_proto(zmk_os_detection_ble_profile_detected(index));
     out->override = zmk_os_to_proto(zmk_os_detection_ble_profile_override(index));
     out->effective = zmk_os_to_proto(zmk_os_detection_ble_profile_effective(index));
+#if IS_ENABLED(CONFIG_ZMK_OS_DETECTION_BLE)
+    struct ble_fp_stats fp;
+    enum zmk_os classified;
+    bool kept;
+    out->has_fingerprint = zmk_os_detection_ble_last_fingerprint(index, &fp, &classified, &kept);
+    if (out->has_fingerprint) {
+        out->fingerprint.report_map = fp.report_map_reads;
+        out->fingerprint.hids_info = fp.hids_info_reads;
+        out->fingerprint.report = fp.report_ref_reads;
+        out->fingerprint.pnp_id = fp.pnp_id_reads;
+        out->fingerprint.appearance = fp.appearance_reads;
+        out->fingerprint.att_mtu = fp.att_mtu;
+        out->fingerprint.conn_interval = fp.initial_conn_interval;
+        out->fingerprint.classified = zmk_os_to_proto(classified);
+        out->fingerprint.kept_cached = kept;
+        out->fingerprint.apple_probe = fp.apple_probe;
+    }
+#endif
 }
 
 static void handle_get_state(cormoran_os_detection_StateResponse *out) {

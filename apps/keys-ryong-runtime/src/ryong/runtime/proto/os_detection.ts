@@ -86,6 +86,25 @@ export interface UsbState {
   detected: Os;
 }
 
+/**
+ * Ryong: what the host read while connecting (last connection since power-up), so a wrong guess
+ * can be explained and the classifier tuned from real captures.
+ */
+export interface BleFingerprint {
+  reportMap: number;
+  hidsInfo: number;
+  report: number;
+  pnpId: number;
+  appearance: number;
+  attMtu: number;
+  /** 1.25 ms units */
+  connInterval: number;
+  classified: Os;
+  keptCached: boolean;
+  /** 0 no answer, 1 not Apple, 2 Mac, 3 iPhone/iPad (host's Device Information) */
+  appleProbe: number;
+}
+
 export interface BleProfileState {
   index: number;
   bonded: boolean;
@@ -93,6 +112,7 @@ export interface BleProfileState {
   detected: Os;
   override: Os;
   effective: Os;
+  fingerprint: BleFingerprint | undefined;
 }
 
 export interface StateResponse {
@@ -312,8 +332,213 @@ export const UsbState = {
   },
 };
 
+function createBaseBleFingerprint(): BleFingerprint {
+  return {
+    reportMap: 0,
+    hidsInfo: 0,
+    report: 0,
+    pnpId: 0,
+    appearance: 0,
+    attMtu: 0,
+    connInterval: 0,
+    classified: 0,
+    keptCached: false,
+    appleProbe: 0,
+  };
+}
+
+export const BleFingerprint = {
+  encode(message: BleFingerprint, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.reportMap !== 0) {
+      writer.uint32(8).uint32(message.reportMap);
+    }
+    if (message.hidsInfo !== 0) {
+      writer.uint32(16).uint32(message.hidsInfo);
+    }
+    if (message.report !== 0) {
+      writer.uint32(24).uint32(message.report);
+    }
+    if (message.pnpId !== 0) {
+      writer.uint32(32).uint32(message.pnpId);
+    }
+    if (message.appearance !== 0) {
+      writer.uint32(40).uint32(message.appearance);
+    }
+    if (message.attMtu !== 0) {
+      writer.uint32(48).uint32(message.attMtu);
+    }
+    if (message.connInterval !== 0) {
+      writer.uint32(56).uint32(message.connInterval);
+    }
+    if (message.classified !== 0) {
+      writer.uint32(64).int32(message.classified);
+    }
+    if (message.keptCached !== false) {
+      writer.uint32(72).bool(message.keptCached);
+    }
+    if (message.appleProbe !== 0) {
+      writer.uint32(80).uint32(message.appleProbe);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): BleFingerprint {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBleFingerprint();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.reportMap = reader.uint32();
+          continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.hidsInfo = reader.uint32();
+          continue;
+        case 3:
+          if (tag !== 24) {
+            break;
+          }
+
+          message.report = reader.uint32();
+          continue;
+        case 4:
+          if (tag !== 32) {
+            break;
+          }
+
+          message.pnpId = reader.uint32();
+          continue;
+        case 5:
+          if (tag !== 40) {
+            break;
+          }
+
+          message.appearance = reader.uint32();
+          continue;
+        case 6:
+          if (tag !== 48) {
+            break;
+          }
+
+          message.attMtu = reader.uint32();
+          continue;
+        case 7:
+          if (tag !== 56) {
+            break;
+          }
+
+          message.connInterval = reader.uint32();
+          continue;
+        case 8:
+          if (tag !== 64) {
+            break;
+          }
+
+          message.classified = reader.int32() as any;
+          continue;
+        case 9:
+          if (tag !== 72) {
+            break;
+          }
+
+          message.keptCached = reader.bool();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.appleProbe = reader.uint32();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BleFingerprint {
+    return {
+      reportMap: isSet(object.reportMap) ? globalThis.Number(object.reportMap) : 0,
+      hidsInfo: isSet(object.hidsInfo) ? globalThis.Number(object.hidsInfo) : 0,
+      report: isSet(object.report) ? globalThis.Number(object.report) : 0,
+      pnpId: isSet(object.pnpId) ? globalThis.Number(object.pnpId) : 0,
+      appearance: isSet(object.appearance) ? globalThis.Number(object.appearance) : 0,
+      attMtu: isSet(object.attMtu) ? globalThis.Number(object.attMtu) : 0,
+      connInterval: isSet(object.connInterval) ? globalThis.Number(object.connInterval) : 0,
+      classified: isSet(object.classified) ? osFromJSON(object.classified) : 0,
+      keptCached: isSet(object.keptCached) ? globalThis.Boolean(object.keptCached) : false,
+      appleProbe: isSet(object.appleProbe) ? globalThis.Number(object.appleProbe) : 0,
+    };
+  },
+
+  toJSON(message: BleFingerprint): unknown {
+    const obj: any = {};
+    if (message.reportMap !== 0) {
+      obj.reportMap = Math.round(message.reportMap);
+    }
+    if (message.hidsInfo !== 0) {
+      obj.hidsInfo = Math.round(message.hidsInfo);
+    }
+    if (message.report !== 0) {
+      obj.report = Math.round(message.report);
+    }
+    if (message.pnpId !== 0) {
+      obj.pnpId = Math.round(message.pnpId);
+    }
+    if (message.appearance !== 0) {
+      obj.appearance = Math.round(message.appearance);
+    }
+    if (message.attMtu !== 0) {
+      obj.attMtu = Math.round(message.attMtu);
+    }
+    if (message.connInterval !== 0) {
+      obj.connInterval = Math.round(message.connInterval);
+    }
+    if (message.classified !== 0) {
+      obj.classified = osToJSON(message.classified);
+    }
+    if (message.keptCached !== false) {
+      obj.keptCached = message.keptCached;
+    }
+    if (message.appleProbe !== 0) {
+      obj.appleProbe = Math.round(message.appleProbe);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BleFingerprint>, I>>(base?: I): BleFingerprint {
+    return BleFingerprint.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BleFingerprint>, I>>(object: I): BleFingerprint {
+    const message = createBaseBleFingerprint();
+    message.reportMap = object.reportMap ?? 0;
+    message.hidsInfo = object.hidsInfo ?? 0;
+    message.report = object.report ?? 0;
+    message.pnpId = object.pnpId ?? 0;
+    message.appearance = object.appearance ?? 0;
+    message.attMtu = object.attMtu ?? 0;
+    message.connInterval = object.connInterval ?? 0;
+    message.classified = object.classified ?? 0;
+    message.keptCached = object.keptCached ?? false;
+    message.appleProbe = object.appleProbe ?? 0;
+    return message;
+  },
+};
+
 function createBaseBleProfileState(): BleProfileState {
-  return { index: 0, bonded: false, connected: false, detected: 0, override: 0, effective: 0 };
+  return { index: 0, bonded: false, connected: false, detected: 0, override: 0, effective: 0, fingerprint: undefined };
 }
 
 export const BleProfileState = {
@@ -335,6 +560,9 @@ export const BleProfileState = {
     }
     if (message.effective !== 0) {
       writer.uint32(48).int32(message.effective);
+    }
+    if (message.fingerprint !== undefined) {
+      BleFingerprint.encode(message.fingerprint, writer.uint32(58).fork()).ldelim();
     }
     return writer;
   },
@@ -388,6 +616,13 @@ export const BleProfileState = {
 
           message.effective = reader.int32() as any;
           continue;
+        case 7:
+          if (tag !== 58) {
+            break;
+          }
+
+          message.fingerprint = BleFingerprint.decode(reader, reader.uint32());
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -405,6 +640,7 @@ export const BleProfileState = {
       detected: isSet(object.detected) ? osFromJSON(object.detected) : 0,
       override: isSet(object.override) ? osFromJSON(object.override) : 0,
       effective: isSet(object.effective) ? osFromJSON(object.effective) : 0,
+      fingerprint: isSet(object.fingerprint) ? BleFingerprint.fromJSON(object.fingerprint) : undefined,
     };
   },
 
@@ -428,6 +664,9 @@ export const BleProfileState = {
     if (message.effective !== 0) {
       obj.effective = osToJSON(message.effective);
     }
+    if (message.fingerprint !== undefined) {
+      obj.fingerprint = BleFingerprint.toJSON(message.fingerprint);
+    }
     return obj;
   },
 
@@ -442,6 +681,9 @@ export const BleProfileState = {
     message.detected = object.detected ?? 0;
     message.override = object.override ?? 0;
     message.effective = object.effective ?? 0;
+    message.fingerprint = (object.fingerprint !== undefined && object.fingerprint !== null)
+      ? BleFingerprint.fromPartial(object.fingerprint)
+      : undefined;
     return message;
   },
 };
