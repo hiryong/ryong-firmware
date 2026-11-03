@@ -7,8 +7,8 @@ void ry_rs_defaults(struct ry_settings *s, uint16_t sleep_default_min, bool ligh
     memset(s, 0, sizeof(*s));
     s->sleep_enabled = sleep_default_min > 0;
     s->sleep_minutes = sleep_default_min > 0 ? sleep_default_min : 15;
-    s->backlight = (struct ry_light){.use = lights_use, .on_at_start = true, .brightness = 40, .usb_only = false};
-    s->underglow = (struct ry_light){.use = lights_use, .on_at_start = true, .brightness = 50, .usb_only = true};
+    s->backlight = (struct ry_light){.use = lights_use, .on_at_start = false, .brightness = 40, .usb_only = false};
+    s->underglow = (struct ry_light){.use = lights_use, .on_at_start = false, .brightness = 50, .usb_only = true};
 }
 
 static bool light_ok(const struct ry_light *l) { return l->brightness <= 100; }

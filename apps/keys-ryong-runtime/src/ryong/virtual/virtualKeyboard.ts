@@ -36,8 +36,8 @@ type State = Saved & { slots: Slot[]; active: number; usb: boolean; nextLayerId:
 /* Mirrors modules/ryong-runtime-settings defaults (lights built in but not in use). */
 const deviceFactory = (): Device => ({
   settings: S.Settings.fromPartial({ sleepEnabled: true, sleepMinutes: 15,
-    backlight: { use: false, onAtStart: true, brightness: 40, usbOnly: false },
-    underglow: { use: false, onAtStart: true, brightness: 50, usbOnly: true } }),
+    backlight: { use: false, onAtStart: false, brightness: 40, usbOnly: false },
+    underglow: { use: false, onAtStart: false, brightness: 50, usbOnly: true } }),
   blOn: false, ugOn: false, blWanted: false, ugWanted: false,
 });
 
