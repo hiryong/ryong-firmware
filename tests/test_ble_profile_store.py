@@ -48,6 +48,9 @@ int zmk_ble_active_profile_index(void);
 int zmk_ble_prof_select(uint8_t);
 void zmk_ble_clear_bonds(void);
 int zmk_ble_prof_clear(uint8_t i);
+enum zmk_ble_bond_cause { ZMK_BLE_BOND_CLEARED_SITE = 5 };
+int zmk_ble_prof_clear_cause(uint8_t i, enum zmk_ble_bond_cause c);
+void zmk_ble_wait_idle(void);
 int ryong_host_guard_profile(uint8_t);
 '''
 HARNESS = r'''
@@ -68,6 +71,8 @@ void zmk_ble_clear_bonds(void){memset(&peers[active],0,sizeof peers[0]);conn[act
 int zmk_ble_prof_clear(uint8_t i){if(i>=5)return -ERANGE;memset(&peers[i],0,sizeof peers[0]);conn[i]=false;return 0;}
 int ryong_host_guard_profile(uint8_t i){guards[nguard++]=i;return 0;}
 static int site_flag;void ryong_bt_log_site_clear(bool on){site_flag=on;}
+static int last_cause;int zmk_ble_prof_clear_cause(uint8_t i,enum zmk_ble_bond_cause c){last_cause=c;return zmk_ble_prof_clear(i);}
+void zmk_ble_wait_idle(void){}
 int settings_name_steq(const char *name,const char *key,const char **next){
  size_t n=strlen(key);if(strncmp(name,key,n))return 0;if(name[n]=='/'){*next=name+n+1;return 1;}if(!name[n]){*next=NULL;return 1;}return 0;}
 static int slot(const char *k,int create){

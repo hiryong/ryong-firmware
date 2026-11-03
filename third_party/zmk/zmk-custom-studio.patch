@@ -187,10 +187,10 @@ index af8fc76d03daa5304199e7746fd120416d3d2456..f35a5129caeff3f9f2ac92084bcda89d
  uint8_t zmk_backlight_calc_brt(int direction);
  uint8_t zmk_backlight_calc_brt_cycle(void);
 diff --git a/app/include/zmk/ble.h b/app/include/zmk/ble.h
-index 92b2107d88b12d2779c02305053032372386391a..9b27335903f5268ac5e6d820bb5fd3e69636cb78 100644
+index 92b2107d88b12d2779c02305053032372386391a..8204eaa5ec135da1667f30e1050c72ec4b3b0e2b 100644
 --- a/app/include/zmk/ble.h
 +++ b/app/include/zmk/ble.h
-@@ -20,6 +20,25 @@
+@@ -20,6 +20,33 @@
  #endif
  
  void zmk_ble_clear_bonds(void);
@@ -200,23 +200,31 @@ index 92b2107d88b12d2779c02305053032372386391a..9b27335903f5268ac5e6d820bb5fd3e6
 +void zmk_ble_settings_loaded(void);
 +
 +/* Ryong: every change of a slot's registered host, for the keyboard's bond history. Weak no-op
-+ * here; a module may record it. Called from the Bluetooth RX thread or the system work queue -
++ * here; a module may record it. Called from the Bluetooth slot worker (ble_slots.c) -
 + * implementations must only record and defer any flash write. */
 +enum zmk_ble_bond_cause {
 +    ZMK_BLE_BOND_PAIRED = 1,          /* a new host registered on the slot */
 +    ZMK_BLE_BOND_CLEARED = 2,         /* the slot was cleared (zmk_ble_clear_bonds) */
 +    ZMK_BLE_BOND_CLEARED_ALL = 3,     /* all slots were cleared */
 +    ZMK_BLE_BOND_PAIRING_REFUSED = 4, /* a host tried to pair onto a taken slot; its keys were dropped */
++    ZMK_BLE_BOND_CLEARED_SITE = 5,    /* the slot was cleared from the web page */
 +    ZMK_BLE_BOND_MIGRATED = 6,        /* paired before per-profile identities: needs a new pairing */
 +    ZMK_BLE_BOND_MISSING = 7,         /* the slot's bond record was gone at start-up */
 +    ZMK_BLE_BOND_MOVED = 8,           /* its host paired on another slot */
 +    ZMK_BLE_BOND_PAIRING_FAILED = 9,  /* a pairing attempt on the selected slot failed */
 +};
 +void zmk_ble_bond_event(uint8_t profile, enum zmk_ble_bond_cause cause);
++
++/* Clears like zmk_ble_prof_clear(), recording the given cause in the bond history. Changes run in
++ * the slot worker: from a preemptible thread these return when done, from the system work queue
++ * or the Bluetooth RX thread they return at once. zmk_ble_wait_idle() waits (preemptible threads
++ * only) until everything requested before it is done. */
++int zmk_ble_prof_clear_cause(uint8_t index, enum zmk_ble_bond_cause cause);
++void zmk_ble_wait_idle(void);
  int zmk_ble_prof_next(void);
  int zmk_ble_prof_prev(void);
  int zmk_ble_prof_select(uint8_t index);
-@@ -28,6 +47,8 @@ int zmk_ble_prof_disconnect(uint8_t index);
+@@ -28,6 +55,8 @@ int zmk_ble_prof_disconnect(uint8_t index);
  
  int zmk_ble_active_profile_index(void);
  int zmk_ble_profile_index(const bt_addr_le_t *addr);
@@ -225,7 +233,7 @@ index 92b2107d88b12d2779c02305053032372386391a..9b27335903f5268ac5e6d820bb5fd3e6
  bt_addr_le_t *zmk_ble_profile_address(uint8_t index);
  
  bt_addr_le_t *zmk_ble_active_profile_addr(void);
-@@ -44,6 +65,8 @@ int zmk_ble_unpair_all(void);
+@@ -44,6 +73,8 @@ int zmk_ble_unpair_all(void);
  
  int zmk_ble_set_device_name(char *name);
  
@@ -1137,10 +1145,10 @@ index 0000000000000000000000000000000000000000..cdbbb05b27c7f5a3ef48d2556a0ebe3b
 +ZMK_SUBSCRIPTION(ble_indicator, zmk_ble_active_profile_changed);
 diff --git a/app/src/ble_slots.c b/app/src/ble_slots.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b639114d44
+index 0000000000000000000000000000000000000000..bb686f3215c66d4dc0c51daf6ae011b4c0de8718
 --- /dev/null
 +++ b/app/src/ble_slots.c
-@@ -0,0 +1,885 @@
+@@ -0,0 +1,928 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -1244,10 +1252,12 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +    CMD_PAIRED,     /* conn */
 +    CMD_PAIR_FAILED,
 +    CMD_UNAUTH_CHECK,
++    CMD_NOP,        /* barrier: everything posted before it is done */
 +};
 +struct cmd {
 +    uint8_t type;
 +    uint8_t arg;
++    uint8_t cause;
 +    struct bt_conn *conn;
 +    struct k_sem *done;
 +};
@@ -1270,18 +1280,21 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +/* Waits for the worker only from preemptible threads other than the worker (e.g. Studio's RPC
 + * thread, so it reads the result back). Never from the system work queue or the Bluetooth RX
 + * thread (both cooperative): the worker needs them to send its HCI commands. */
-+static void post_and_wait(uint8_t type, uint8_t arg) {
++static void post_and_wait_cause(uint8_t type, uint8_t arg, uint8_t cause) {
 +    struct k_sem done;
 +    bool wait = k_is_preempt_thread() && k_current_get() != worker_tid && !k_is_in_isr();
 +    if (!wait) {
-+        post((struct cmd){.type = type, .arg = arg});
++        post((struct cmd){.type = type, .arg = arg, .cause = cause});
 +        return;
 +    }
 +    k_sem_init(&done, 0, 1);
-+    post((struct cmd){.type = type, .arg = arg, .done = &done});
-+    if (k_sem_take(&done, K_SECONDS(3)) != 0) {
-+        LOG_WRN("Bluetooth command %d still running", type);
-+    }
++    post((struct cmd){.type = type, .arg = arg, .cause = cause, .done = &done});
++    /* No timeout: the semaphore lives on this stack and the worker always gives it. */
++    k_sem_take(&done, K_FOREVER);
++}
++
++static void post_and_wait(uint8_t type, uint8_t arg) {
++    post_and_wait_cause(type, arg, ZMK_BLE_BOND_CLEARED);
 +}
 +
 +/* ---- events ---- */
@@ -1351,15 +1364,32 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +bool zmk_ble_profile_is_open(uint8_t index) { return index < SLOTS && slot_is_open(index); }
 +bool zmk_ble_active_profile_is_open(void) { return slot_is_open(active_profile); }
 +
-+static struct bt_conn *slot_conn(uint8_t slot) {
++/* The slot's computer, connected right now (a released link object for the same computer may
++ * still be referenced somewhere; bt_conn_lookup_addr_le would return it in any state). */
++struct live_find {
++    uint8_t id;
 +    bt_addr_le_t peer;
++    struct bt_conn *found;
++};
++static void live_find_cb(struct bt_conn *conn, void *user_data) {
++    struct live_find *f = user_data;
++    struct bt_conn_info info;
++    if (f->found || bt_conn_get_info(conn, &info) || info.state != BT_CONN_STATE_CONNECTED ||
++        info.id != f->id || !bt_addr_le_eq(bt_conn_get_dst(conn), &f->peer)) {
++        return;
++    }
++    f->found = bt_conn_ref(conn);
++}
++static struct bt_conn *slot_conn(uint8_t slot) {
++    struct live_find f = {.id = SLOT_ID(slot)};
 +    k_spinlock_key_t key = k_spin_lock(&lock);
-+    bt_addr_le_copy(&peer, &profiles[slot].peer);
++    bt_addr_le_copy(&f.peer, &profiles[slot].peer);
 +    k_spin_unlock(&lock, key);
-+    if (bt_addr_le_eq(&peer, BT_ADDR_LE_ANY)) {
++    if (bt_addr_le_eq(&f.peer, BT_ADDR_LE_ANY)) {
 +        return NULL;
 +    }
-+    return bt_conn_lookup_addr_le(SLOT_ID(slot), &peer);
++    bt_conn_foreach(BT_CONN_TYPE_LE, live_find_cb, &f);
++    return f.found;
 +}
 +
 +bool zmk_ble_profile_is_connected(uint8_t index) {
@@ -1367,13 +1397,10 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +        return false;
 +    }
 +    struct bt_conn *conn = slot_conn(index);
-+    if (!conn) {
-+        return false;
++    if (conn) {
++        bt_conn_unref(conn);
 +    }
-+    struct bt_conn_info info;
-+    bool connected = bt_conn_get_info(conn, &info) == 0 && info.state == BT_CONN_STATE_CONNECTED;
-+    bt_conn_unref(conn);
-+    return connected;
++    return conn != NULL;
 +}
 +bool zmk_ble_active_profile_is_connected(void) {
 +    return zmk_ble_profile_is_connected(active_profile);
@@ -1430,6 +1457,16 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +    post_and_wait(CMD_CLEAR, index);
 +    return 0;
 +}
++
++int zmk_ble_prof_clear_cause(uint8_t index, enum zmk_ble_bond_cause cause) {
++    if (index >= SLOTS) {
++        return -ERANGE;
++    }
++    post_and_wait_cause(CMD_CLEAR, index, cause);
++    return 0;
++}
++
++void zmk_ble_wait_idle(void) { post_and_wait(CMD_NOP, 0); }
 +void zmk_ble_clear_bonds(void) { post_and_wait(CMD_CLEAR, active_profile); }
 +void zmk_ble_clear_all_bonds(void) { post_and_wait(CMD_CLEAR_ALL, 0); }
 +
@@ -1461,7 +1498,7 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +/* ---- worker helpers ---- */
 +static void adv_stop(void) {
 +    if (adv_id >= 0) {
-+        int err = bt_le_adv_stop();
++        int err = bt_le_adv_stop(); /* 0 also when the controller already stopped it */
 +        if (err) {
 +            LOG_ERR("Failed to stop advertising (err %d)", err);
 +        }
@@ -1485,6 +1522,11 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +    struct bt_le_adv_param param = *ZMK_ADV_CONN_NAME;
 +    param.id = id;
 +    int err = bt_le_adv_start(&param, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), NULL, 0);
++    if (err == -EALREADY) {
++        /* our bookkeeping lost track of a running advertiser: stop whatever runs, try again */
++        (void)bt_le_adv_stop();
++        err = bt_le_adv_start(&param, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), NULL, 0);
++    }
 +    if (err == -ENOMEM) {
 +        LOG_WRN("No free connection object yet; advertising starts when one is released");
 +        return;
@@ -1676,7 +1718,10 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +        return;
 +    }
 +    LOG_WRN("Pairing failed (%d)", reason);
-+    post((struct cmd){.type = CMD_PAIR_FAILED, .arg = (uint8_t)MAX(conn_slot(conn), 0)});
++    int slot = conn_slot(conn);
++    if (slot >= 0) {
++        post((struct cmd){.type = CMD_PAIR_FAILED, .arg = (uint8_t)slot});
++    }
 +}
 +
 +#if IS_ENABLED(CONFIG_ZMK_BLE_PASSKEY_ENTRY)
@@ -1766,6 +1811,7 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +    if (active_profile >= SLOTS) {
 +        active_profile = 0;
 +    }
++    save_active(); /* also keeps a slot chosen while starting */
 +
 +    bt_conn_cb_register(&conn_callbacks);
 +    bt_conn_auth_cb_register(&auth_cb);
@@ -1777,7 +1823,10 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +}
 +
 +static void on_connected(struct bt_conn *conn) {
-+    adv_id = -1; /* a connectable legacy advertiser stops when it makes a connection */
++    struct bt_conn_info info;
++    if (bt_conn_get_info(conn, &info) == 0 && info.id == adv_id) {
++        adv_id = -1; /* a connectable legacy advertiser stops when it makes a connection */
++    }
 +    int slot = conn_slot(conn);
 +    if (slot < 0 || slot != active_profile) {
 +        LOG_INF("Refusing a computer on slot %d while slot %d is selected", slot, active_profile);
@@ -1837,7 +1886,7 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +        break;
 +    case CMD_CLEAR:
 +        if (started && c->arg < SLOTS) {
-+            reset_slot(c->arg, ZMK_BLE_BOND_CLEARED);
++            reset_slot(c->arg, c->cause ? c->cause : ZMK_BLE_BOND_CLEARED);
 +            adv_update(false);
 +            raise_profile_changed();
 +        }
@@ -1890,6 +1939,8 @@ index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b6
 +        break;
 +    case CMD_UNAUTH_CHECK:
 +        bt_conn_foreach(BT_CONN_TYPE_LE, unauth_cb, NULL);
++        break;
++    case CMD_NOP:
 +        break;
 +    }
 +}

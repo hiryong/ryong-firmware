@@ -25,6 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: ryong
+          fetch-depth: 0   # the upgrade test builds an older patch from history
       - name: Official ZMK at the pinned commit + our patch
         run: |
           set -eu

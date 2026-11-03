@@ -144,10 +144,8 @@ static void run_op(struct k_work *work) {
         op.rc = zmk_ble_prof_select(op.index);
     } else if (!zmk_ble_profile_is_open(op.index) && op.token == token_of(op.index)) {
         /* Clears that slot only, without selecting it (selecting would end the current link). */
-        ryong_bt_log_site_clear(true); /* the bond history records "removed from the web page" */
-        op.rc = zmk_ble_prof_clear(op.index);
-        ryong_bt_log_site_clear(false);
-        if (!op.rc) op.rc = zmk_ble_profile_is_open(op.index) ? 0 : -EIO;
+        /* queued to the Bluetooth slot worker; run() waits for it outside the work queue */
+        op.rc = zmk_ble_prof_clear_cause(op.index, ZMK_BLE_BOND_CLEARED_SITE);
     } else {
         op.rc = zmk_ble_profile_is_open(op.index) ? -ENOENT : -ESTALE;
     }
@@ -164,6 +162,10 @@ static int run(enum op_kind kind, uint8_t index, uint32_t token) {
     int rc = k_work_submit(&op_work);
     if (rc < 0) return rc;
     k_sem_take(&op_done, K_FOREVER);
+    if (kind == OP_CLEAR && op.rc == 0) {
+        zmk_ble_wait_idle(); /* this RPC thread may wait; the work queue may not */
+        op.rc = zmk_ble_profile_is_open(index) ? 0 : -EIO;
+    }
     return op.rc;
 }
 
