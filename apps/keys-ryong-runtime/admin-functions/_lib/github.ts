@@ -13,11 +13,12 @@ export const ref = (env: AdminEnv) => env.FIRMWARE_REF || "dev/keys-ryong-runtim
 
 export const isGitHubError = (e: unknown): e is GitHubError => !!e && (e as Error).name === "GitHubError" && typeof (e as GitHubError).status === "number";
 export class GitHubError extends Error {
-  constructor(public status: number, message: string) { super(message); this.name = "GitHubError"; }
+  /** `message` is Korean; `en` (optional) is the same text in English for pages that ask for it. */
+  constructor(public status: number, message: string, public en?: string) { super(message); this.name = "GitHubError"; }
 }
 
 export async function gh(env: AdminEnv, path: string, init: RequestInit = {}): Promise<Response> {
-  if (!env.ADMIN_GITHUB_TOKEN) throw new GitHubError(503, "GitHub 토큰(ADMIN_GITHUB_TOKEN)이 설정되지 않았어요.");
+  if (!env.ADMIN_GITHUB_TOKEN) throw new GitHubError(503, "GitHub 토큰(ADMIN_GITHUB_TOKEN)이 설정되지 않았어요.", "The GitHub token (ADMIN_GITHUB_TOKEN) is not set.");
   const url = path.startsWith("https://") ? path : `https://api.github.com${path}`;
   const r = await fetch(url, {
     ...init,
@@ -75,7 +76,7 @@ const b64encode = (s: string) => { const b = new TextEncoder().encode(s); let x 
 export async function readRegistry<T>(env: AdminEnv, path: string): Promise<{ data: T; sha: string } | null> {
   const r = await gh(env, `/repos/${repo(env)}/contents/${path}?ref=${REGISTRY}`);
   if (r.status === 404) return null;
-  if (!r.ok) throw new GitHubError(r.status, `기록 저장소를 읽지 못했어요 (${r.status}).`);
+  if (!r.ok) throw new GitHubError(r.status, `기록 저장소를 읽지 못했어요 (${r.status}).`, `Couldn't read the record store (${r.status}).`);
   const f = (await r.json()) as { content: string; sha: string };
   return { data: JSON.parse(b64decode(f.content)) as T, sha: f.sha };
 }
@@ -90,7 +91,7 @@ export async function writeRegistry(env: AdminEnv, path: string, data: unknown, 
 export async function listValidated(env: AdminEnv): Promise<Set<number>> {
   const r = await gh(env, `/repos/${repo(env)}/contents/validation?ref=${REGISTRY}`);
   if (r.status === 404) return new Set();
-  if (!r.ok) throw new GitHubError(r.status, `기록 저장소를 읽지 못했어요 (${r.status}).`);
+  if (!r.ok) throw new GitHubError(r.status, `기록 저장소를 읽지 못했어요 (${r.status}).`, `Couldn't read the record store (${r.status}).`);
   const list = (await r.json()) as { name: string }[];
   return new Set(list.map((f) => Number(/^(\d+)\.json$/.exec(f.name)?.[1])).filter(Boolean));
 }
@@ -114,6 +115,6 @@ export async function releasedChannels(env: AdminEnv, runId: number, target: str
 
 export async function getRun(env: AdminEnv, runId: number) {
   const run = await ghJson<Run>(env, `/repos/${repo(env)}/actions/runs/${runId}`);
-  if (!run.path?.endsWith(`/${BUILD_WORKFLOW}`) || run.event !== "workflow_dispatch") throw new GitHubError(404, "관리 페이지에서 만든 펌웨어 빌드가 아니에요.");
+  if (!run.path?.endsWith(`/${BUILD_WORKFLOW}`) || run.event !== "workflow_dispatch") throw new GitHubError(404, "관리 페이지에서 만든 펌웨어 빌드가 아니에요.", "This is not a firmware build made from the admin page.");
   return run;
 }

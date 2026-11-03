@@ -1,23 +1,23 @@
 {
   "version": 1,
   "items": [
-    { "id": "boots", "label": "전원을 켜면 부팅되고 컴퓨터가 USB로 인식한다", "required": true },
-    { "id": "all_keys", "label": "모든 키가 한 번씩 정확히 입력된다 (누락·중복 없음)", "required": true },
-    { "id": "usb_typing", "label": "USB 유선으로 입력된다", "required": true },
-    { "id": "ble_pair", "label": "Bluetooth로 페어링하고 입력된다 (1대 이상)", "required": true },
-    { "id": "ble_switch", "label": "Bluetooth 슬롯 전환·재연결이 된다", "required": true },
-    { "id": "studio_save", "label": "웹에서 잠금 해제 → 키 변경 저장 → 껐다 켜도 유지된다", "required": true },
-    { "id": "runtime_features", "label": "콤보·매크로·탭댄스를 저장하면 실제로 동작한다", "required": true },
-    { "id": "device_settings", "label": "키보드 설정(절전 켜기/끄기·시간)이 저장되고 껐다 켜도 유지된다", "required": true },
-    { "id": "sleep_wake", "label": "설정한 시간 뒤 절전에 들어가고 키를 눌러 깨어난다 (USB 연결 중엔 절전 안 함)", "required": true },
-    { "id": "lights", "label": "(LED 보드만) 백라이트·언더글로우 사용/켜기·끄기·밝기·USB에서만 켜기가 설정대로 된다", "required": false },
-    { "id": "recovery", "label": "부트로더 진입(복구 경로)이 된다", "required": true },
-    { "id": "keeps_settings", "label": "이전 펌웨어에서 올려도 페어링·설정이 유지된다", "required": false, "stable": true },
-    { "id": "battery", "label": "배터리 잔량이 보고된다", "required": false, "stable": true }
+    { "id": "boots", "label": "전원을 켜면 부팅되고 컴퓨터가 USB로 인식한다", "label_en": "Powers on, boots, and the computer sees it over USB", "required": true },
+    { "id": "all_keys", "label": "모든 키가 한 번씩 정확히 입력된다 (누락·중복 없음)", "label_en": "Every key types exactly once (no missing or double presses)", "required": true },
+    { "id": "usb_typing", "label": "USB 유선으로 입력된다", "label_en": "Types over a USB cable", "required": true },
+    { "id": "ble_pair", "label": "Bluetooth로 페어링하고 입력된다 (1대 이상)", "label_en": "Pairs over Bluetooth and types (one or more devices)", "required": true },
+    { "id": "ble_switch", "label": "Bluetooth 슬롯 전환·재연결이 된다", "label_en": "Bluetooth profile switching and reconnecting work", "required": true },
+    { "id": "studio_save", "label": "웹에서 잠금 해제 → 키 변경 저장 → 껐다 켜도 유지된다", "label_en": "Unlock on the web → change a key and save → still there after power-cycling", "required": true },
+    { "id": "runtime_features", "label": "콤보·매크로·탭댄스를 저장하면 실제로 동작한다", "label_en": "Saved combos, macros and tap-dances actually work", "required": true },
+    { "id": "device_settings", "label": "키보드 설정(절전 켜기/끄기·시간)이 저장되고 껐다 켜도 유지된다", "label_en": "Keyboard settings (sleep on/off, time) save and survive power-cycling", "required": true },
+    { "id": "sleep_wake", "label": "설정한 시간 뒤 절전에 들어가고 키를 눌러 깨어난다 (USB 연결 중엔 절전 안 함)", "label_en": "Sleeps after the set time and wakes on a key press (no sleep while on USB)", "required": true },
+    { "id": "lights", "label": "(LED 보드만) 백라이트·언더글로우 사용/켜기·끄기·밝기·USB에서만 켜기가 설정대로 된다", "label_en": "(LED boards only) Backlight/underglow enable, on/off, brightness and USB-only follow the settings", "required": false },
+    { "id": "recovery", "label": "부트로더 진입(복구 경로)이 된다", "label_en": "Entering the bootloader (recovery path) works", "required": true },
+    { "id": "keeps_settings", "label": "이전 펌웨어에서 올려도 페어링·설정이 유지된다", "label_en": "Upgrading from the previous firmware keeps pairings and settings", "required": false, "stable": true },
+    { "id": "battery", "label": "배터리 잔량이 보고된다", "label_en": "Battery level is reported", "required": false, "stable": true }
   ],
   "boards": [
-    { "id": "bt60", "label": "BT60 v2 Cheeto (LED 없음)" },
-    { "id": "bt60-oreo", "label": "BT60 v2 Oreo (백라이트·언더글로우)" },
-    { "id": "ryong60", "label": "Ryong60" }
+    { "id": "bt60", "label": "BT60 v2 Cheeto (LED 없음)", "label_en": "BT60 v2 Cheeto (no LEDs)" },
+    { "id": "bt60-oreo", "label": "BT60 v2 Oreo (백라이트·언더글로우)", "label_en": "BT60 v2 Oreo (backlight, underglow)" },
+    { "id": "ryong60", "label": "Ryong60", "label_en": "Ryong60" }
   ]
 }

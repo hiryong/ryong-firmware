@@ -65,3 +65,5 @@
 }
 .kc-notice { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--line-strong); border-radius: 10px; background: #0A0A0A; }
 .kc-notice-t { margin: 0; font-size: 13px; line-height: 1.6; white-space: pre-line; }
+.kc-top-end { display: flex; align-items: center; gap: 4px; flex: none; }
+.kc-login-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

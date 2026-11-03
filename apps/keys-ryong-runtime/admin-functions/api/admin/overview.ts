@@ -1,19 +1,21 @@
 import { AdminEnv, json } from "../../_lib/auth";
+import { msg } from "../../_lib/lang";
 import { BUILD_WORKFLOW, ghJson, parseBuildTitle, readChannels, readRegistry, ref, repo, Run } from "../../_lib/github";
 
-const CHECKS: [string, string][] = [
-  ["runtime-client-validation.yml", "웹앱·가상 키보드 테스트"],
-  ["bt60-validation.yml", "BT60 펌웨어 컴파일"],
-  ["zmk-validation.yml", "Ryong60 펌웨어 컴파일"],
-  ["host-tests.yml", "펌웨어 모듈 단위 테스트"],
-  ["updater-validation.yml", "업데이트 검증 테스트"],
-  ["keysbeta-deploy.yml", "keysbeta 배포"],
+const CHECKS: [file: string, en: string, ko: string][] = [
+  ["runtime-client-validation.yml", "Web app and virtual keyboard tests", "웹앱·가상 키보드 테스트"],
+  ["bt60-validation.yml", "BT60 firmware compile", "BT60 펌웨어 컴파일"],
+  ["zmk-validation.yml", "Ryong60 firmware compile", "Ryong60 펌웨어 컴파일"],
+  ["host-tests.yml", "Firmware module unit tests", "펌웨어 모듈 단위 테스트"],
+  ["updater-validation.yml", "Updater tests", "업데이트 검증 테스트"],
+  ["keysbeta-deploy.yml", "keysbeta deploy", "keysbeta 배포"],
 ];
 
-export const onRequestGet: PagesFunction<AdminEnv> = async ({ env }) => {
+export const onRequestGet: PagesFunction<AdminEnv> = async ({ request, env }) => {
   const r = repo(env), branch = encodeURIComponent(ref(env));
   const [checks, builds, channels, zmk] = await Promise.all([
-    Promise.all(CHECKS.map(async ([file, label]) => {
+    Promise.all(CHECKS.map(async ([file, en, ko]) => {
+      const label = msg(request, en, ko);
       const x = await ghJson<{ workflow_runs: Run[] }>(env, `/repos/${r}/actions/workflows/${file}/runs?branch=${branch}&per_page=1`).catch(() => null);
       const run = x?.workflow_runs[0];
       return { file, label, status: run?.status ?? "none", conclusion: run?.conclusion ?? null, url: run?.html_url ?? null,

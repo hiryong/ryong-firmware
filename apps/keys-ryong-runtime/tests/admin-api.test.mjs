@@ -156,7 +156,23 @@ gh.runs.push({ ...gh.runs.at(-1), id: 300, path: ".github/workflows/zmk-validati
 assert.equal((await call(h.build, "GET", "/api/admin/builds/300", { params: { id: "300" } })).status, 404);
 assert.equal((await call(h.validation, "PUT", "/api/admin/validation/abc", { params: { id: "abc" }, body: {} })).status, 400);
 
+/* ---------- language: Korean without a header, English when the page asks (X-Ryong-Lang) ---------- */
+const en = { "X-Ryong-Lang": "en" };
+r = await call(h.build, "GET", "/api/admin/builds/101", { params: { id: "101" }, headers: en });
+assert.ok(r.json.blockers.beta.includes("Already released to this channel."), "blockers in English");
+r = await call(h.overview, "GET", "/api/admin/overview", { headers: en });
+assert.equal(r.json.checks[0].label, "Web app and virtual keyboard tests");
+assert.equal((await call(h.overview, "GET", "/api/admin/overview")).json.checks[0].label, "웹앱·가상 키보드 테스트");
+assert.match((await call(h.builds, "POST", "/api/admin/builds", { body: { target: "bt60", idle_timeout_s: 5 }, headers: en })).json.error, /^Idle timeout: must be a whole number/);
+assert.equal((await call(h.validation, "PUT", "/api/admin/validation/101", { params: { id: "101" }, body: { tested_board: "x" }, headers: en })).json.error, "Choose the board you tested on.");
+assert.equal((await call(h.validation, "PUT", "/api/admin/validation/101", { params: { id: "101" }, body: { tested_board: "x" } })).json.error, "테스트한 보드를 골라 주세요.");
+assert.equal((await call(h.build, "GET", "/api/admin/builds/300", { params: { id: "300" }, headers: en })).json.error, "This is not a firmware build made from the admin page.");
+assert.equal((await call(h.login, "POST", "/api/admin/login", { body: { password: "wrong" }, headers: { ...en, "CF-Connecting-IP": "5.5.5.5" } })).json.error, "Wrong password.");
+const savedCookie = cookie; cookie = "";
+assert.equal((await call(h.overview, "GET", "/api/admin/overview", { headers: en })).json.error, "Please sign in.");
+cookie = savedCookie;
+
 /* ---------- logout ---------- */
 r = await call(h.logout, "POST", "/api/admin/logout");
 assert.match(r.headers.get("Set-Cookie"), /Max-Age=0/);
-console.log("PASS: admin API sign-in/lockout/cookie tamper, server-side settings validation, dispatch, server-computed bench records, release gate, no dispatch while blocked");
+console.log("PASS: admin API sign-in/lockout/cookie tamper, server-side settings validation, dispatch, server-computed bench records, release gate, no dispatch while blocked, Korean/English messages");

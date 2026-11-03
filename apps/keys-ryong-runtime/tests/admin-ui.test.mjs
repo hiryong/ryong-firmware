@@ -22,7 +22,7 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const base = `http://127.0.0.1:${server.address().port}`;
 
 const SHA = "b".repeat(64);
-let signedIn = false, record = null, released = [];
+let signedIn = false, record = null, released = [], langSent = "ko";
 const sent = [];
 const build = { id: 501, target: "bt60", label: "절전 테스트", status: "completed", conclusion: "success", at: new Date().toISOString(), sha: "abc1234", url: "https://github.com/x", validated: false };
 const required = ["boots", "all_keys", "usb_typing", "ble_pair", "ble_switch", "studio_save", "runtime_features", "device_settings", "sleep_wake", "recovery"];
@@ -41,10 +41,12 @@ const results = [];
 for (const viewport of [{ width: 1280, height: 860 }, { width: 390, height: 844 }]) {
   signedIn = false; record = null; released = [];
   const page = await browser.newPage({ viewport });
+  await page.addInitScript(() => localStorage.setItem("ryong.lang", "ko"));  // the checks below read the Korean screen
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.route("**/api/admin/**", async (route) => {
     const req = route.request(), u = new URL(req.url()), p = u.pathname.replace("/api/admin", ""), m = req.method();
+    assert.equal(req.headers()["x-ryong-lang"], langSent, "every request says which language to answer in");
     if (m !== "GET") { assert.equal(req.headers()["x-ryong-admin"], "1", "mutations carry the admin header"); sent.push({ m, p, body: req.postDataJSON?.() ?? null }); }
     if (p === "/me") return json(route, { signedIn, setup: { password: "ok", github: true }, repo: "hiryong/ryong-firmware", ref: "dev/keys-ryong-runtime" });
     if (p === "/login") { const ok = req.postDataJSON().password === "a long admin password"; signedIn = ok; return json(route, ok ? { ok } : { error: "비밀번호가 맞지 않아요." }, ok ? 200 : 401); }
@@ -129,6 +131,41 @@ for (const viewport of [{ width: 1280, height: 860 }, { width: 390, height: 844 
   await step("sign out", async () => {
     await page.getByRole("button", { name: "로그아웃" }).click();
     await page.getByRole("button", { name: "로그인" }).waitFor();
+  });
+  await page.close();
+}
+// English is the default (no saved choice); the switch changes the page and what the API is asked for.
+{
+  signedIn = true; record = null; released = []; langSent = "en";
+  const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.route("**/api/admin/**", async (route) => {
+    const req = route.request(), p = new URL(req.url()).pathname.replace("/api/admin", "");
+    assert.equal(req.headers()["x-ryong-lang"], langSent, "language header follows the switch");
+    if (p === "/me") return json(route, { signedIn, setup: { password: "ok", github: true }, repo: "hiryong/ryong-firmware", ref: "dev/keys-ryong-runtime" });
+    if (p === "/overview") return json(route, { checks: [], builds: [build], channels: {} });
+    return json(route, { error: "unexpected " + p }, 500);
+  });
+  const step = async (name, fn) => {
+    try { await fn(); results.push(["desktop", name, true]); console.log(`ok   desktop ${name}`); }
+    catch (e) { results.push(["desktop", name, false]); console.log(`FAIL desktop ${name}: ${String(e.message).split("\n")[0]}`); await page.screenshot({ path: `${output}/fail-desktop-${name.replace(/\W+/g, "_")}.png`, fullPage: true }); }
+  };
+  await page.goto(base + "/admin/");
+  await step("English by default, switch to Korean and back", async () => {
+    for (const name of ["Status", "Build", "Bench test", "Release"]) await page.getByRole("button", { name, exact: true }).waitFor();
+    await page.getByRole("button", { name: "Sign out" }).waitFor();
+    await page.getByText("Released firmware").waitFor();
+    langSent = "ko";
+    await page.getByRole("button", { name: "한국어" }).click();
+    await page.getByRole("button", { name: "현황", exact: true }).waitFor();
+    await page.getByRole("button", { name: "로그아웃" }).waitFor();
+    assert.equal(await page.evaluate(() => localStorage.getItem("ryong.lang")), "ko", "choice shared with the main app");
+    langSent = "en";
+    await page.getByRole("button", { name: "English" }).click();
+    await page.getByRole("button", { name: "Status", exact: true }).waitFor();
+    await page.screenshot({ path: `${output}/desktop-5-english.png`, fullPage: true });
+    assert.deepEqual(errors, []);
   });
   await page.close();
 }
