@@ -64,9 +64,9 @@ jobs:
             if [ "$TX" = plus4 ]; then echo "CONFIG_BT_CTLR_TX_PWR_PLUS_4=y"; fi
             if [ "$TX" = plus8 ]; then echo "CONFIG_BT_CTLR_TX_PWR_PLUS_8=y"; fi
             if [ -n "$KBNAME" ]; then echo "CONFIG_ZMK_KEYBOARD_NAME=\"$KBNAME\""; fi
-            # Oreo has a backlight: its keyboard-side "use" switch starts ON (otherwise the light key turns
+            # Oreo and Ryong60 have a backlight: its keyboard-side "use" switch starts ON (otherwise the light key turns
             # it on and the 1 s rule turns it straight off). Underglow always starts unused, every board.
-            if [ "$TARGET" = bt60-oreo ]; then echo "CONFIG_RYONG_RUNTIME_SETTINGS_LIGHTS_DEFAULT_USE=y"; fi
+            if [ "$TARGET" = bt60-oreo ] || [ "$TARGET" = ryong60 ]; then echo "CONFIG_RYONG_RUNTIME_SETTINGS_LIGHTS_DEFAULT_USE=y"; fi
           } > /tmp/admin-settings.conf
           cat /tmp/admin-settings.conf
       - name: Prepare workspace
