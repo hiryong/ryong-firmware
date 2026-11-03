@@ -13,7 +13,7 @@
       "file": "zmk-studio-messages-custom.patch",
       "repo_path": "modules/msgs/zmk-studio-messages",
       "applies_to": "6cb4c283e76209d59c45fbcb218800cd19e9339d",
-      "sha256": "ec97f41d2ed18085e17df6c2ff4f57ea7547337426f0a38d7e915de2565e4cd8"
+      "sha256": "ada228e63c5eb1faffa3737e7ad0355a226dcabfef99cdc9d7916ece6cd48f28"
     }
   ],
   "modules": {
