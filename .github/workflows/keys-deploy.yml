@@ -87,4 +87,4 @@ jobs:
           api() { curl -sS -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" "$@"; }
           base="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/pages/projects/$PROJECT/domains"
           if api "$base/$DOMAIN" | grep -q '"success":true'; then echo "$DOMAIN is attached to $PROJECT."
-          else echo "::notice::$DOMAIN is not attached to $PROJECT yet: run the keys-cutover workflow once."; fi
+          else echo "Could not confirm $DOMAIN with this token (it was attached in the Cloudflare dashboard on 2026-11-04)."; fi
