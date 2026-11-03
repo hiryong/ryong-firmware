@@ -6,6 +6,9 @@
 #                 Needs old_project = the project plan showed holding keys.ryong.com, and confirm = keys.ryong.com
 name: keys cutover (one-time)
 on:
+  push:  # registers the workflow (it is not on the default branch); a push only plans
+    branches: [dev/keys-ryong-runtime]
+    paths: ['.github/workflows/keys-cutover.yml']
   workflow_dispatch:
     inputs:
       mode: { description: "plan | cutover", required: true, type: choice, options: [plan, cutover], default: plan }
@@ -22,7 +25,7 @@ jobs:
     env:
       CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      MODE: ${{ inputs.mode }}
+      MODE: ${{ inputs.mode || 'plan' }}
       OLD: ${{ inputs.old_project }}
       CONFIRM: ${{ inputs.confirm }}
       NEW: ryong-keys
