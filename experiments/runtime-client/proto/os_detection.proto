@@ -37,6 +37,10 @@ message BleFingerprint {
     Os classified = 8;
     bool kept_cached = 9;
     uint32 apple_probe = 10; // 0 no answer, 1 not Apple, 2 Mac, 3 iPhone/iPad (host's Device Information)
+    string host_manufacturer = 11; // what the host's GATT server said (empty = no answer)
+    string host_model = 12;
+    string host_name = 13;
+    bool host_continuity = 14;     // Apple Continuity service present
 }
 
 message BleProfileState {

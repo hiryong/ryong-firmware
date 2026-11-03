@@ -1,3 +1,4 @@
+#include <string.h>
 #include <pb_decode.h>
 #include <pb_encode.h>
 #include <zephyr/sys/util.h>
@@ -50,6 +51,7 @@ static void fill_ble_profile_state(uint8_t index, cormoran_os_detection_BleProfi
     struct ble_fp_stats fp;
     enum zmk_os classified;
     bool kept;
+    out->fingerprint = (cormoran_os_detection_BleFingerprint)cormoran_os_detection_BleFingerprint_init_zero;
     out->has_fingerprint = zmk_os_detection_ble_last_fingerprint(index, &fp, &classified, &kept);
     if (out->has_fingerprint) {
         out->fingerprint.report_map = fp.report_map_reads;
@@ -62,6 +64,15 @@ static void fill_ble_profile_state(uint8_t index, cormoran_os_detection_BleProfi
         out->fingerprint.classified = zmk_os_to_proto(classified);
         out->fingerprint.kept_cached = kept;
         out->fingerprint.apple_probe = fp.apple_probe;
+#if IS_ENABLED(CONFIG_ZMK_OS_DETECTION_BLE_GATT_CLIENT_PROBE)
+        struct zmk_os_probe_info pi;
+        if (zmk_os_detection_probe_info(index, &pi)) {
+            strncpy(out->fingerprint.host_manufacturer, pi.manufacturer, sizeof(out->fingerprint.host_manufacturer) - 1);
+            strncpy(out->fingerprint.host_model, pi.model, sizeof(out->fingerprint.host_model) - 1);
+            strncpy(out->fingerprint.host_name, pi.name, sizeof(out->fingerprint.host_name) - 1);
+            out->fingerprint.host_continuity = pi.continuity;
+        }
+#endif
     }
 #endif
 }

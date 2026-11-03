@@ -103,6 +103,12 @@ export interface BleFingerprint {
   keptCached: boolean;
   /** 0 no answer, 1 not Apple, 2 Mac, 3 iPhone/iPad (host's Device Information) */
   appleProbe: number;
+  /** what the host's GATT server said (empty = no answer) */
+  hostManufacturer: string;
+  hostModel: string;
+  hostName: string;
+  /** Apple Continuity service present */
+  hostContinuity: boolean;
 }
 
 export interface BleProfileState {
@@ -344,6 +350,10 @@ function createBaseBleFingerprint(): BleFingerprint {
     classified: 0,
     keptCached: false,
     appleProbe: 0,
+    hostManufacturer: "",
+    hostModel: "",
+    hostName: "",
+    hostContinuity: false,
   };
 }
 
@@ -378,6 +388,18 @@ export const BleFingerprint = {
     }
     if (message.appleProbe !== 0) {
       writer.uint32(80).uint32(message.appleProbe);
+    }
+    if (message.hostManufacturer !== "") {
+      writer.uint32(90).string(message.hostManufacturer);
+    }
+    if (message.hostModel !== "") {
+      writer.uint32(98).string(message.hostModel);
+    }
+    if (message.hostName !== "") {
+      writer.uint32(106).string(message.hostName);
+    }
+    if (message.hostContinuity !== false) {
+      writer.uint32(112).bool(message.hostContinuity);
     }
     return writer;
   },
@@ -459,6 +481,34 @@ export const BleFingerprint = {
 
           message.appleProbe = reader.uint32();
           continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.hostManufacturer = reader.string();
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.hostModel = reader.string();
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.hostName = reader.string();
+          continue;
+        case 14:
+          if (tag !== 112) {
+            break;
+          }
+
+          message.hostContinuity = reader.bool();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -480,6 +530,10 @@ export const BleFingerprint = {
       classified: isSet(object.classified) ? osFromJSON(object.classified) : 0,
       keptCached: isSet(object.keptCached) ? globalThis.Boolean(object.keptCached) : false,
       appleProbe: isSet(object.appleProbe) ? globalThis.Number(object.appleProbe) : 0,
+      hostManufacturer: isSet(object.hostManufacturer) ? globalThis.String(object.hostManufacturer) : "",
+      hostModel: isSet(object.hostModel) ? globalThis.String(object.hostModel) : "",
+      hostName: isSet(object.hostName) ? globalThis.String(object.hostName) : "",
+      hostContinuity: isSet(object.hostContinuity) ? globalThis.Boolean(object.hostContinuity) : false,
     };
   },
 
@@ -515,6 +569,18 @@ export const BleFingerprint = {
     if (message.appleProbe !== 0) {
       obj.appleProbe = Math.round(message.appleProbe);
     }
+    if (message.hostManufacturer !== "") {
+      obj.hostManufacturer = message.hostManufacturer;
+    }
+    if (message.hostModel !== "") {
+      obj.hostModel = message.hostModel;
+    }
+    if (message.hostName !== "") {
+      obj.hostName = message.hostName;
+    }
+    if (message.hostContinuity !== false) {
+      obj.hostContinuity = message.hostContinuity;
+    }
     return obj;
   },
 
@@ -533,6 +599,10 @@ export const BleFingerprint = {
     message.classified = object.classified ?? 0;
     message.keptCached = object.keptCached ?? false;
     message.appleProbe = object.appleProbe ?? 0;
+    message.hostManufacturer = object.hostManufacturer ?? "";
+    message.hostModel = object.hostModel ?? "";
+    message.hostName = object.hostName ?? "";
+    message.hostContinuity = object.hostContinuity ?? false;
     return message;
   },
 };

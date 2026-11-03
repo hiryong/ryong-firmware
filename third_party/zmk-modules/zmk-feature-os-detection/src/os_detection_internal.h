@@ -54,6 +54,13 @@ enum zmk_os zmk_os_classify_ble(const struct ble_fp_stats *stats);
 #define ZMK_OS_PROBE_MAC 2
 #define ZMK_OS_PROBE_IOS 3
 uint8_t zmk_os_detection_probe_result(uint8_t profile_index);
+struct zmk_os_probe_info {
+    char manufacturer[33];
+    char model[33];
+    char name[33];
+    bool continuity;
+};
+bool zmk_os_detection_probe_info(uint8_t profile_index, struct zmk_os_probe_info *out);
 void zmk_os_detection_ble_reclassify(uint8_t profile_index);
 
 /* Ryong: last settled BLE fingerprint of a profile since power-up (false if none). */

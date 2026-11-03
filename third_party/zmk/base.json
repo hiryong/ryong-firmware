@@ -6,8 +6,8 @@
       "file": "zmk-custom-studio.patch",
       "repo_path": "zmk",
       "applies_to": "ed56d81db79cf3a6e5dc02697277c0fad880ad34",
-      "sha256": "088d9a933d1a8919fc1de85d71ede62de9732ca9f1281516d725b471b57ce426",
-      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx); backlight.c: perceptual brightness for PWM LEDs (duty = brightness^2/100, ZMK_BACKLIGHT_PERCEPTUAL)"
+      "sha256": "508702549542f4c22b276a999d2cdc3ee1b16aae12e7905ffc51abf6a8b6aee5",
+      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx); backlight.c: perceptual brightness for PWM LEDs (duty = brightness^2/100, ZMK_BACKLIGHT_PERCEPTUAL); hid_rpc_transport: no peripheral latency while Studio talks over BLE HID (restored after 20 s idle)"
     },
     {
       "file": "zmk-studio-messages-custom.patch",
@@ -25,8 +25,8 @@
     "zmk-feature-os-detection": {
       "from": "cormoran/zmk-feature-os-detection@3052679",
       "from_revision": "3052679f645b8fc1997275c2eaa6b86bdd55ca01",
-      "tree_sha256": "047900a8e76fa13b88d0580d00a86af6b5097bef5dba1c30972b77bde7fb492f",
-      "ryong_changes": "keep cached OS on weak reconnect fingerprints; report the last BLE fingerprint over Studio; src/os_detection_ble_probe.c asks the host's Device Information (Apple Inc. + model) - decisive Mac/iPhone vs not Apple"
+      "tree_sha256": "6e8ef15c6081714b35f83ac815e7548a78d6866d4a97c3ac3d371b43577f5105",
+      "ryong_changes": "keep cached OS on weak reconnect fingerprints; report the last BLE fingerprint over Studio; src/os_detection_ble_probe.c asks the host (DIS manufacturer/model, GAP name, Apple Continuity service) - decisive Mac/iPhone vs not Apple; slot resolved after pairing"
     },
     "zmk-feature-runtime-combo": {
       "from": "cormoran/zmk-feature-runtime-combo@d9490e7",

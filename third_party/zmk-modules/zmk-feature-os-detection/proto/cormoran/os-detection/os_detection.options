@@ -3,3 +3,6 @@
 
 cormoran.os_detection.ErrorResponse.message         max_size:64
 cormoran.os_detection.StateResponse.ble_profiles    max_count:8
+cormoran.os_detection.BleFingerprint.host_manufacturer max_size:33
+cormoran.os_detection.BleFingerprint.host_model        max_size:33
+cormoran.os_detection.BleFingerprint.host_name         max_size:33

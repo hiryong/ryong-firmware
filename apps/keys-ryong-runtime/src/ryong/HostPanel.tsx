@@ -14,6 +14,10 @@ const layout = (os: Os) => apple(os) ? t("Apple · Command / Option", "Apple · 
 const basisLabel = (f: NonNullable<O_BleProfileState["fingerprint"]>) =>
   f.appleProbe === 2 ? t("the Mac said so", "Mac이 직접 알려줌") : f.appleProbe === 3 ? t("the iPhone/iPad said so", "iPhone·iPad가 직접 알려줌")
   : f.appleProbe === 1 ? t("host says it is not Apple", "Apple 기기가 아니라고 알려줌") : t("guessed from how it connected", "연결 방식으로 추정");
+const hostSaid = (f: NonNullable<O_BleProfileState["fingerprint"]>) =>
+  [f.hostManufacturer, f.hostModel, f.hostName].some(Boolean) || f.hostContinuity
+    ? t("The computer says: {m}", "컴퓨터가 알려준 정보: {m}", { m: [f.hostManufacturer, f.hostModel, f.hostName].filter(Boolean).join(" · ") + (f.hostContinuity ? " · Continuity" : "") })
+    : t("The computer did not answer.", "컴퓨터가 정보를 주지 않았어요.");
 const fingerprintText = (f: NonNullable<O_BleProfileState["fingerprint"]>) =>
   `HID map ${f.reportMap} · HID info ${f.hidsInfo} · report ${f.report} · PnP ${f.pnpId} · appearance ${f.appearance} · MTU ${f.attMtu} · interval ${f.connInterval} · probe ${f.appleProbe}${f.keptCached ? " · kept" : ""}`;
 const detectedLabel = (os: Os) => os === Os.OS_UNKNOWN || os === Os.OS_UNSPECIFIED
@@ -115,7 +119,9 @@ export function HostPanel() {
 
         {os && bonded && <div className="ry-row">
           <span className="ry-faint">{t("Last detected", "마지막 감지")} · {detectedLabel(os.detected)}
-            {os.fingerprint && <> · <span title={fingerprintText(os.fingerprint)}>{basisLabel(os.fingerprint)}</span></>}</span>
+            {os.fingerprint && <> · {basisLabel(os.fingerprint)}</>}
+            {os.fingerprint && <details className="ry-why"><summary>{t("Details", "자세히")}</summary>
+              <span>{hostSaid(os.fingerprint)}</span><span>{fingerprintText(os.fingerprint)}</span></details>}</span>
           <label className="ry-field"><span className="ry-label">{t("Key layout", "키 배치")}</span>
             <select value={os.override} disabled={busy || !hostDev} aria-label={t("Slot {n} layout", "슬롯 {n} 배치", { n: index + 1 })}
               onChange={e => { const next = Number(e.target.value) as Os; act(async () => { setHost(await hostDev!.setOverride(index, next, host!)); }); }}>
