@@ -24,7 +24,8 @@
     "zmk-feature-os-detection": {
       "from": "cormoran/zmk-feature-os-detection@3052679",
       "from_revision": "3052679f645b8fc1997275c2eaa6b86bdd55ca01",
-      "tree_sha256": "19a9ab65e46fd7cbe32f7a1395662ea5de3fe7fa3a7b37d6e9f1fd34807018ac"
+      "tree_sha256": "f5694a220cee11a232ef607a6d92603a3c5218e4dd7804edb99918dd9fc17427",
+      "ryong_changes": "src/os_detection_ble.c: keep cached OS on weak reconnect fingerprints"
     },
     "zmk-feature-runtime-combo": {
       "from": "cormoran/zmk-feature-runtime-combo@d9490e7",

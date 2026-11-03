@@ -48,15 +48,32 @@ pub async fn gatt_connect(
         if let Some(c) = char {
             let c2 = c.clone();
             let ah1 = app_handle.clone();
+            // Subscribe BEFORE reporting the connection: the page sends its first request right away,
+            // and a reply that arrives before notifications are on is lost (the app then cannot read the
+            // keyboard). The web transport waits for startNotifications() for the same reason.
+            let (ready_tx, ready_rx) = futures::channel::oneshot::channel::<bool>();
             let notify_handle = tauri::async_runtime::spawn(async move {
-                if let Ok(mut n) = c2.notify().await {
-                    use tauri::Emitter;
-
-                    while let Some(Ok(vn)) = n.next().await {
-                        ah1.emit("connection_data", vn.clone());
+                match c2.notify().await {
+                    Ok(mut n) => {
+                        use tauri::Emitter;
+                        let _ = ready_tx.send(true);
+                        while let Some(Ok(vn)) = n.next().await {
+                            ah1.emit("connection_data", vn.clone());
+                        }
+                    }
+                    Err(e) => {
+                        println!("Failed to subscribe to studio notifications: {:?}", e);
+                        let _ = ready_tx.send(false);
                     }
                 }
             });
+            match timeout(Duration::from_secs(10), ready_rx).await {
+                Ok(Ok(true)) => {}
+                _ => {
+                    notify_handle.abort();
+                    return Err("Failed to connect: the keyboard did not accept notifications (unlock it and try again)".to_string());
+                }
+            }
 
             let ah2 = app_handle.clone();
             let disconnect_handle = tauri::async_runtime::spawn(async move {

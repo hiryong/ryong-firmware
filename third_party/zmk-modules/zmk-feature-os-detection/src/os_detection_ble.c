@@ -119,6 +119,22 @@ static void classify_and_report(int profile_index) {
             profile_index, stats->report_map_reads, stats->hids_info_reads, stats->report_ref_reads,
             stats->pnp_id_reads, stats->appearance_reads, stats->ancs_or_ams_present,
             stats->att_mtu, stats->initial_conn_interval, detected);
+    /* Ryong: a reconnect to a host that already knows the keyboard often reads nothing (or only a few
+     * cached characteristics), which used to overwrite a good result from pairing - e.g. a Mac turned
+     * into "unknown" and then the Windows layout. Keep the cached result unless this connection did a
+     * full HID discovery (Report Map read), which only happens on pairing or when the host lost its
+     * cache. A wrong result is fixed by the manual per-slot choice. */
+    if (detected == ZMK_OS_UNKNOWN) {
+        return;
+    }
+#if IS_ENABLED(CONFIG_ZMK_CUSTOM_SETTINGS)
+    enum zmk_os cached = zmk_os_detection_settings_get_detected_cache(profile_index);
+    if (cached != ZMK_OS_UNKNOWN && cached != detected && stats->report_map_reads == 0) {
+        LOG_INF("os detection: profile %d keeps %d (reconnect without full discovery suggested %d)",
+                profile_index, cached, detected);
+        return;
+    }
+#endif
     zmk_os_detection_report_ble_detected(profile_index, detected);
 }
 

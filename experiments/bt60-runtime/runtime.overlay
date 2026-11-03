@@ -6,3 +6,12 @@
 &mt { compatible = "zmk,behavior-runtime-hold-tap"; runtime-slot = <0>; };
 &lt { compatible = "zmk,behavior-runtime-hold-tap"; runtime-slot = <1>; };
 
+
+/* Backlight PWM at 1 kHz instead of the board's 100 kHz (10 us period). The BT60 v2 LED driver cannot
+ * switch that fast, so low duty cycles still look bright and the top of the range barely changes.
+ * 1 ms is far above visible flicker. */
+&backlight {
+    pwm_led_0 {
+        pwms = <&pwm0 0 1000000 PWM_POLARITY_NORMAL>;
+    };
+};
