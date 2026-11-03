@@ -1,0 +1,2 @@
+#include "../test.dtsi"
+#include <behaviors/runtime_tapdance.dtsi>

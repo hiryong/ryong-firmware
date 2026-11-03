@@ -1,0 +1,1951 @@
+diff --git a/app/CMakeLists.txt b/app/CMakeLists.txt
+index c41153cb17c97f790b3c7dac2262c7ee04a65cd2..916c78494092c8386f823ce3ba1eeea5a7b9932f 100644
+--- a/app/CMakeLists.txt
++++ b/app/CMakeLists.txt
+@@ -116,8 +116,10 @@ if (CONFIG_ZMK_STUDIO_RPC)
+ 
+   include(nanopb)
+ 
+-    # Turn off the default nanopb behavior
++  # Turn off the default nanopb behavior
+   set(NANOPB_GENERATE_CPP_STANDALONE OFF)
++  # Required if nanopb is included in other module
++  set(NANOPB_GENERATE_CPP_APPEND_PATH TRUE)
+ 
+   nanopb_generate_cpp(proto_srcs proto_hdrs RELPATH ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}
+                         ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/studio.proto
+@@ -125,6 +127,7 @@ if (CONFIG_ZMK_STUDIO_RPC)
+                         ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/core.proto
+                         ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/behaviors.proto
+                         ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/keymap.proto
++                        ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/custom.proto
+   )
+ 
+   target_include_directories(app PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+diff --git a/app/include/linker/zmk-rpc-custom-subsystems.ld b/app/include/linker/zmk-rpc-custom-subsystems.ld
+new file mode 100644
+index 0000000000000000000000000000000000000000..39927f4a4d38e3913000795c47c4c26673c5aded
+--- /dev/null
++++ b/app/include/linker/zmk-rpc-custom-subsystems.ld
+@@ -0,0 +1,9 @@
++/*
++ * Copyright (c) 2026 The ZMK Contributors
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#include <zephyr/linker/linker-defs.h>
++
++ITERABLE_SECTION_ROM(zmk_rpc_custom_subsystem, 4)
+diff --git a/app/include/zmk/ble.h b/app/include/zmk/ble.h
+index 92b2107d88b12d2779c02305053032372386391a..eac0be70751bed9941d7cf4b6c4eca55aee2f458 100644
+--- a/app/include/zmk/ble.h
++++ b/app/include/zmk/ble.h
+@@ -44,6 +44,8 @@ int zmk_ble_unpair_all(void);
+ 
+ int zmk_ble_set_device_name(char *name);
+ 
++int zmk_ble_set_directed_advertising(bool enable);
++
+ #if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+ int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr);
+ #endif /* IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) */
+diff --git a/app/include/zmk/event_manager.h b/app/include/zmk/event_manager.h
+index 0eb63ad73d56feb9d4e814f1cb0db3a87c3a24bf..f728555c4fd40fe681fe61179cbaf87591a8baf7 100644
+--- a/app/include/zmk/event_manager.h
++++ b/app/include/zmk/event_manager.h
+@@ -84,4 +84,274 @@ struct zmk_event_subscription {
+ int zmk_event_manager_raise(zmk_event_t *event);
+ int zmk_event_manager_raise_after(zmk_event_t *event, const struct zmk_listener *listener);
+ int zmk_event_manager_raise_at(zmk_event_t *event, const struct zmk_listener *listener);
+-int zmk_event_manager_release(zmk_event_t *event);
+\ No newline at end of file
++int zmk_event_manager_release(zmk_event_t *event);
++
++// indicates that the relay event originated from self
++#define ZMK_RELAY_EVENT_SOURCE_SELF 0xFF
++
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++
++#define __ZMK_RELAY_ASSERT_NAME(identifier)                                                        \
++    BUILD_ASSERT(sizeof(#identifier) <= CONFIG_ZMK_SPLIT_RELAY_EVENT_TYPE_NAME_LEN,                \
++                 "Name " STRINGIFY(identifier) " too large for relay event");
++
++#define __ZMK_RELAY_ASSERT_SIZE(event_type, identifier)                                            \
++    BUILD_ASSERT(sizeof(struct event_type) <= CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN,               \
++                 "Payload of " STRINGIFY(event_type) " too large for relay event");                \
++    __ZMK_RELAY_ASSERT_NAME(identifier)
++
++struct zmk_relay_event_received {
++    uint8_t source;
++    const char *event_name;
++    const uint8_t *event_data;
++    size_t event_data_size;
++};
++
++#include <zmk/split/transport/types.h>
++
++ZMK_EVENT_DECLARE(zmk_relay_event_received);
++
++/**
++ * @brief Define event listener to handle relayed event for event_type.
++ *        event_type is raised when a relay event with matching identifier is received.
++ * @param event_type name of event struct type
++ * @param identifier short unique identifier for this event type to distinguish type in relay event
++ * @param source_field_name optional name of the field in event_type struct that indicates source.
++ *                          If not specified, only directional relay is supported and bidirectional
++ *                          relay causes infinite loops.
++ */
++#define ZMK_RELAY_EVENT_HANDLE(event_type, identifier, source_field_name)                          \
++    __ZMK_RELAY_ASSERT_SIZE(event_type, identifier)                                                \
++                                                                                                   \
++    static char *event_type##_relay_id = STRINGIFY(identifier);                                    \
++    static int zmk_split_relay_event_listener_##event_type##_cb(const zmk_event_t *eh) {           \
++        struct zmk_relay_event_received *ev = as_zmk_relay_event_received(eh);                     \
++        if (ev && strcmp(event_type##_relay_id, ev->event_name) == 0) {                            \
++            struct event_type original_ev;                                                         \
++            if (sizeof(struct event_type) == ev->event_data_size) {                                \
++                memcpy(&original_ev, ev->event_data, sizeof(struct event_type));                   \
++            } else {                                                                               \
++                LOG_WRN("Relay event data size mismatch for event type %s: expected %d, got %d",   \
++                        event_type##_relay_id, sizeof(struct event_type), ev->event_data_size);    \
++                return ZMK_EV_EVENT_BUBBLE;                                                        \
++            }                                                                                      \
++            COND_CODE_1(IS_EMPTY(source_field_name), (),                                           \
++                        (original_ev.source_field_name = ev->source + 1; /* 0 is central */))      \
++                                                                                                   \
++            raise_##event_type(original_ev);                                                       \
++            return ZMK_EV_EVENT_HANDLED;                                                           \
++        }                                                                                          \
++        return ZMK_EV_EVENT_BUBBLE;                                                                \
++    }                                                                                              \
++    ZMK_LISTENER(event_type##_relay_handle, zmk_split_relay_event_listener_##event_type##_cb);     \
++    ZMK_SUBSCRIPTION(event_type##_relay_handle, zmk_relay_event_received);
++
++/**
++ * @brief Like ZMK_RELAY_EVENT_HANDLE, but reconstructs event_type from the wire
++ *        bytes with a caller-provided deserialize function instead of a raw
++ *        memcpy. Pair this with the *_SERIALIZE sender macros when the event
++ *        struct is not safe/compact to relay verbatim (embedded pointers,
++ *        variable-length or endian-sensitive payloads, ...).
++ * @param event_type name of event struct type
++ * @param identifier short unique identifier for this event type to distinguish type in relay event
++ * @param source_field_name optional name of the field in event_type struct that indicates source.
++ *                          If not specified, only directional relay is supported and bidirectional
++ *                          relay causes infinite loops.
++ * @param deserialize_fn function with signature
++ *                       `int fn(struct event_type *ev, const uint8_t *event_data,
++ *                               size_t event_data_size)` that fills `ev` from the
++ *                       received bytes and returns 0 on success or a negative
++ *                       errno to drop the event.
++ */
++#define ZMK_RELAY_EVENT_HANDLE_DESERIALIZE(event_type, identifier, source_field_name,              \
++                                           deserialize_fn)                                         \
++    __ZMK_RELAY_ASSERT_NAME(identifier)                                                            \
++                                                                                                   \
++    static char *event_type##_relay_id = STRINGIFY(identifier);                                    \
++    static int zmk_split_relay_event_listener_##event_type##_cb(const zmk_event_t *eh) {           \
++        struct zmk_relay_event_received *ev = as_zmk_relay_event_received(eh);                     \
++        if (ev && strcmp(event_type##_relay_id, ev->event_name) == 0) {                            \
++            struct event_type original_ev = {0};                                                   \
++            int __ret = deserialize_fn(&original_ev, ev->event_data, ev->event_data_size);         \
++            if (__ret < 0) {                                                                       \
++                LOG_WRN("Relay event deserialize failed for event type %s: %d",                    \
++                        event_type##_relay_id, __ret);                                             \
++                return ZMK_EV_EVENT_BUBBLE;                                                        \
++            }                                                                                      \
++            COND_CODE_1(IS_EMPTY(source_field_name), (),                                           \
++                        (original_ev.source_field_name = ev->source + 1; /* 0 is central */))      \
++                                                                                                   \
++            raise_##event_type(original_ev);                                                       \
++            return ZMK_EV_EVENT_HANDLED;                                                           \
++        }                                                                                          \
++        return ZMK_EV_EVENT_BUBBLE;                                                                \
++    }                                                                                              \
++    ZMK_LISTENER(event_type##_relay_handle, zmk_split_relay_event_listener_##event_type##_cb);     \
++    ZMK_SUBSCRIPTION(event_type##_relay_handle, zmk_relay_event_received);
++
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
++
++/**
++ * @brief Define event listener for _event_type to send given event to peripheral.
++ * @param event_type name of event struct type
++ * @param identifier short unique identifier for this event type to distinguish type in relay event
++ * @param source_field_name optional name of the field in event_type struct that indicates source.
++ *                          If not specified, only directional relay is supported and bidirectional
++ *                          relay causes infinite loops.
++ */
++#define ZMK_RELAY_EVENT_CENTRAL_TO_PERIPHERAL(_event_type, identifier, source_field_name)          \
++    __ZMK_RELAY_ASSERT_SIZE(_event_type, identifier)                                               \
++    static char *_event_type##_central_relay_id = STRINGIFY(identifier);                           \
++    static int zmk_split_central_relay_event_listener_##_event_type##_cb(const zmk_event_t *eh) {  \
++        struct _event_type *ev = as_##_event_type(eh);                                             \
++        if (ev && COND_CODE_1(IS_EMPTY(source_field_name), (true),                                 \
++                              (ev->source_field_name == ZMK_RELAY_EVENT_SOURCE_SELF))) {           \
++            struct zmk_split_relay_event_payload payload;                                          \
++            payload.header.event_data_size = sizeof(struct _event_type);                           \
++            strcpy(payload.event_type, _event_type##_central_relay_id);                            \
++            memcpy(payload.event_data, ev, sizeof(struct _event_type));                            \
++            payload.header.event_type_size = strlen(_event_type##_central_relay_id);               \
++            zmk_split_central_send_relay_event(&payload);                                          \
++        }                                                                                          \
++        return ZMK_EV_EVENT_BUBBLE;                                                                \
++    }                                                                                              \
++    ZMK_LISTENER(_event_type##_relay, zmk_split_central_relay_event_listener_##_event_type##_cb);  \
++    ZMK_SUBSCRIPTION(_event_type##_relay, _event_type);
++
++/**
++ * @brief Like ZMK_RELAY_EVENT_CENTRAL_TO_PERIPHERAL, but produces the wire bytes
++ *        with a caller-provided serialize function instead of a raw memcpy of
++ *        the whole struct. Pair with ZMK_RELAY_EVENT_HANDLE_DESERIALIZE.
++ * @param _event_type name of event struct type
++ * @param identifier short unique identifier for this event type to distinguish type in relay event
++ * @param source_field_name optional name of the field in event_type struct that indicates source.
++ *                          If not specified, only directional relay is supported and bidirectional
++ *                          relay causes infinite loops.
++ * @param serialize_fn function with signature
++ *                     `int fn(const struct _event_type *ev, uint8_t *event_data,
++ *                             size_t max_size)` that writes the event into
++ *                     `event_data` (at most `max_size` bytes) and returns the
++ *                     number of bytes written, or a negative errno to skip relay.
++ */
++#define ZMK_RELAY_EVENT_CENTRAL_TO_PERIPHERAL_SERIALIZE(_event_type, identifier,                   \
++                                                        source_field_name, serialize_fn)           \
++    __ZMK_RELAY_ASSERT_NAME(identifier)                                                            \
++    static char *_event_type##_central_relay_id = STRINGIFY(identifier);                           \
++    static int zmk_split_central_relay_event_listener_##_event_type##_cb(const zmk_event_t *eh) {  \
++        struct _event_type *ev = as_##_event_type(eh);                                             \
++        if (ev && COND_CODE_1(IS_EMPTY(source_field_name), (true),                                 \
++                              (ev->source_field_name == ZMK_RELAY_EVENT_SOURCE_SELF))) {           \
++            struct zmk_split_relay_event_payload payload;                                          \
++            int __size =                                                                           \
++                serialize_fn(ev, payload.event_data, CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN);       \
++            if (__size < 0 || __size > CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN) {                    \
++                LOG_WRN("Relay event serialize failed for event type %s: %d",                      \
++                        _event_type##_central_relay_id, __size);                                   \
++                return ZMK_EV_EVENT_BUBBLE;                                                        \
++            }                                                                                      \
++            payload.header.event_data_size = __size;                                               \
++            strcpy(payload.event_type, _event_type##_central_relay_id);                            \
++            payload.header.event_type_size = strlen(_event_type##_central_relay_id);               \
++            zmk_split_central_send_relay_event(&payload);                                          \
++        }                                                                                          \
++        return ZMK_EV_EVENT_BUBBLE;                                                                \
++    }                                                                                              \
++    ZMK_LISTENER(_event_type##_relay, zmk_split_central_relay_event_listener_##_event_type##_cb);  \
++    ZMK_SUBSCRIPTION(_event_type##_relay, _event_type);
++
++#define ZMK_RELAY_EVENT_PERIPHERAL_TO_CENTRAL(_event_type, identifier, source_field_name)
++
++#define ZMK_RELAY_EVENT_PERIPHERAL_TO_CENTRAL_SERIALIZE(_event_type, identifier,                   \
++                                                        source_field_name, serialize_fn)
++
++#else // peripheral
++
++#include <zmk/split/peripheral.h>
++
++#define ZMK_RELAY_EVENT_CENTRAL_TO_PERIPHERAL(_event_type, identifier, source_field_name)
++
++#define ZMK_RELAY_EVENT_CENTRAL_TO_PERIPHERAL_SERIALIZE(_event_type, identifier,                   \
++                                                        source_field_name, serialize_fn)
++
++/**
++ * @brief Define event listener for _event_type to send given event to central.
++ * @param _event_type name of event struct type
++ * @param identifier short unique identifier for this event type to distinguish type in relay event
++ * @param source_field_name optional name of the field in event_type struct that indicates source.
++ *                          If not specified, only directional relay is supported and bidirectional
++ *                          relay causes infinite loops.
++ */
++#define ZMK_RELAY_EVENT_PERIPHERAL_TO_CENTRAL(_event_type, identifier, source_field_name)          \
++    __ZMK_RELAY_ASSERT_SIZE(_event_type, identifier)                                               \
++                                                                                                   \
++    static char *_event_type##_peripheral_relay_id = STRINGIFY(identifier);                        \
++                                                                                                   \
++    static int zmk_split_peripheral_relay_event_listener_##_event_type##_cb(                       \
++        const zmk_event_t *eh) {                                                                   \
++        struct _event_type *ev = as_##_event_type(eh);                                             \
++        if (ev && COND_CODE_1(IS_EMPTY(source_field_name), (true),                                 \
++                              (ev->source_field_name == ZMK_RELAY_EVENT_SOURCE_SELF))) {           \
++            struct zmk_split_transport_peripheral_event pev = {                                    \
++                .type = ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_RELAY_EVENT,                     \
++                .data = {.relay_event = {                                                          \
++                             .header = {.event_data_size = sizeof(struct _event_type)},            \
++                         }}};                                                                      \
++            strcpy(pev.data.relay_event.event_type, _event_type##_peripheral_relay_id);            \
++            memcpy(pev.data.relay_event.event_data, ev, sizeof(struct _event_type));               \
++            return zmk_split_peripheral_report_event(&pev);                                        \
++        }                                                                                          \
++        return ZMK_EV_EVENT_BUBBLE;                                                                \
++    }                                                                                              \
++    ZMK_LISTENER(_event_type##_relay,                                                              \
++                 zmk_split_peripheral_relay_event_listener_##_event_type##_cb);                    \
++    ZMK_SUBSCRIPTION(_event_type##_relay, _event_type);
++
++/**
++ * @brief Like ZMK_RELAY_EVENT_PERIPHERAL_TO_CENTRAL, but produces the wire bytes
++ *        with a caller-provided serialize function instead of a raw memcpy of
++ *        the whole struct. Pair with ZMK_RELAY_EVENT_HANDLE_DESERIALIZE.
++ * @param _event_type name of event struct type
++ * @param identifier short unique identifier for this event type to distinguish type in relay event
++ * @param source_field_name optional name of the field in event_type struct that indicates source.
++ *                          If not specified, only directional relay is supported and bidirectional
++ *                          relay causes infinite loops.
++ * @param serialize_fn function with signature
++ *                     `int fn(const struct _event_type *ev, uint8_t *event_data,
++ *                             size_t max_size)` that writes the event into
++ *                     `event_data` (at most `max_size` bytes) and returns the
++ *                     number of bytes written, or a negative errno to skip relay.
++ */
++#define ZMK_RELAY_EVENT_PERIPHERAL_TO_CENTRAL_SERIALIZE(_event_type, identifier,                   \
++                                                        source_field_name, serialize_fn)           \
++    __ZMK_RELAY_ASSERT_NAME(identifier)                                                            \
++                                                                                                   \
++    static char *_event_type##_peripheral_relay_id = STRINGIFY(identifier);                        \
++                                                                                                   \
++    static int zmk_split_peripheral_relay_event_listener_##_event_type##_cb(                       \
++        const zmk_event_t *eh) {                                                                   \
++        struct _event_type *ev = as_##_event_type(eh);                                             \
++        if (ev && COND_CODE_1(IS_EMPTY(source_field_name), (true),                                 \
++                              (ev->source_field_name == ZMK_RELAY_EVENT_SOURCE_SELF))) {           \
++            struct zmk_split_transport_peripheral_event pev = {                                    \
++                .type = ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_RELAY_EVENT,                     \
++            };                                                                                     \
++            int __size = serialize_fn(ev, pev.data.relay_event.event_data,                         \
++                                      CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN);                      \
++            if (__size < 0 || __size > CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN) {                    \
++                LOG_WRN("Relay event serialize failed for event type %s: %d",                      \
++                        _event_type##_peripheral_relay_id, __size);                                \
++                return ZMK_EV_EVENT_BUBBLE;                                                        \
++            }                                                                                      \
++            pev.data.relay_event.header.event_data_size = __size;                                  \
++            strcpy(pev.data.relay_event.event_type, _event_type##_peripheral_relay_id);            \
++            return zmk_split_peripheral_report_event(&pev);                                        \
++        }                                                                                          \
++        return ZMK_EV_EVENT_BUBBLE;                                                                \
++    }                                                                                              \
++    ZMK_LISTENER(_event_type##_relay,                                                              \
++                 zmk_split_peripheral_relay_event_listener_##_event_type##_cb);                    \
++    ZMK_SUBSCRIPTION(_event_type##_relay, _event_type);
++
++#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
++
++#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
+\ No newline at end of file
+diff --git a/app/include/zmk/split/bluetooth/uuid.h b/app/include/zmk/split/bluetooth/uuid.h
+index c9a63efa7022366357f77a075b7b5eeaefedeb9a..069bb4dbfaa855bd0ca285885edff9c52b55b75f 100644
+--- a/app/include/zmk/split/bluetooth/uuid.h
++++ b/app/include/zmk/split/bluetooth/uuid.h
+@@ -20,3 +20,4 @@
+ #define ZMK_SPLIT_BT_UPDATE_HID_INDICATORS_UUID ZMK_BT_SPLIT_UUID(0x00000004)
+ #define ZMK_SPLIT_BT_SELECT_PHYS_LAYOUT_UUID ZMK_BT_SPLIT_UUID(0x00000005)
+ #define ZMK_SPLIT_BT_INPUT_EVENT_UUID ZMK_BT_SPLIT_UUID(0x00000006)
++#define ZMK_SPLIT_BT_RELAY_EVENT_UUID ZMK_BT_SPLIT_UUID(0x00000007)
+diff --git a/app/include/zmk/split/central.h b/app/include/zmk/split/central.h
+index ff971bfc607f18dc11b66e446e0e049d5d0bac32..e3d78a6c9868b8755bdaea7a6c1f5389adb8a3dd 100644
+--- a/app/include/zmk/split/central.h
++++ b/app/include/zmk/split/central.h
+@@ -46,3 +46,11 @@ int zmk_split_central_update_hid_indicator(zmk_hid_indicators_t indicators);
+ int zmk_split_central_get_peripheral_battery_level(uint8_t source, uint8_t *level);
+ 
+ #endif // IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING)
++
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++
++#include <zmk/split/transport/types.h>
++
++int zmk_split_central_send_relay_event(struct zmk_split_relay_event_payload *payload);
++
++#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
+\ No newline at end of file
+diff --git a/app/include/zmk/split/transport/types.h b/app/include/zmk/split/transport/types.h
+index 1d6eb734c656418adb77496a00dea4aeb19a6894..926d93365ce30e861b6466ebfea6ee4e96ea769d 100644
+--- a/app/include/zmk/split/transport/types.h
++++ b/app/include/zmk/split/transport/types.h
+@@ -30,8 +30,23 @@ enum zmk_split_transport_peripheral_event_type {
+     ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_SENSOR_EVENT,
+     ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_INPUT_EVENT,
+     ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_BATTERY_EVENT,
++    ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_RELAY_EVENT,
+ };
+ 
++struct relay_event_header {
++    uint8_t sequence;        // lower 7 bits are sequence, upper bit indicates final chunk
++    uint8_t event_data_size; // chunk data size on wire, event data size after reassembly
++    uint8_t event_type_size; // filled by library. excluding null terminator
++} __packed;
++
++#ifdef CONFIG_ZMK_SPLIT_RELAY_EVENT
++struct zmk_split_relay_event_payload {
++    struct relay_event_header header;
++    char event_type[CONFIG_ZMK_SPLIT_RELAY_EVENT_TYPE_NAME_LEN + 1]; // +1 is for null terminator
++    uint8_t event_data[CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN];
++} __packed;
++#endif
++
+ struct zmk_split_transport_peripheral_event {
+     enum zmk_split_transport_peripheral_event_type type;
+ 
+@@ -58,6 +73,14 @@ struct zmk_split_transport_peripheral_event {
+         struct {
+             uint8_t level;
+         } battery_event;
++#ifdef CONFIG_ZMK_SPLIT_RELAY_EVENT
++        struct {
++            struct relay_event_header header;
++            char event_type[CONFIG_ZMK_SPLIT_RELAY_EVENT_TYPE_NAME_LEN +
++                            1]; // +1 is for null terminator
++            uint8_t event_data[CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN];
++        } relay_event;
++#endif
+     } data;
+ } __packed;
+ 
+@@ -66,6 +89,9 @@ enum zmk_split_transport_central_command_type {
+     ZMK_SPLIT_TRANSPORT_CENTRAL_CMD_TYPE_INVOKE_BEHAVIOR,
+     ZMK_SPLIT_TRANSPORT_CENTRAL_CMD_TYPE_SET_PHYSICAL_LAYOUT,
+     ZMK_SPLIT_TRANSPORT_CENTRAL_CMD_TYPE_SET_HID_INDICATORS,
++#ifdef CONFIG_ZMK_SPLIT_RELAY_EVENT
++    ZMK_SPLIT_TRANSPORT_CENTRAL_CMD_TYPE_RELAY_EVENT,
++#endif
+ } __packed;
+ 
+ struct zmk_split_transport_central_command {
+@@ -87,5 +113,9 @@ struct zmk_split_transport_central_command {
+         struct {
+             zmk_hid_indicators_t indicators;
+         } set_hid_indicators;
++
++#ifdef CONFIG_ZMK_SPLIT_RELAY_EVENT
++        struct zmk_split_relay_event_payload relay_event;
++#endif
+     } data;
+-} __packed;
+\ No newline at end of file
++} __packed;
+diff --git a/app/include/zmk/studio/custom.h b/app/include/zmk/studio/custom.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9033a4127980f3f09dd683fcd490d28ca161c31
+--- /dev/null
++++ b/app/include/zmk/studio/custom.h
+@@ -0,0 +1,144 @@
++/*
++ * Copyright (c) 2026 The ZMK Contributors
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#pragma once
++
++#include <proto/zmk/custom.pb.h>
++#include <zmk/event_manager.h>
++#include <zmk/studio/rpc.h>
++#include <zephyr/logging/log.h>
++
++struct zmk_studio_custom_notification {
++    uint8_t subsystem_index;
++    // callback to encode payload
++    // Note that as for now, encode is executed within raise_zmk_studio_custom_notification(...)
++    // caller can safely set pointer to local stack variable which remains until
++    // raise_zmk_studio_custom_notification(...) returns.
++    pb_callback_t encode_payload;
++};
++
++ZMK_EVENT_DECLARE(zmk_studio_custom_notification);
++
++/**
++ * Handler function which is called when a custom subsystem CallRequest is received.
++ * @param request The CallRequest received from the studio.
++ * @param encode_response pointer to CallResponse.payload's pb_callback_t.
++ * The handler should set this to a function which encodes the response.
++ *
++ * WARNING: The encoding can be called multiple times to calculate the size
++ * of the payload.
++ *
++ * WARNING: The encoding is executed after returning from this handler, so the pb_callback_t
++ * **cannot use pointer to local stack variables**. Pointer to data segment (global/static variable)
++ * or heap memory should be used. Instead of setting data pointer, the handler can also collect and
++ * build response in encoder function if the operation is light-weight and does not have side
++ * effects.
++ *
++ * NOTE: As for now, the handler is not called in parallel. Next RPC is always processed after
++ * sending response. So the handler can share single global variable as data buffer to use in
++ * encoder function.
++ *
++ * @return true if the request was handled successfully, false if failed.
++ */
++typedef bool(custom_subsystem_handler)(const zmk_custom_CallRequest *request,
++                                       pb_callback_t *encode_response);
++
++struct zmk_rpc_custom_subsystem_meta {
++    char **ui_urls;
++    size_t ui_urls_count;
++    enum zmk_studio_rpc_handler_security security;
++};
++
++struct zmk_rpc_custom_subsystem {
++    char *identifier;
++    struct zmk_rpc_custom_subsystem_meta *meta;
++    custom_subsystem_handler *handler;
++};
++
++/**
++ * Registers a custom RPC subsystem.
++ * @param _identifier Unique identifier string for the custom subsystem.
++ * @param _meta Pointer to zmk_rpc_custom_subsystem_meta struct defining metadata.
++ * @param _handler Function pointer to the handler function for CallRequests.
++ */
++#define ZMK_RPC_CUSTOM_SUBSYSTEM(_identifier, _meta, _handler)                                     \
++    BUILD_ASSERT(sizeof(#_identifier) < CONFIG_ZMK_STUDIO_RPC_CUSTOM_SUBSYSTEM_IDENTIFIER_MAX_LEN, \
++                 "Identifier too long: " #_identifier);                                            \
++    static bool _handler(const zmk_custom_CallRequest *req, pb_callback_t *res);                   \
++    STRUCT_SECTION_ITERABLE(zmk_rpc_custom_subsystem, zmk_rpc_custom_subsystem_##_identifier) = {  \
++        .identifier = #_identifier,                                                                \
++        .meta = _meta,                                                                             \
++        .handler = _handler,                                                                       \
++    };
++
++/**
++ * Helper macro to define UI URLs array in zmk_rpc_custom_subsystem_meta.
++ * @param ... List of string literals representing UI URLs.
++ */
++#define ZMK_RPC_CUSTOM_SUBSYSTEM_UI_URLS(...)                                                      \
++    .ui_urls = (char *[]){__VA_ARGS__},                                                            \
++    .ui_urls_count =                                                                               \
++        COND_CODE_1(IS_EMPTY(__VA_ARGS__), (0), (UTIL_INC(NUM_VA_ARGS_LESS_1(__VA_ARGS__))))
++
++/**
++ * Function to encode response payload for custom subsystems.
++ * Used in ZMK_RPC_CUSTOM_SUBSYSTEM_RESPONSE_BUFFER macro.
++ */
++bool zmk_rpc_custom_subsystem_encode_response_payload(pb_ostream_t *stream,
++                                                      const pb_field_t *payload_field,
++                                                      const pb_msgdesc_t *custom_response_msgdesc,
++                                                      void const *custom_response);
++
++/**
++ * Registers a custom RPC subsystem response buffer.
++ * @param _subsystem_identifier Unique identifier string for the custom subsystem.
++ * @param response_type The protobuf message type of the custom response.
++ * @note The response buffer is static and shared.
++ *       The encode function checks that the buffer is used only by one encoding at a time.
++ */
++#define ZMK_RPC_CUSTOM_SUBSYSTEM_RESPONSE_BUFFER(_subsystem_identifier, response_type)             \
++    /** bufer */                                                                                   \
++    static response_type zmk_rpc_custom_subsystem_response_buffer_##_subsystem_identifier;         \
++    /** sequence (pseudo) pointer for buffer usage tracking */                                     \
++    static void *zmk_rpc_custom_subsystem_response_buffer_seq_##_subsystem_identifier;             \
++                                                                                                   \
++    static inline bool zmk_rpc_custom_subsystem_encode_response_##_subsystem_identifier(           \
++        pb_ostream_t *stream, const pb_field_t *payload_field, void *const *arg) {                 \
++        const void *seq = (void *)*arg;                                                            \
++        if (seq != zmk_rpc_custom_subsystem_response_buffer_seq_##_subsystem_identifier) {         \
++            LOG_DBG("response buffer is in use by other request: expected=%d current=%d",          \
++                    (int)seq,                                                                      \
++                    (int)zmk_rpc_custom_subsystem_response_buffer_seq_##_subsystem_identifier);    \
++            return false; /* buffer was used by others before encoding */                          \
++        }                                                                                          \
++        return zmk_rpc_custom_subsystem_encode_response_payload(                                   \
++            stream, payload_field, response_type##_fields,                                         \
++            &zmk_rpc_custom_subsystem_response_buffer_##_subsystem_identifier);                    \
++        /* NOTE: buffer cannot be released here because encode can be called multiple times */     \
++    }                                                                                              \
++    static inline response_type                                                                    \
++        *zmk_rpc_custom_subsystem_response_buffer_allocate_##_subsystem_identifier(                \
++            pb_callback_t *encode_response) {                                                      \
++        zmk_rpc_custom_subsystem_response_buffer_##_subsystem_identifier =                         \
++            (response_type)response_type##_init_zero;                                              \
++        encode_response->funcs.encode =                                                            \
++            zmk_rpc_custom_subsystem_encode_response_##_subsystem_identifier;                      \
++        encode_response->arg =                                                                     \
++            ++zmk_rpc_custom_subsystem_response_buffer_seq_##_subsystem_identifier;                \
++        return &zmk_rpc_custom_subsystem_response_buffer_##_subsystem_identifier;                  \
++    }
++
++/**
++ * Helper macro to allocate response buffer for custom subsystems.
++ * @param _subsystem_identifier Unique identifier string for the custom subsystem.
++ * @param encode_response Pointer to pb_callback_t to be set for encoding response.
++ *                        custom_subsystem_handler#encode_response should be passed here.
++ * @return Pointer to allocated response buffer of appropriate type.
++ * @note ZMK_RPC_CUSTOM_SUBSYSTEM_RESPONSE_BUFFER(_subsystem_identifier, response_type) is required
++ * before using this macro.
++ */
++#define ZMK_RPC_CUSTOM_SUBSYSTEM_RESPONSE_BUFFER_ALLOCATE(_subsystem_identifier, encode_response)  \
++    zmk_rpc_custom_subsystem_response_buffer_allocate_##_subsystem_identifier(encode_response)
+diff --git a/app/src/ble.c b/app/src/ble.c
+index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..ef4cb597682431594e1088d4f5a79eeb8686afeb 100644
+--- a/app/src/ble.c
++++ b/app/src/ble.c
+@@ -61,6 +61,7 @@ enum advertising_type {
+ 
+ static struct zmk_ble_profile profiles[ZMK_BLE_PROFILE_COUNT];
+ static uint8_t active_profile;
++static bool directed_advertising_enabled = false;
+ 
+ #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
+ #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
+@@ -191,6 +192,8 @@ int update_advertising(void) {
+ 
+         // LOG_DBG("Directed advertising to %s", addr_str);
+         // desired_adv = ZMK_ADV_DIR;
++    } else if (directed_advertising_enabled) {
++        desired_adv = ZMK_ADV_CONN; // TODO: Change back to ZMK_ADV_DIR when fixed
+     }
+     LOG_DBG("advertising from %d to %d", advertising_status, desired_adv);
+ 
+@@ -375,6 +378,11 @@ int zmk_ble_set_device_name(char *name) {
+     return update_advertising();
+ }
+ 
++int zmk_ble_set_directed_advertising(bool enable) {
++    directed_advertising_enabled = enable;
++    return update_advertising();
++}
++
+ #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE) && IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+ 
+ int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr) {
+diff --git a/app/src/event_manager.c b/app/src/event_manager.c
+index c28da97f5944fff51fada51a146b8989a0245bfc..037c647e831c1c29905bfcb7b636e5f22b68d3c2 100644
+--- a/app/src/event_manager.c
++++ b/app/src/event_manager.c
+@@ -80,3 +80,9 @@ int zmk_event_manager_raise_at(zmk_event_t *event, const struct zmk_listener *li
+ int zmk_event_manager_release(zmk_event_t *event) {
+     return zmk_event_manager_handle_from(event, event->last_listener_index + 1);
+ }
++
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++
++ZMK_EVENT_IMPL(zmk_relay_event_received);
++
++#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
+diff --git a/app/src/split/Kconfig b/app/src/split/Kconfig
+index 00ce08407796b7c2520ebf4ec2f79ecebf60e5a8..ab1af7158d4e554cc8f4666e59cb56c16feb4589 100644
+--- a/app/src/split/Kconfig
++++ b/app/src/split/Kconfig
+@@ -30,6 +30,28 @@ config ZMK_SPLIT_PERIPHERAL_HID_INDICATORS
+     help
+       Enable propagating the HID (LED) Indicator state to the split peripheral(s).
+ 
++config ZMK_SPLIT_RELAY_EVENT
++    bool "Relay Events from Peripheral to Central"
++    help
++      Enable relaying events from the split peripheral to the central device.
++
++if ZMK_SPLIT_RELAY_EVENT
++
++config ZMK_SPLIT_RELAY_EVENT_TYPE_NAME_LEN
++    int "Maximum size of relay event type name in bytes"
++    default 4
++    help
++      Maximum size of the event name that can be sent from
++      peripheral to central via relay events.
++
++config ZMK_SPLIT_RELAY_EVENT_DATA_LEN
++    int "Maximum size of event payload to relay in bytes"
++    default 128
++    help
++        Maximum size of the event data payload that can be sent between
++        peripheral and central via relay events.
++endif # ZMK_SPLIT_RELAY_EVENT
++
+ endif # ZMK_SPLIT
+ 
+ rsource "bluetooth/Kconfig"
+diff --git a/app/src/split/bluetooth/central.c b/app/src/split/bluetooth/central.c
+index b4b61ce77500c1f9c65e29b24279409a4f12008f..cdaf41d0cf7d2744e7b2d316a14b92a02cfc4019 100644
+--- a/app/src/split/bluetooth/central.c
++++ b/app/src/split/bluetooth/central.c
+@@ -6,6 +6,7 @@
+ 
+ #include <zephyr/types.h>
+ #include <zephyr/init.h>
++#include <zephyr/kernel.h>
+ 
+ #include <zephyr/bluetooth/bluetooth.h>
+ #include <zephyr/bluetooth/conn.h>
+@@ -34,6 +35,8 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
+ #include <zmk/hid_indicators_types.h>
+ #include <zmk/physical_layouts.h>
+ 
++#include "relay_event.h"
++
+ static int start_scanning(void);
+ 
+ #define POSITION_STATE_DATA_LEN 16
+@@ -49,11 +52,18 @@ struct peripheral_slot {
+     struct bt_conn *conn;
+     struct bt_gatt_discover_params discover_params;
+     struct bt_gatt_subscribe_params subscribe_params;
+-    struct bt_gatt_subscribe_params sensor_subscribe_params;
+     struct bt_gatt_discover_params sub_discover_params;
++    struct bt_gatt_subscribe_params sensor_subscribe_params;
++    struct bt_gatt_discover_params sensor_sub_discover_params;
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++    struct bt_gatt_subscribe_params relay_event_subscribe_params;
++    struct bt_gatt_discover_params relay_event_sub_discover_params;
++    struct zmk_split_relay_event_chunk_reassembly_state relay_event_chunk_reassembly_state;
++#endif
+     uint16_t run_behavior_handle;
+ #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING)
+     struct bt_gatt_subscribe_params batt_lvl_subscribe_params;
++    struct bt_gatt_discover_params batt_lvl_sub_discover_params;
+     struct bt_gatt_read_params batt_lvl_read_params;
+ #endif /* IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING) */
+ #if IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
+@@ -216,6 +226,12 @@ int release_peripheral_slot(int index) {
+     slot->subscribe_params.value_handle = 0;
+     slot->run_behavior_handle = 0;
+     slot->selected_physical_layout_handle = 0;
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++    memset(&slot->relay_event_subscribe_params, 0, sizeof(slot->relay_event_subscribe_params));
++    memset(&slot->relay_event_sub_discover_params, 0,
++           sizeof(slot->relay_event_sub_discover_params));
++    zmk_split_relay_event_chunk_reassembly_reset(&slot->relay_event_chunk_reassembly_state);
++#endif
+ #if IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
+     slot->update_hid_indicators = 0;
+ #endif // IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
+@@ -301,6 +317,208 @@ static uint8_t split_central_sensor_notify_func(struct bt_conn *conn,
+ }
+ #endif /* ZMK_KEYMAP_HAS_SENSORS */
+ 
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++
++static void update_peripherals_relay_event_work_handler(struct k_work *_work);
++static uint8_t relay_event_tx_sequence;
++#define RELAY_EVENT_FRAME_MAX_SIZE                                                                 \
++    (sizeof(struct relay_event_header) + CONFIG_ZMK_SPLIT_RELAY_EVENT_TYPE_NAME_LEN +              \
++     CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN)
++static uint8_t relay_event_frame[RELAY_EVENT_FRAME_MAX_SIZE];
++static K_MUTEX_DEFINE(relay_event_frame_lock);
++
++struct relay_event_wrapper {
++    uint8_t source;
++    struct zmk_split_relay_event_payload payload;
++};
++
++K_MSGQ_DEFINE(relay_event_msgq, sizeof(struct relay_event_wrapper),
++              CONFIG_ZMK_SPLIT_BLE_CENTRAL_POSITION_QUEUE_SIZE, 4);
++K_WORK_DEFINE(update_peripherals_relay_event_work, update_peripherals_relay_event_work_handler);
++
++static int split_central_bt_queue_relay_event(uint8_t source,
++                                              const struct zmk_split_relay_event_payload *payload) {
++    struct relay_event_wrapper wrapper = {.source = source, .payload = *payload};
++    int err = k_msgq_put(&relay_event_msgq, &wrapper, K_NO_WAIT);
++    if (err) {
++        LOG_ERR("Failed to queue relay event to send (%d)", err);
++        return err;
++    }
++    k_work_submit(&update_peripherals_relay_event_work);
++    return 0;
++}
++
++static int
++split_central_write_relay_event_chunks(struct peripheral_slot *slot,
++                                       const struct zmk_split_relay_event_payload *payload) {
++    uint16_t total_size;
++    int err = zmk_split_relay_event_payload_total_size(payload, &total_size);
++    if (err < 0) {
++        LOG_WRN("Invalid relay event payload (err %d)", err);
++        return err;
++    }
++
++    uint16_t mtu = bt_gatt_get_mtu(slot->conn);
++    if (mtu <= ZMK_SPLIT_RELAY_EVENT_ATT_VALUE_OVERHEAD + sizeof(struct relay_event_header)) {
++        LOG_WRN("ATT MTU %u too small for relay event chunk header", mtu);
++        return -EMSGSIZE;
++    }
++
++    uint16_t max_frame_len = mtu - ZMK_SPLIT_RELAY_EVENT_ATT_VALUE_OVERHEAD;
++    uint16_t max_chunk_data_len = max_frame_len - sizeof(struct relay_event_header);
++    max_chunk_data_len = MIN(max_chunk_data_len, UINT8_MAX);
++
++    uint16_t sent_size = 0;
++
++    LOG_DBG("Prepared relay event of total size %u bytes (name %u, data %u)", total_size,
++            payload->header.event_type_size, payload->header.event_data_size);
++
++    k_mutex_lock(&relay_event_frame_lock, K_FOREVER);
++
++    while (sent_size < total_size) {
++        uint16_t chunk_data_len = MIN(max_chunk_data_len, total_size - sent_size);
++        bool is_end = (sent_size + chunk_data_len) == total_size;
++        struct relay_event_header *header = (struct relay_event_header *)relay_event_frame;
++
++        *header = (struct relay_event_header){
++            .sequence = relay_event_tx_sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK,
++            .event_type_size = payload->header.event_type_size,
++            .event_data_size = chunk_data_len,
++        };
++        if (is_end) {
++            header->sequence |= ZMK_SPLIT_RELAY_EVENT_SEQUENCE_END;
++        }
++        relay_event_tx_sequence =
++            (relay_event_tx_sequence + 1) & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK;
++
++        zmk_split_relay_event_copy_payload_data(
++            payload, sent_size, relay_event_frame + sizeof(struct relay_event_header),
++            chunk_data_len);
++
++        uint16_t frame_len = sizeof(struct relay_event_header) + chunk_data_len;
++        err = bt_gatt_write_without_response(slot->conn,
++                                             slot->relay_event_subscribe_params.value_handle,
++                                             relay_event_frame, frame_len, true);
++        if (err < 0) {
++            LOG_ERR("Failed to write relay event chunk to peripheral: seq=%u end=%d err=%d",
++                    header->sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK, is_end, err);
++            k_mutex_unlock(&relay_event_frame_lock);
++            return err;
++        }
++
++        sent_size += chunk_data_len;
++    }
++
++    k_mutex_unlock(&relay_event_frame_lock);
++    return 0;
++}
++
++static void update_peripherals_relay_event_work_handler(struct k_work *_work) {
++    struct relay_event_wrapper wrapper;
++    if (k_msgq_get(&relay_event_msgq, &wrapper, K_NO_WAIT) != 0) {
++        return;
++    }
++
++    if (wrapper.source < ZMK_SPLIT_BLE_PERIPHERAL_COUNT) {
++        struct peripheral_slot *slot = &peripherals[wrapper.source];
++        if (slot->state != PERIPHERAL_SLOT_STATE_CONNECTED) {
++            LOG_WRN("Peripheral %u not connected, dropping relay event", wrapper.source);
++        } else if (slot->relay_event_subscribe_params.value_handle == 0) {
++            // It appears that sometimes the peripheral is considered connected
++            // before the GATT characteristics have been discovered. If this is
++            // the case, the relay event value handle will not yet be set.
++            LOG_WRN("Peripheral relay event subscribe params not set, cannot send relay event");
++        } else if (bt_conn_get_security(slot->conn) < BT_SECURITY_L2) {
++            LOG_WRN("Peripheral link not encrypted, cannot send relay event");
++        } else {
++            split_central_write_relay_event_chunks(slot, &wrapper.payload);
++        }
++    }
++
++    if (k_msgq_num_used_get(&relay_event_msgq) > 0) {
++        k_work_submit(&update_peripherals_relay_event_work);
++    }
++}
++
++static uint8_t split_central_relay_event_notify_func(struct bt_conn *conn,
++                                                     struct bt_gatt_subscribe_params *params,
++                                                     const void *data, uint16_t length) {
++    if (!data) {
++        int source = peripheral_slot_index_for_conn(conn);
++        struct peripheral_slot *slot = source >= 0 ? &peripherals[source] : NULL;
++        LOG_DBG("[RELAY EVENT UNSUBSCRIBED] conn=%p source=%d value_handle=0x%04x "
++                "ccc_handle=0x%04x received_size=%u next_seq=%u",
++                (void *)conn, source, params->value_handle, params->ccc_handle,
++                slot ? slot->relay_event_chunk_reassembly_state.received_size : 0,
++                slot ? slot->relay_event_chunk_reassembly_state.next_sequence : 0);
++        params->value_handle = 0U;
++        return BT_GATT_ITER_STOP;
++    }
++
++    LOG_DBG("[RELAY EVENT NOTIFICATION] data %p length %u", data, length);
++
++    if (length <= sizeof(struct relay_event_header)) {
++        LOG_WRN("Relay event chunk too small (%u)", length);
++        return BT_GATT_ITER_CONTINUE;
++    }
++
++    int source = peripheral_slot_index_for_conn(conn);
++    if (source < 0) {
++        LOG_WRN("Relay event from unknown peripheral");
++        return BT_GATT_ITER_CONTINUE;
++    }
++
++    struct peripheral_slot *slot = &peripherals[source];
++    struct relay_event_header header;
++    memcpy(&header, data, sizeof(header));
++    const uint8_t *chunk_data = (const uint8_t *)data + sizeof(struct relay_event_header);
++    uint16_t chunk_data_len = length - sizeof(struct relay_event_header);
++    bool is_end = (header.sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_END) != 0;
++
++    LOG_DBG("Received relay event chunk from peripheral %d: seq=%u end=%d chunk_len=%u "
++            "frame_len=%u type_len=%u state_received=%u next_seq=%u",
++            source, header.sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK, is_end, chunk_data_len,
++            length, header.event_type_size, slot->relay_event_chunk_reassembly_state.received_size,
++            slot->relay_event_chunk_reassembly_state.next_sequence);
++
++    int result = zmk_split_relay_event_chunk_reassembly_accept(
++        &slot->relay_event_chunk_reassembly_state, &header, chunk_data, chunk_data_len);
++    if (result < 0) {
++        LOG_WRN("Malformed relay event chunk from peripheral %d: seq=%u end=%d chunk_len=%u "
++                "frame_len=%u type_len=%u err=%d",
++                source, header.sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK, is_end,
++                chunk_data_len, length, header.event_type_size, result);
++        return BT_GATT_ITER_CONTINUE;
++    }
++
++    if (result == 0) {
++        return BT_GATT_ITER_CONTINUE;
++    }
++
++    struct zmk_split_relay_event_payload *payload =
++        &slot->relay_event_chunk_reassembly_state.payload;
++    struct peripheral_event_wrapper event_wrapper = {
++        .source = source,
++        .event = {.type = ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_RELAY_EVENT,
++                  .data = {.relay_event = {.header = payload->header}}}};
++
++    memcpy(event_wrapper.event.data.relay_event.event_type, payload->event_type,
++           payload->header.event_type_size + 1);
++    memcpy(event_wrapper.event.data.relay_event.event_data, payload->event_data,
++           payload->header.event_data_size);
++    LOG_DBG("Received relay event: type='%s', data_len=%d (wire: %d bytes)",
++            event_wrapper.event.data.relay_event.event_type,
++            event_wrapper.event.data.relay_event.header.event_data_size,
++            payload->header.event_type_size + payload->header.event_data_size);
++
++    k_msgq_put(&peripheral_event_msgq, &event_wrapper, K_NO_WAIT);
++    k_work_submit(&peripheral_event_work);
++
++    return BT_GATT_ITER_CONTINUE;
++}
++
++#endif
++
+ #if IS_ENABLED(CONFIG_ZMK_INPUT_SPLIT)
+ 
+ static uint8_t peripheral_input_event_notify_cb(struct bt_conn *conn,
+@@ -575,13 +793,28 @@ static uint8_t split_central_chrc_discovery_func(struct bt_conn *conn,
+             slot->discover_params.start_handle = attr->handle + 2;
+             slot->discover_params.type = BT_GATT_DISCOVER_CHARACTERISTIC;
+ 
+-            slot->sensor_subscribe_params.disc_params = &slot->sub_discover_params;
++            slot->sensor_subscribe_params.disc_params = &slot->sensor_sub_discover_params;
+             slot->sensor_subscribe_params.end_handle = slot->discover_params.end_handle;
+             slot->sensor_subscribe_params.value_handle = bt_gatt_attr_value_handle(attr);
+             slot->sensor_subscribe_params.notify = split_central_sensor_notify_func;
+             slot->sensor_subscribe_params.value = BT_GATT_CCC_NOTIFY;
+             split_central_subscribe(conn, &slot->sensor_subscribe_params);
+ #endif /* ZMK_KEYMAP_HAS_SENSORS */
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++        } else if (bt_uuid_cmp(chrc_uuid, BT_UUID_DECLARE_128(ZMK_SPLIT_BT_RELAY_EVENT_UUID)) ==
++                   0) {
++            LOG_DBG("Found relay event characteristic");
++            slot->discover_params.uuid = NULL;
++            slot->discover_params.start_handle = attr->handle + 2;
++            slot->discover_params.type = BT_GATT_DISCOVER_CHARACTERISTIC;
++
++            slot->relay_event_subscribe_params.disc_params = &slot->relay_event_sub_discover_params;
++            slot->relay_event_subscribe_params.end_handle = slot->discover_params.end_handle;
++            slot->relay_event_subscribe_params.value_handle = bt_gatt_attr_value_handle(attr);
++            slot->relay_event_subscribe_params.notify = split_central_relay_event_notify_func;
++            slot->relay_event_subscribe_params.value = BT_GATT_CCC_NOTIFY;
++            split_central_subscribe(conn, &slot->relay_event_subscribe_params);
++#endif
+ #if IS_ENABLED(CONFIG_ZMK_INPUT_SPLIT)
+         } else if (bt_uuid_cmp(chrc_uuid, BT_UUID_DECLARE_128(ZMK_SPLIT_BT_INPUT_EVENT_UUID)) ==
+                    0) {
+@@ -624,7 +857,7 @@ static uint8_t split_central_chrc_discovery_func(struct bt_conn *conn,
+         } else if (!bt_uuid_cmp(((struct bt_gatt_chrc *)attr->user_data)->uuid,
+                                 BT_UUID_BAS_BATTERY_LEVEL)) {
+             LOG_DBG("Found battery level characteristics");
+-            slot->batt_lvl_subscribe_params.disc_params = &slot->sub_discover_params;
++            slot->batt_lvl_subscribe_params.disc_params = &slot->batt_lvl_sub_discover_params;
+             slot->batt_lvl_subscribe_params.end_handle = slot->discover_params.end_handle;
+             slot->batt_lvl_subscribe_params.value_handle = bt_gatt_attr_value_handle(attr);
+             slot->batt_lvl_subscribe_params.notify = split_central_battery_level_notify_func;
+@@ -692,6 +925,10 @@ static uint8_t split_central_chrc_discovery_func(struct bt_conn *conn,
+     subscribed = subscribed && slot->sensor_subscribe_params.value_handle;
+ #endif /* ZMK_KEYMAP_HAS_SENSORS */
+ 
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++    subscribed = subscribed && slot->relay_event_subscribe_params.value_handle;
++#endif
++
+ #if IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
+     subscribed = subscribed && slot->update_hid_indicators;
+ #endif // IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
+@@ -1180,6 +1417,12 @@ static int split_central_bt_send_command(uint8_t source,
+         struct central_cmd_wrapper wrapper = {.source = source, .cmd = cmd};
+         return split_bt_invoke_behavior_payload(wrapper);
+     }
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++    case ZMK_SPLIT_TRANSPORT_CENTRAL_CMD_TYPE_RELAY_EVENT:
++        // Relay events don't fit in a single unchunked GATT write, so route them
++        // to the dedicated chunked relay event characteristic writer.
++        return split_central_bt_queue_relay_event(source, &cmd.data.relay_event);
++#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
+     case ZMK_SPLIT_TRANSPORT_CENTRAL_CMD_TYPE_POLL_EVENTS:
+         return -ENOTSUP;
+     default:
+diff --git a/app/src/split/bluetooth/relay_event.h b/app/src/split/bluetooth/relay_event.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..5cc20bdab922927aacc2887bec8b9f4f5d183af5
+--- /dev/null
++++ b/app/src/split/bluetooth/relay_event.h
+@@ -0,0 +1,136 @@
++/*
++ * Copyright (c) 2026 The ZMK Contributors
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#pragma once
++
++#include <errno.h>
++#include <string.h>
++
++#include <zmk/split/transport/types.h>
++
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++
++#define ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK 0x7F
++#define ZMK_SPLIT_RELAY_EVENT_SEQUENCE_END BIT(7)
++#define ZMK_SPLIT_RELAY_EVENT_ATT_VALUE_OVERHEAD 3
++
++struct zmk_split_relay_event_chunk_reassembly_state {
++    uint8_t next_sequence;
++    uint16_t received_size;
++    struct zmk_split_relay_event_payload payload;
++};
++
++static inline int
++zmk_split_relay_event_payload_total_size(const struct zmk_split_relay_event_payload *payload,
++                                         uint16_t *total_size) {
++    if (payload->header.event_type_size > CONFIG_ZMK_SPLIT_RELAY_EVENT_TYPE_NAME_LEN) {
++        return -EINVAL;
++    }
++
++    if (payload->header.event_data_size > CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN) {
++        return -EMSGSIZE;
++    }
++
++    *total_size = payload->header.event_type_size + payload->header.event_data_size;
++    if (*total_size == 0) {
++        return -EINVAL;
++    }
++
++    return 0;
++}
++
++static inline void
++zmk_split_relay_event_copy_payload_data(const struct zmk_split_relay_event_payload *payload,
++                                        uint16_t offset, uint8_t *dest, uint16_t len) {
++    uint16_t event_type_size = payload->header.event_type_size;
++
++    if (offset < event_type_size) {
++        uint16_t type_len = MIN(len, event_type_size - offset);
++        memcpy(dest, payload->event_type + offset, type_len);
++        dest += type_len;
++        len -= type_len;
++        offset += type_len;
++    }
++
++    if (len > 0) {
++        memcpy(dest, payload->event_data + offset - event_type_size, len);
++    }
++}
++
++static inline void zmk_split_relay_event_chunk_reassembly_reset(
++    struct zmk_split_relay_event_chunk_reassembly_state *state) {
++    memset(state, 0, sizeof(*state));
++}
++
++static inline int zmk_split_relay_event_chunk_reassembly_accept(
++    struct zmk_split_relay_event_chunk_reassembly_state *state,
++    const struct relay_event_header *header, const uint8_t *data, uint16_t len) {
++    uint16_t chunk_len = len;
++    uint8_t sequence = header->sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK;
++    bool is_end = (header->sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_END) != 0;
++
++    if (len == 0 || header->event_type_size > CONFIG_ZMK_SPLIT_RELAY_EVENT_TYPE_NAME_LEN ||
++        len != header->event_data_size) {
++        zmk_split_relay_event_chunk_reassembly_reset(state);
++        return -EINVAL;
++    }
++
++    if (state->received_size == 0) {
++        zmk_split_relay_event_chunk_reassembly_reset(state);
++        state->next_sequence = (sequence + 1) & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK;
++        state->payload.header.event_type_size = header->event_type_size;
++    } else if (state->next_sequence != sequence ||
++               state->payload.header.event_type_size != header->event_type_size) {
++        zmk_split_relay_event_chunk_reassembly_reset(state);
++        return -EINVAL;
++    }
++
++    if (state->received_size + chunk_len >
++        header->event_type_size + CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN) {
++        zmk_split_relay_event_chunk_reassembly_reset(state);
++        return -EMSGSIZE;
++    }
++
++    uint16_t offset = state->received_size;
++    uint16_t event_type_size = state->payload.header.event_type_size;
++
++    if (offset < event_type_size) {
++        uint16_t type_len = MIN(len, event_type_size - offset);
++        memcpy(state->payload.event_type + offset, data, type_len);
++        data += type_len;
++        len -= type_len;
++        offset += type_len;
++    }
++
++    if (len > 0) {
++        memcpy(state->payload.event_data + offset - event_type_size, data, len);
++    }
++
++    state->received_size += chunk_len;
++    state->next_sequence = (sequence + 1) & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK;
++
++    if (is_end) {
++        if (state->received_size < state->payload.header.event_type_size) {
++            zmk_split_relay_event_chunk_reassembly_reset(state);
++            return -EINVAL;
++        }
++
++        state->payload.event_type[state->payload.header.event_type_size] = '\0';
++        state->payload.header.event_data_size =
++            state->received_size - state->payload.header.event_type_size;
++        state->received_size = 0;
++        return 1;
++    }
++
++    if (state->received_size == header->event_type_size + CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN) {
++        zmk_split_relay_event_chunk_reassembly_reset(state);
++        return -EINVAL;
++    }
++
++    return 0;
++}
++
++#endif
+diff --git a/app/src/split/bluetooth/service.c b/app/src/split/bluetooth/service.c
+index 5bbed1373e6a9f687d6bb7f7570f4bbec59af1f1..f6e160b9c5c4f1933bc32937969103832e248e2e 100644
+--- a/app/src/split/bluetooth/service.c
++++ b/app/src/split/bluetooth/service.c
+@@ -14,6 +14,7 @@
+ 
+ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
+ 
++#include <zephyr/bluetooth/conn.h>
+ #include <zephyr/bluetooth/gatt.h>
+ #include <zephyr/bluetooth/uuid.h>
+ 
+@@ -27,6 +28,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
+ #include <zmk/split/bluetooth/service.h>
+ 
+ #include "peripheral.h"
++#include "relay_event.h"
+ 
+ #if IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
+ #include <zmk/events/hid_indicators_changed.h>
+@@ -75,6 +77,78 @@ static void split_svc_pos_state_ccc(const struct bt_gatt_attr *attr, uint16_t va
+     LOG_DBG("value %d", value);
+ }
+ 
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++
++static void split_svc_relay_event_from_central_callback(struct k_work *work);
++
++K_MSGQ_DEFINE(relay_event_from_central_msgq, sizeof(struct zmk_split_relay_event_payload),
++              CONFIG_ZMK_SPLIT_BLE_PERIPHERAL_POSITION_QUEUE_SIZE, 4);
++K_WORK_DEFINE(split_svc_relay_event_from_central_work, split_svc_relay_event_from_central_callback);
++
++static void split_svc_relay_event_from_central_callback(struct k_work *work) {
++    struct zmk_split_relay_event_payload payload;
++    while (k_msgq_get(&relay_event_from_central_msgq, &payload, K_NO_WAIT) == 0) {
++        struct zmk_relay_event_received relay_ev;
++        relay_ev.source = 0; // Central is always source 0
++        relay_ev.event_name = payload.event_type;
++        relay_ev.event_data = payload.event_data;
++        relay_ev.event_data_size = payload.header.event_data_size;
++        raise_zmk_relay_event_received(relay_ev);
++    }
++}
++
++static struct zmk_split_relay_event_chunk_reassembly_state
++    relay_event_from_central_chunk_reassembly_state;
++
++static ssize_t split_svc_relay_event_from_central(struct bt_conn *conn,
++                                                  const struct bt_gatt_attr *attr, const void *buf,
++                                                  uint16_t len, uint16_t offset, uint8_t flags) {
++    if (offset != 0 || len <= sizeof(struct relay_event_header)) {
++        LOG_WRN("Invalid relay event chunk write from central: len=%u offset=%u flags=0x%02x", len,
++                offset, flags);
++        return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
++    }
++
++    struct relay_event_header header;
++    memcpy(&header, buf, sizeof(header));
++    const uint8_t *chunk_data = (const uint8_t *)buf + sizeof(struct relay_event_header);
++    uint16_t chunk_data_len = len - sizeof(struct relay_event_header);
++    bool is_end = (header.sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_END) != 0;
++
++    LOG_DBG("Received relay event chunk from central: seq=%u end=%d chunk_len=%u frame_len=%u "
++            "type_len=%u state_received=%u",
++            header.sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK, is_end, chunk_data_len, len,
++            header.event_type_size, relay_event_from_central_chunk_reassembly_state.received_size);
++
++    int result = zmk_split_relay_event_chunk_reassembly_accept(
++        &relay_event_from_central_chunk_reassembly_state, &header, chunk_data, chunk_data_len);
++    if (result < 0) {
++        LOG_WRN("Malformed relay event chunk from central: seq=%u end=%d chunk_len=%u "
++                "frame_len=%u type_len=%u err=%d",
++                header.sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK, is_end, chunk_data_len, len,
++                header.event_type_size, result);
++        return len;
++    }
++
++    if (result == 0) {
++        return len;
++    }
++
++    struct zmk_split_relay_event_payload *payload =
++        &relay_event_from_central_chunk_reassembly_state.payload;
++
++    k_msgq_put(&relay_event_from_central_msgq, payload, K_NO_WAIT);
++    k_work_submit(&split_svc_relay_event_from_central_work);
++
++    return len;
++}
++
++static void split_svc_relay_event_ccc(const struct bt_gatt_attr *attr, uint16_t value) {
++    LOG_DBG("value %d", value);
++}
++
++#endif
++
+ #if IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
+ 
+ static zmk_hid_indicators_t hid_indicators = 0;
+@@ -195,6 +269,13 @@ BT_GATT_SERVICE_DEFINE(
+                            split_svc_sensor_state, NULL, &last_sensor_event),
+     BT_GATT_CCC(split_svc_sensor_state_ccc, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
+ #endif /* ZMK_KEYMAP_HAS_SENSORS */
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++    BT_GATT_CHARACTERISTIC(BT_UUID_DECLARE_128(ZMK_SPLIT_BT_RELAY_EVENT_UUID),
++                           BT_GATT_CHRC_WRITE_WITHOUT_RESP | BT_GATT_CHRC_NOTIFY,
++                           BT_GATT_PERM_WRITE_ENCRYPT, NULL, split_svc_relay_event_from_central,
++                           NULL),
++    BT_GATT_CCC(split_svc_relay_event_ccc, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
++#endif
+     DT_FOREACH_STATUS_OKAY(zmk_input_split, INPUT_SPLIT_CHARS)
+ #if IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
+         BT_GATT_CHARACTERISTIC(BT_UUID_DECLARE_128(ZMK_SPLIT_BT_UPDATE_HID_INDICATORS_UUID),
+@@ -310,6 +391,155 @@ static int zmk_split_bt_sensor_triggered(uint8_t sensor_index,
+ }
+ #endif /* ZMK_KEYMAP_HAS_SENSORS */
+ 
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++
++static struct zmk_split_relay_event_payload last_relay_event;
++static uint8_t relay_event_tx_sequence;
++static uint8_t relay_event_frame[sizeof(struct relay_event_header) +
++                                 CONFIG_ZMK_SPLIT_RELAY_EVENT_TYPE_NAME_LEN +
++                                 CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN];
++K_MSGQ_DEFINE(relay_event_msgq, sizeof(struct zmk_split_relay_event_payload),
++              CONFIG_ZMK_SPLIT_BLE_PERIPHERAL_POSITION_QUEUE_SIZE, 4);
++
++static void split_svc_find_first_conn(struct bt_conn *conn, void *data) {
++    struct bt_conn **found = data;
++
++    if (*found == NULL) {
++        *found = bt_conn_ref(conn);
++    }
++}
++
++static struct bt_conn *split_svc_current_conn(void) {
++    struct bt_conn *conn = NULL;
++
++    bt_conn_foreach(BT_CONN_TYPE_LE, split_svc_find_first_conn, &conn);
++    return conn;
++}
++
++static int
++split_svc_notify_relay_event_chunks(struct bt_conn *conn, const struct bt_gatt_attr *attr,
++                                    const struct zmk_split_relay_event_payload *payload) {
++    uint16_t total_size;
++    int err = zmk_split_relay_event_payload_total_size(payload, &total_size);
++    if (err < 0) {
++        LOG_WRN("Invalid relay event payload (err %d)", err);
++        return err;
++    }
++
++    uint16_t mtu = bt_gatt_get_mtu(conn);
++    if (mtu <= ZMK_SPLIT_RELAY_EVENT_ATT_VALUE_OVERHEAD + sizeof(struct relay_event_header)) {
++        LOG_WRN("ATT MTU %u too small for relay event chunk header", mtu);
++        return -EMSGSIZE;
++    }
++
++    uint16_t max_frame_len = mtu - ZMK_SPLIT_RELAY_EVENT_ATT_VALUE_OVERHEAD;
++    uint16_t max_chunk_data_len = max_frame_len - sizeof(struct relay_event_header);
++    max_chunk_data_len = MIN(max_chunk_data_len, UINT8_MAX);
++
++    uint16_t sent_size = 0;
++
++    LOG_DBG("Prepared relay event of total size %u bytes (name %u, data %u)", total_size,
++            payload->header.event_type_size, payload->header.event_data_size);
++
++    while (sent_size < total_size) {
++        uint16_t chunk_data_len = MIN(max_chunk_data_len, total_size - sent_size);
++        bool is_end = (sent_size + chunk_data_len) == total_size;
++        struct relay_event_header *header = (struct relay_event_header *)relay_event_frame;
++
++        *header = (struct relay_event_header){
++            .sequence = relay_event_tx_sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK,
++            .event_type_size = payload->header.event_type_size,
++            .event_data_size = chunk_data_len,
++        };
++        if (is_end) {
++            header->sequence |= ZMK_SPLIT_RELAY_EVENT_SEQUENCE_END;
++        }
++        relay_event_tx_sequence =
++            (relay_event_tx_sequence + 1) & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK;
++
++        zmk_split_relay_event_copy_payload_data(
++            payload, sent_size, relay_event_frame + sizeof(struct relay_event_header),
++            chunk_data_len);
++
++        uint16_t frame_len = sizeof(struct relay_event_header) + chunk_data_len;
++        LOG_DBG("Notifying relay event chunk to central: seq=%u end=%d chunk_len=%u "
++                "frame_len=%u sent=%u total=%u mtu=%u",
++                header->sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK, is_end, chunk_data_len,
++                frame_len, sent_size, total_size, mtu);
++        err = bt_gatt_notify(conn, attr, relay_event_frame, frame_len);
++        if (err < 0) {
++            LOG_WRN("Error notifying relay event chunk: seq=%u end=%d err=%d",
++                    header->sequence & ZMK_SPLIT_RELAY_EVENT_SEQUENCE_MASK, is_end, err);
++            return err;
++        }
++
++        sent_size += chunk_data_len;
++    }
++
++    return 0;
++}
++
++void send_relay_event_callback(struct k_work *work) {
++    while (k_msgq_get(&relay_event_msgq, &last_relay_event, K_NO_WAIT) == 0) {
++        LOG_DBG("Dequeued relay event to notify: type_len=%u data_len=%u",
++                last_relay_event.header.event_type_size, last_relay_event.header.event_data_size);
++
++        // Find the relay event characteristic attribute index
++        size_t relay_attr_index = 0;
++        for (size_t i = 0; i < split_svc.attr_count; i++) {
++            if (bt_uuid_cmp(split_svc.attrs[i].uuid,
++                            BT_UUID_DECLARE_128(ZMK_SPLIT_BT_RELAY_EVENT_UUID)) == 0) {
++                relay_attr_index = i;
++                break;
++            }
++        }
++
++        if (relay_attr_index > 0) {
++            struct bt_conn *conn = split_svc_current_conn();
++            if (!conn) {
++                LOG_WRN("No central connection to notify relay event");
++                continue;
++            }
++
++            int err = split_svc_notify_relay_event_chunks(conn, &split_svc.attrs[relay_attr_index],
++                                                          &last_relay_event);
++            bt_conn_unref(conn);
++
++            if (!err) {
++                LOG_DBG("Notified relay event: type_len=%u data_len=%u",
++                        last_relay_event.header.event_type_size,
++                        last_relay_event.header.event_data_size);
++            }
++        } else {
++            LOG_WRN("Could not find relay event characteristic to send relay event");
++        }
++    }
++};
++
++K_WORK_DEFINE(service_relay_event_notify_work, send_relay_event_callback);
++
++int zmk_split_bt_send_relay_event(const struct zmk_split_relay_event_payload *ev) {
++    int err = k_msgq_put(&relay_event_msgq, ev, K_MSEC(100));
++    if (err) {
++        switch (err) {
++        case -EAGAIN: {
++            LOG_WRN("Relay event message queue full, popping first message and queueing again");
++            struct zmk_split_relay_event_payload discarded_ev;
++            k_msgq_get(&relay_event_msgq, &discarded_ev, K_NO_WAIT);
++            return zmk_split_bt_send_relay_event(ev);
++        }
++        default:
++            LOG_WRN("Failed to queue relay event to send (%d)", err);
++            return err;
++        }
++    }
++
++    k_work_submit_to_queue(&service_work_q, &service_relay_event_notify_work);
++    return 0;
++}
++
++#endif /* IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT) */
++
+ #if IS_ENABLED(CONFIG_ZMK_INPUT_SPLIT)
+ 
+ static int zmk_split_bt_report_input(uint8_t reg, uint8_t type, uint16_t code, int32_t value,
+@@ -372,8 +602,23 @@ int zmk_split_transport_peripheral_bt_report_event(
+ 
+ #if IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING)
+     case ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_BATTERY_EVENT:
+-        // The BLE transport uses standard BAS service for propagation, so just return success here.
++        // The BLE transport uses standard BAS service for propagation, so just return success
++        // here.
+         return 0;
++#endif
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++    case ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_RELAY_EVENT:
++        struct zmk_split_relay_event_payload relay_ev = {
++            .header = ev->data.relay_event.header,
++        };
++        relay_ev.header.event_type_size =
++            strnlen(ev->data.relay_event.event_type, CONFIG_ZMK_SPLIT_RELAY_EVENT_TYPE_NAME_LEN);
++        memcpy(relay_ev.event_type, ev->data.relay_event.event_type,
++               relay_ev.header.event_type_size);
++        relay_ev.event_type[relay_ev.header.event_type_size] = '\0';
++        memcpy(relay_ev.event_data, ev->data.relay_event.event_data,
++               ev->data.relay_event.header.event_data_size);
++        return zmk_split_bt_send_relay_event(&relay_ev);
+ #endif
+     default:
+         LOG_WRN("Unhandled event type %d", ev->type);
+@@ -434,4 +679,4 @@ static ssize_t split_svc_run_behavior(struct bt_conn *conn, const struct bt_gatt
+     }
+ 
+     return len;
+-}
+\ No newline at end of file
++}
+diff --git a/app/src/split/central.c b/app/src/split/central.c
+index e2b8064370ca707e0c6ffad634ff76ec03cf255a..67a9be47a23016b7e41b15c4930033abc97073ce 100644
+--- a/app/src/split/central.c
++++ b/app/src/split/central.c
+@@ -72,6 +72,16 @@ int zmk_split_transport_central_peripheral_event_handler(
+ 
+         return raise_zmk_sensor_event(sensor_ev);
+     }
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++    case ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_RELAY_EVENT: {
++        struct zmk_relay_event_received relay_ev;
++        relay_ev.source = source;
++        relay_ev.event_name = ev.data.relay_event.event_type;
++        relay_ev.event_data = ev.data.relay_event.event_data;
++        relay_ev.event_data_size = ev.data.relay_event.header.event_data_size;
++        return raise_zmk_relay_event_received(relay_ev);
++    }
++#endif
+     default:
+         LOG_WRN("GOT AN UNKNOWN EVENT TYPE %d", ev.type);
+         return -ENOTSUP;
+@@ -110,6 +120,46 @@ int zmk_split_central_invoke_behavior(uint8_t source, struct zmk_behavior_bindin
+     return active_transport->api->send_command(source, command);
+ };
+ 
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++
++int zmk_split_central_send_relay_event(struct zmk_split_relay_event_payload *payload) {
++    if (!active_transport || !active_transport->api || !active_transport->api->send_command) {
++        return -ENODEV;
++    }
++
++    struct zmk_split_transport_central_command command =
++        (struct zmk_split_transport_central_command){
++            .type = ZMK_SPLIT_TRANSPORT_CENTRAL_CMD_TYPE_RELAY_EVENT,
++            .data =
++                {
++                    .relay_event = *payload,
++                },
++        };
++
++    // Relay events are broadcast to every currently reachable peripheral.
++    uint8_t source_ids[ZMK_SPLIT_CENTRAL_PERIPHERAL_COUNT] = {0};
++    int count = 1;
++    if (active_transport->api->get_available_source_ids) {
++        count = active_transport->api->get_available_source_ids(source_ids);
++        if (count < 0) {
++            return count;
++        }
++    }
++
++    int ret = 0;
++    for (int i = 0; i < count; i++) {
++        int err = active_transport->api->send_command(source_ids[i], command);
++        if (err < 0) {
++            // Keep sending to the remaining peripherals, but report the failure.
++            ret = err;
++        }
++    }
++
++    return ret;
++}
++
++#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++
+ #if IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
+ 
+ int zmk_split_central_update_hid_indicator(zmk_hid_indicators_t indicators) {
+diff --git a/app/src/split/peripheral.c b/app/src/split/peripheral.c
+index b814df61909169ae69738d104a8aad2292b01ce9..baf5ca33fd17c8357bd14656411372893f94d451 100644
+--- a/app/src/split/peripheral.c
++++ b/app/src/split/peripheral.c
+@@ -65,6 +65,16 @@ int zmk_split_transport_peripheral_command_handler(
+         return raise_zmk_hid_indicators_changed((struct zmk_hid_indicators_changed){
+             .indicators = cmd.data.set_hid_indicators.indicators});
+     }
++#endif
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++    case ZMK_SPLIT_TRANSPORT_CENTRAL_CMD_TYPE_RELAY_EVENT: {
++        struct zmk_relay_event_received relay_ev;
++        relay_ev.source = 0; // Central is always source 0
++        relay_ev.event_name = cmd.data.relay_event.event_type;
++        relay_ev.event_data = cmd.data.relay_event.event_data;
++        relay_ev.event_data_size = cmd.data.relay_event.header.event_data_size;
++        return raise_zmk_relay_event_received(relay_ev);
++    }
+ #endif
+     default:
+         LOG_WRN("Unhandled command type %d", cmd.type);
+diff --git a/app/src/split/wired/central.c b/app/src/split/wired/central.c
+index 0354e52d899ab04569cb529c4410dae6346ad1e9..8fe1e146fecc0225ca5498e2ae94420dbd6add8a 100644
+--- a/app/src/split/wired/central.c
++++ b/app/src/split/wired/central.c
+@@ -185,6 +185,16 @@ static ssize_t get_payload_data_size(const struct zmk_split_transport_central_co
+         return sizeof(cmd->data.set_physical_layout);
+     case ZMK_SPLIT_TRANSPORT_CENTRAL_CMD_TYPE_SET_HID_INDICATORS:
+         return sizeof(cmd->data.set_hid_indicators);
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++    case ZMK_SPLIT_TRANSPORT_CENTRAL_CMD_TYPE_RELAY_EVENT: {
++        // Only the header, event type name and the bytes of event data actually in use are sent,
++        // instead of the whole fixed-size relay event buffer. event_data is the trailing field, so
++        // truncating it keeps the header and event_type at the offsets the receiver reconstructs.
++        uint8_t data_len = MIN(cmd->data.relay_event.header.event_data_size,
++                               CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN);
++        return offsetof(struct zmk_split_relay_event_payload, event_data) + data_len;
++    }
++#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
+     default:
+         return -ENOTSUP;
+     }
+diff --git a/app/src/split/wired/peripheral.c b/app/src/split/wired/peripheral.c
+index 71d3da837be89160a930339a114db3f321a9c608..b987102e9253353944bf7f52b697dd14d7d80674 100644
+--- a/app/src/split/wired/peripheral.c
++++ b/app/src/split/wired/peripheral.c
+@@ -289,6 +289,16 @@ static ssize_t get_payload_data_size(const struct zmk_split_transport_peripheral
+         return sizeof(evt->data.sensor_event);
+     case ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_BATTERY_EVENT:
+         return sizeof(evt->data.battery_event);
++#if IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
++    case ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_RELAY_EVENT: {
++        // Only the header, event type name and the bytes of event data actually in use are sent,
++        // instead of the whole fixed-size relay event buffer. event_data is the trailing field, so
++        // truncating it keeps the header and event_type at the offsets the receiver reconstructs.
++        uint8_t data_len = MIN(evt->data.relay_event.header.event_data_size,
++                               CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN);
++        return offsetof(struct zmk_split_relay_event_payload, event_data) + data_len;
++    }
++#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
+     default:
+         return -ENOTSUP;
+     }
+diff --git a/app/src/split/wired/wired.h b/app/src/split/wired/wired.h
+index d48f29b787800f7abb381113ac2af3fe8a03b718..c03f70fb2b1cb281e2fb42b8b3a38afdffd8e446 100644
+--- a/app/src/split/wired/wired.h
++++ b/app/src/split/wired/wired.h
+@@ -42,6 +42,13 @@ struct msg_postfix {
+     uint32_t crc;
+ } __packed;
+ 
++// The envelope prefix carries the payload size in a single byte, so the
++// (config-dependent) payloads must stay within that limit.
++BUILD_ASSERT(sizeof(struct command_payload) <= UINT8_MAX,
++             "Wired split command payload does not fit the 8-bit envelope payload size");
++BUILD_ASSERT(sizeof(struct event_payload) <= UINT8_MAX,
++             "Wired split event payload does not fit the 8-bit envelope payload size");
++
+ #define MSG_EXTRA_SIZE (sizeof(struct msg_prefix) + sizeof(struct msg_postfix))
+ 
+ typedef void (*zmk_split_wired_process_tx_callback_t)(void);
+diff --git a/app/src/studio/CMakeLists.txt b/app/src/studio/CMakeLists.txt
+index a8417dd768885482a44cc8d8b0883ddb6903fd2a..3a5f02062cc0d090e8e25de1fa7bcf1caffc6aca 100644
+--- a/app/src/studio/CMakeLists.txt
++++ b/app/src/studio/CMakeLists.txt
+@@ -6,6 +6,7 @@ zephyr_linker_sources(SECTIONS ../../include/linker/zmk-rpc-subsystem-handlers.l
+ zephyr_linker_sources(SECTIONS ../../include/linker/zmk-rpc-subsystem-settings-reset.ld)
+ zephyr_linker_sources(SECTIONS ../../include/linker/zmk-rpc-event-mappers.ld)
+ zephyr_linker_sources(SECTIONS ../../include/linker/zmk-rpc-transport.ld)
++zephyr_linker_sources(SECTIONS ../../include/linker/zmk-rpc-custom-subsystems.ld)
+ 
+ target_sources(app PRIVATE msg_framing.c)
+ target_sources(app PRIVATE rpc.c)
+@@ -13,5 +14,6 @@ target_sources(app PRIVATE core.c)
+ target_sources(app PRIVATE behavior_subsystem.c)
+ target_sources(app PRIVATE core_subsystem.c)
+ target_sources(app PRIVATE keymap_subsystem.c)
++target_sources(app PRIVATE custom_subsystem.c)
+ target_sources_ifdef(CONFIG_ZMK_STUDIO_TRANSPORT_UART app PRIVATE uart_rpc_transport.c)
+ target_sources_ifdef(CONFIG_ZMK_STUDIO_TRANSPORT_BLE app PRIVATE gatt_rpc_transport.c)
+\ No newline at end of file
+diff --git a/app/src/studio/Kconfig b/app/src/studio/Kconfig
+index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..ce9f67b484681e7e4490618ca5398149ef00b972 100644
+--- a/app/src/studio/Kconfig
++++ b/app/src/studio/Kconfig
+@@ -29,6 +29,13 @@ config ZMK_STUDIO_LOCK_ON_DISCONNECT
+ 
+ endif
+ 
++config ZMK_STUDIO_LOCK_BLE_DIRECT_ADVERTISING_ON_UNLOCK
++    bool "Enable Directed Advertising on Unlock"
++    default y if ZMK_STUDIO_LOCKING && ZMK_BLE
++    help
++      When enabled, the keyboard will enable directed advertising to active profile
++      during unlock. It's required to detect device from web bluetooth API for some browsers.
++
+ menuconfig ZMK_STUDIO_RPC
+     bool "Remote Procedure Calls (RPC)"
+     select NANOPB
+@@ -109,6 +116,25 @@ config ZMK_STUDIO_RPC_TX_BUF_SIZE
+     int "TX Buffer Size"
+     default 64
+ 
++config ZMK_STUDIO_RPC_CUSTOM_SUBSYSTEM_PRINT_LIST_ON_START
++    bool "Print Custom Subsystem List on Start"
++    default n
++    help
++      Enable debug logging for custom subsystems on start.
++
++config ZMK_STUDIO_RPC_CUSTOM_SUBSYSTEM_IDENTIFIER_MAX_LEN
++    int "Custom Subsystem Identifier Max Length"
++    default 32
++
++config ZMK_STUDIO_RPC_CUSTOM_SUBSYSTEM_REQUEST_PAYLOAD_MAX_BYTES
++    int "Custom Subsystem Request Payload Max Bytes"
++    default ZMK_STUDIO_RPC_RX_BUF_SIZE
++    help
++      Maximum size of the payload in a custom subsystem request.
++      Defaults to ZMK_STUDIO_RPC_RX_BUF_SIZE so the generated custom subsystem request
++      payload capacity follows the configured RPC RX buffer size unless explicitly
++      overridden.
++
+ endif
+ 
+ endif
+diff --git a/app/src/studio/core.c b/app/src/studio/core.c
+index fafe0248c95af1871a9ebbf1f39152ab356d22b4..5b3b247741cf9c2cdda7380ecc2ebfeb2a19cbe9 100644
+--- a/app/src/studio/core.c
++++ b/app/src/studio/core.c
+@@ -6,6 +6,10 @@
+ 
+ #include <zmk/studio/core.h>
+ 
++#if IS_ENABLED(CONFIG_ZMK_STUDIO_LOCK_BLE_DIRECT_ADVERTISING_ON_UNLOCK)
++#include <zmk/ble.h>
++#endif
++
+ ZMK_EVENT_IMPL(zmk_studio_core_lock_state_changed);
+ 
+ static enum zmk_studio_core_lock_state state = IS_ENABLED(CONFIG_ZMK_STUDIO_LOCKING)
+@@ -42,9 +46,16 @@ void zmk_studio_core_reschedule_lock_timeout() {}
+ #endif
+ 
+ void zmk_studio_core_unlock() {
++#if IS_ENABLED(CONFIG_ZMK_STUDIO_LOCK_BLE_DIRECT_ADVERTISING_ON_UNLOCK)
++    zmk_ble_set_directed_advertising(true);
++#endif
+     set_state(ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED);
+-
+     zmk_studio_core_reschedule_lock_timeout();
+ }
+ 
+-void zmk_studio_core_lock() { set_state(ZMK_STUDIO_CORE_LOCK_STATE_LOCKED); }
+\ No newline at end of file
++void zmk_studio_core_lock() {
++#if IS_ENABLED(CONFIG_ZMK_STUDIO_LOCK_BLE_DIRECT_ADVERTISING_ON_UNLOCK)
++    zmk_ble_set_directed_advertising(false);
++#endif
++    set_state(ZMK_STUDIO_CORE_LOCK_STATE_LOCKED);
++}
+\ No newline at end of file
+diff --git a/app/src/studio/custom_subsystem.c b/app/src/studio/custom_subsystem.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..b2096405bbe045bf04fc7234ec4f46d9b5885e6b
+--- /dev/null
++++ b/app/src/studio/custom_subsystem.c
+@@ -0,0 +1,153 @@
++/*
++ * Copyright (c) 2026 The ZMK Contributors
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#include <zephyr/logging/log.h>
++LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
++
++#include <string.h>
++#include <zmk/studio/rpc.h>
++#include <zmk/studio/custom.h>
++#include <pb_encode.h>
++
++ZMK_RPC_SUBSYSTEM(custom)
++
++#define CUSTOM_RESPONSE(type, ...) ZMK_RPC_RESPONSE(custom, type, __VA_ARGS__)
++
++ZMK_EVENT_IMPL(zmk_studio_custom_notification);
++
++bool zmk_rpc_custom_subsystem_encode_response_payload(pb_ostream_t *stream,
++                                                      const pb_field_t *payload_field,
++                                                      const pb_msgdesc_t *custom_response_msgdesc,
++                                                      void const *custom_response) {
++    if (!pb_encode_tag_for_field(stream, payload_field)) {
++        return false;
++    }
++
++    size_t size;
++    if (!pb_get_encoded_size(&size, custom_response_msgdesc, custom_response)) {
++        LOG_WRN("Failed to get encoded size for custom response");
++        return false;
++    }
++
++    LOG_DBG("Encoding custom response of size %d", (int)size);
++
++    if (!pb_encode_varint(stream, size)) {
++        return false;
++    }
++
++    return pb_encode(stream, custom_response_msgdesc, custom_response);
++}
++
++static bool list_custom_subsystems_encode_ui_urls(pb_ostream_t *stream, const pb_field_t *field,
++                                                  void *const *arg) {
++    const struct zmk_rpc_custom_subsystem_meta *meta = (struct zmk_rpc_custom_subsystem_meta *)*arg;
++    for (size_t i = 0; i < meta->ui_urls_count; i++) {
++        if (!pb_encode_tag_for_field(stream, field)) {
++            return false;
++        }
++        if (!pb_encode_string(stream, meta->ui_urls[i], strlen(meta->ui_urls[i]))) {
++            return false;
++        }
++    }
++    return true;
++}
++
++static bool list_custom_subsystems_encode_subsystems(pb_ostream_t *stream, const pb_field_t *field,
++                                                     void *const *arg) {
++    size_t subsystem_count;
++    STRUCT_SECTION_COUNT(zmk_rpc_custom_subsystem, &subsystem_count);
++
++    for (size_t i = 0; i < subsystem_count; i++) {
++        struct zmk_rpc_custom_subsystem *custom_subsys;
++        STRUCT_SECTION_GET(zmk_rpc_custom_subsystem, i, &custom_subsys);
++        zmk_custom_CustomSubsystemInfo subsystem_info = zmk_custom_CustomSubsystemInfo_init_zero;
++        subsystem_info.index = i;
++        strncpy(subsystem_info.identifier, custom_subsys->identifier,
++                CONFIG_ZMK_STUDIO_RPC_CUSTOM_SUBSYSTEM_IDENTIFIER_MAX_LEN);
++        subsystem_info.ui_url.funcs.encode = list_custom_subsystems_encode_ui_urls;
++        subsystem_info.ui_url.arg = (void *)custom_subsys->meta;
++        if (!pb_encode_tag_for_field(stream, field)) {
++            return false;
++        }
++        if (!pb_encode_submessage(stream, &zmk_custom_CustomSubsystemInfo_msg, &subsystem_info)) {
++            return false;
++        }
++    }
++    return true;
++}
++
++static zmk_studio_Response list_custom_subsystems(const zmk_studio_Request *req) {
++    LOG_DBG("");
++    zmk_custom_ListCustomSubsystemResponse result =
++        zmk_custom_ListCustomSubsystemResponse_init_zero;
++    result.subsystems.funcs.encode = list_custom_subsystems_encode_subsystems;
++    return CUSTOM_RESPONSE(list_custom_subsystems, result);
++}
++
++static zmk_studio_Response call(const zmk_studio_Request *req) {
++    const zmk_custom_CallRequest *request = &req->subsystem.custom.request_type.call;
++    { // validate service index
++        size_t subsystem_count;
++        STRUCT_SECTION_COUNT(zmk_rpc_custom_subsystem, &subsystem_count);
++        if (request->subsystem_index >= subsystem_count) {
++            LOG_ERR("Invalid subsystem index: %d", request->subsystem_index);
++            return ZMK_RPC_RESPONSE(meta, simple_error, zmk_meta_ErrorConditions_RPC_NOT_FOUND);
++        }
++    }
++    struct zmk_rpc_custom_subsystem *custom_subsys;
++    STRUCT_SECTION_GET(zmk_rpc_custom_subsystem, request->subsystem_index, &custom_subsys);
++    if (custom_subsys->meta->security == ZMK_STUDIO_RPC_HANDLER_SECURED &&
++        zmk_studio_core_get_lock_state() != ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED) {
++        return ZMK_RPC_RESPONSE(meta, simple_error, zmk_meta_ErrorConditions_UNLOCK_REQUIRED);
++    }
++    custom_subsystem_handler *handler = custom_subsys->handler;
++    if (handler) {
++        zmk_custom_CallResponse response = zmk_custom_CallResponse_init_zero;
++        if (handler(request, &response.payload)) {
++            response.subsystem_index = request->subsystem_index;
++            return CUSTOM_RESPONSE(call, response);
++        }
++        return ZMK_RPC_RESPONSE(meta, simple_error, zmk_meta_ErrorConditions_GENERIC);
++    } else {
++        LOG_DBG("No handler for custom subsystem %s", custom_subsys->identifier);
++        return ZMK_RPC_RESPONSE(meta, simple_error, zmk_meta_ErrorConditions_RPC_NOT_FOUND);
++    }
++}
++
++ZMK_RPC_SUBSYSTEM_HANDLER(custom, list_custom_subsystems, ZMK_STUDIO_RPC_HANDLER_UNSECURED);
++ZMK_RPC_SUBSYSTEM_HANDLER(custom, call, ZMK_STUDIO_RPC_HANDLER_UNSECURED);
++
++static int custom_event_mapper(const zmk_event_t *eh, zmk_studio_Notification *n) {
++    struct zmk_studio_custom_notification *custom_ev = as_zmk_studio_custom_notification(eh);
++    if (!custom_ev) {
++        return -ENOTSUP;
++    }
++    zmk_custom_CustomNotification data = zmk_custom_CustomNotification_init_zero;
++    data.subsystem_index = custom_ev->subsystem_index;
++    data.payload = custom_ev->encode_payload;
++    *n = ZMK_RPC_NOTIFICATION(custom, custom_notification, data);
++    return 0;
++}
++
++ZMK_RPC_EVENT_MAPPER(custom, custom_event_mapper, zmk_studio_custom_notification);
++
++#ifdef CONFIG_ZMK_STUDIO_RPC_CUSTOM_SUBSYSTEM_PRINT_LIST_ON_START
++#include <zephyr/init.h>
++static int custom_subsystem_init() {
++    size_t subsystem_count;
++    STRUCT_SECTION_COUNT(zmk_rpc_custom_subsystem, &subsystem_count);
++    LOG_DBG("Registered Custom Subsystems (%d):", subsystem_count);
++    for (size_t i = 0; i < subsystem_count; i++) {
++        struct zmk_rpc_custom_subsystem *custom_subsys;
++        STRUCT_SECTION_GET(zmk_rpc_custom_subsystem, i, &custom_subsys);
++        LOG_DBG("  [%d] Identifier: %s, Security: %s", i, custom_subsys->identifier,
++                custom_subsys->meta->security == ZMK_STUDIO_RPC_HANDLER_SECURED ? "Secured"
++                                                                                : "Unsecured");
++    }
++    return 0;
++}
++SYS_INIT(custom_subsystem_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
++#endif
+diff --git a/app/src/studio/gatt_rpc_transport.c b/app/src/studio/gatt_rpc_transport.c
+index dff1825908b8f8c54bce758aa8701a25ce928d20..0e020dc5df9ce37676bfcb48bb8b3753413b776f 100644
+--- a/app/src/studio/gatt_rpc_transport.c
++++ b/app/src/studio/gatt_rpc_transport.c
+@@ -16,7 +16,6 @@
+ #include <zmk/event_manager.h>
+ #include <zmk/events/ble_active_profile_changed.h>
+ #include <zmk/studio/rpc.h>
+-
+ #include "uuid.h"
+ 
+ #include <zephyr/logging/log.h>
+@@ -196,7 +195,21 @@ static void gatt_tx_notify(struct ring_buf *tx_buf, size_t added, bool msg_done,
+     atomic_t ns = atomic_get(&notify_size);
+ 
+     if (msg_done || state->pending_notify > ns) {
+-        k_work_submit(&notify_tx_work);
++        if (k_current_get() == k_work_queue_thread_get(&k_sys_work_q)) {
++            /* We are already running on the system work queue (e.g. a Studio RPC
++             * notification raised from a listener on that queue). Submitting
++             * notify_tx_work here would never run: this thread is busy encoding
++             * the response and blocks in send_response()'s k_sleep() loop
++             * waiting for the TX ring buffer to drain, but the work item that
++             * drains it can only run once this thread yields the queue. That is
++             * a deadlock. Flush directly instead so the first bt_gatt_indicate()
++             * is issued; indicate_cb() then resubmits on the system work queue to
++             * drain the rest asynchronously. */
++            notif_rpc_tx_cb(&notify_tx_work);
++        } else {
++            k_work_submit(&notify_tx_work);
++        }
++
+         state->pending_notify = 0;
+     }
+ }
+diff --git a/app/src/studio/rpc.c b/app/src/studio/rpc.c
+index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..4f4d613ae3538ac3e92426b44a94d9654125eec8 100644
+--- a/app/src/studio/rpc.c
++++ b/app/src/studio/rpc.c
+@@ -131,6 +131,13 @@ static bool rpc_tx_buffer_write(pb_ostream_t *stream, const uint8_t *buf, size_t
+         uint32_t claim_len = ring_buf_put_claim(&rpc_tx_buf, &write_buf, count - written);
+ 
+         if (claim_len == 0) {
++            /* The TX ring buffer is full. Kick the transport to drain it and
++             * free space before we sleep, otherwise we would just spin here
++             * waiting for a flush that nothing else is going to trigger. The
++             * message is not finished, so msg_done is false: transports flush a
++             * full buffer on their own back-pressure threshold. */
++            selected_transport->tx_notify(&rpc_tx_buf, 0, false, user_data);
++            k_sleep(K_MSEC(1));
+             continue;
+         }
+ 
+@@ -177,6 +184,7 @@ static pb_ostream_t pb_ostream_for_tx_buf(void *user_data) {
+ }
+ 
+ static int send_response(const zmk_studio_Response *resp) {
++    int err = 0;
+     k_mutex_lock(&rpc_transport_mutex, K_FOREVER);
+ 
+     if (!selected_transport) {
+@@ -188,7 +196,19 @@ static int send_response(const zmk_studio_Response *resp) {
+     pb_ostream_t stream = pb_ostream_for_tx_buf(user_data);
+ 
+     uint8_t framing_byte = FRAMING_SOF;
+-    ring_buf_put(&rpc_tx_buf, &framing_byte, 1);
++    for (int i = 0;; i++) {
++        if (ring_buf_put(&rpc_tx_buf, &framing_byte, 1) == 1) {
++            break;
++        }
++        if (i > 1000) {
++            LOG_ERR("RPC TX buffer full");
++            err = -ENOMEM;
++            goto exit;
++        }
++        /* Drain the TX ring buffer to make room for the framing byte. */
++        selected_transport->tx_notify(&rpc_tx_buf, 0, false, user_data);
++        k_sleep(K_MSEC(1));
++    }
+ 
+     selected_transport->tx_notify(&rpc_tx_buf, 1, false, user_data);
+ 
+@@ -198,18 +218,34 @@ static int send_response(const zmk_studio_Response *resp) {
+     if (!status) {
+ #if !IS_ENABLED(CONFIG_NANOPB_NO_ERRMSG)
+         LOG_ERR("Failed to encode the message %s", stream.errmsg);
++#else
++        LOG_ERR("Failed to encode the message");
+ #endif // !IS_ENABLED(CONFIG_NANOPB_NO_ERRMSG)
++        k_mutex_unlock(&rpc_transport_mutex);
+         return -EINVAL;
+     }
+ 
+     framing_byte = FRAMING_EOF;
+-    ring_buf_put(&rpc_tx_buf, &framing_byte, 1);
++    // If response is large, tx buffer can be full for async transport.
++    for (int i = 0;; i++) {
++        if (ring_buf_put(&rpc_tx_buf, &framing_byte, 1) == 1) {
++            break;
++        }
++        if (i > 1000) {
++            LOG_ERR("RPC TX buffer full");
++            err = -ENOMEM;
++            goto exit;
++        }
++        /* Drain the TX ring buffer to make room for the framing byte. */
++        selected_transport->tx_notify(&rpc_tx_buf, 0, false, user_data);
++        k_sleep(K_MSEC(1));
++    }
+ 
+     selected_transport->tx_notify(&rpc_tx_buf, 1, true, user_data);
+ 
+ exit:
+     k_mutex_unlock(&rpc_transport_mutex);
+-    return 0;
++    return err;
+ }
+ 
+ static void rpc_main(void) {

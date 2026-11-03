@@ -1,0 +1,45 @@
+{
+  "zmk": "ed56d81db79cf3a6e5dc02697277c0fad880ad34",
+  "zmk_studio_messages": "6cb4c283e76209d59c45fbcb218800cd19e9339d",
+  "patches": [
+    {
+      "file": "zmk-custom-studio.patch",
+      "repo_path": "zmk",
+      "applies_to": "ed56d81db79cf3a6e5dc02697277c0fad880ad34",
+      "sha256": "f39177780a60f3086ac656ab7a73e61069edbe21c9fc0a5c4e96160270af5ee8"
+    },
+    {
+      "file": "zmk-studio-messages-custom.patch",
+      "repo_path": "modules/msgs/zmk-studio-messages",
+      "applies_to": "6cb4c283e76209d59c45fbcb218800cd19e9339d",
+      "sha256": "ada228e63c5eb1faffa3737e7ad0355a226dcabfef99cdc9d7916ece6cd48f28"
+    }
+  ],
+  "modules": {
+    "zmk-feature-custom-settings": {
+      "from": "cormoran/zmk-feature-custom-settings@c6a7fef",
+      "from_revision": "c6a7fef3a3be3d3ace5de9a4b0628c6418cd1f3f",
+      "tree_sha256": "968c8ddc5bd8cf25bdf76a8e9b9c2d2bd32cd307bb0b9567043e1f5f05402874"
+    },
+    "zmk-feature-os-detection": {
+      "from": "cormoran/zmk-feature-os-detection@3052679",
+      "from_revision": "3052679f645b8fc1997275c2eaa6b86bdd55ca01",
+      "tree_sha256": "19a9ab65e46fd7cbe32f7a1395662ea5de3fe7fa3a7b37d6e9f1fd34807018ac"
+    },
+    "zmk-feature-runtime-combo": {
+      "from": "cormoran/zmk-feature-runtime-combo@d9490e7",
+      "from_revision": "d9490e7b5d41c516221d131241009e81740efcee",
+      "tree_sha256": "235b0c339b6fe2e397bfd91dd67643c28e261bccf28d592ae937333b861492e6"
+    },
+    "zmk-feature-runtime-macro": {
+      "from": "cormoran/zmk-feature-runtime-macro@3853096",
+      "from_revision": "38530962eb7061b60efcb98e84585cfb1f0cb6de",
+      "tree_sha256": "1a57db653d5be50bd59e8f03652ca30eeb48801402f16b1512228536b22cc474"
+    },
+    "zmk-feature-runtime-tapdance": {
+      "from": "cormoran/zmk-feature-runtime-tapdance@3ed2c36",
+      "from_revision": "3ed2c36ed94b16601eeba2ed39a27cc93e9a53ee",
+      "tree_sha256": "1da04de69ee3812e139a6f0d958973762a434b0a006988e8e2a09681644b96ea"
+    }
+  }
+}

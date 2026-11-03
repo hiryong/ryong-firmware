@@ -2,7 +2,7 @@ name: Ryong60 compile validation
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['hardware/ryong60/**', 'modules/**', 'experiments/host-layout/runtime-settings.conf', 'experiments/dya-runtime/**', 'scripts/prepare_zmk.py', 'scripts/vendor_zmk.py', 'vendor/zmk/**', 'vendor/zmk-modules/**', 'scripts/runtime_defaults.py', 'scripts/secure_runtime_rpc.py', 'scripts/run_module_simulations.py', '.github/workflows/zmk-validation.yml']
+    paths: ['hardware/ryong60/**', 'modules/**', 'experiments/host-layout/runtime-settings.conf', 'experiments/dya-runtime/**', 'scripts/prepare_zmk.py', 'scripts/vendor_zmk.py', 'third_party/zmk/**', 'third_party/zmk-modules/**', 'scripts/runtime_defaults.py', 'scripts/secure_runtime_rpc.py', 'scripts/run_module_simulations.py', '.github/workflows/zmk-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,7 +26,7 @@ jobs:
             /tmp/ryong-build/modules
             /tmp/ryong-build/tools
             /tmp/ryong-build/bootloader
-          key: zmk-deps-${{ runner.os }}-${{ hashFiles('experiments/dya-runtime/west.yml', 'vendor/zmk/base.json', 'vendor/zmk-modules/**') }}
+          key: zmk-deps-${{ runner.os }}-${{ hashFiles('experiments/dya-runtime/west.yml', 'third_party/zmk/base.json', 'third_party/zmk-modules/**') }}
       - name: Resolve pinned dependencies
         working-directory: /tmp/ryong-build
         run: |

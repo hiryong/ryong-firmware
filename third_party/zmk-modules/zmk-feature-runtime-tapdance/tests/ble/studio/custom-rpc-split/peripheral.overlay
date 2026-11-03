@@ -1,0 +1,2 @@
+/* No scripted keys: this peripheral keeps the split BLE link active while the
+ * host performs runtime-tapdance configuration RPC over central Studio BLE. */

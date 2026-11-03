@@ -2,7 +2,7 @@ name: BT60 v2 test fixture compile
 on:
   push:
     branches: [dev/keys-ryong-runtime]
-    paths: ['hardware/test-fixtures/bt60-v2/**', 'experiments/bt60-runtime/**', 'scripts/prepare_bt60.py', 'scripts/vendor_zmk.py', 'vendor/zmk/**', 'vendor/zmk-modules/**', 'scripts/runtime_defaults.py', 'scripts/secure_runtime_rpc.py', 'modules/**', 'experiments/host-layout/**', 'experiments/dya-runtime/**', '.github/workflows/bt60-validation.yml']
+    paths: ['hardware/test-fixtures/bt60-v2/**', 'experiments/bt60-runtime/**', 'scripts/prepare_bt60.py', 'scripts/vendor_zmk.py', 'third_party/zmk/**', 'third_party/zmk-modules/**', 'scripts/runtime_defaults.py', 'scripts/secure_runtime_rpc.py', 'modules/**', 'experiments/host-layout/**', 'experiments/dya-runtime/**', '.github/workflows/bt60-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,7 +29,7 @@ jobs:
             /tmp/bt60-build/modules
             /tmp/bt60-build/tools
             /tmp/bt60-build/bootloader
-          key: bt60-deps-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'vendor/zmk/base.json', 'vendor/zmk-modules/**') }}
+          key: bt60-deps-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'third_party/zmk/base.json', 'third_party/zmk-modules/**') }}
       - name: Resolve fully pinned test dependencies
         working-directory: /tmp/bt60-build
         run: |

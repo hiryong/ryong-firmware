@@ -4,9 +4,9 @@
     python3 scripts/vendor_zmk.py apply <workspace>                      # after `west update`
 
 `manifest` points zmk and zmk-studio-messages at the official zmkfirmware repositories, at the
-upstream commits our vendored patches were taken against (vendor/zmk/base.json). `apply` then adds
+upstream commits our vendored patches were taken against (third_party/zmk/base.json). `apply` then adds
 the patches. The result is byte-for-byte the tree we used to fetch from cormoran/zmk@1fc72aa, so
-later changes to (or removal of) that fork can never reach our builds. See vendor/zmk/README.md.
+later changes to (or removal of) that fork can never reach our builds. See third_party/zmk/README.md.
 """
 import hashlib
 import json
@@ -18,12 +18,12 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-VENDOR = ROOT / "vendor/zmk"
+VENDOR = ROOT / "third_party/zmk"
 BASE = json.loads((VENDOR / "base.json").read_text())
 OFFICIAL = {"zmk": "https://github.com/zmkfirmware/zmk",
             "zmk-studio-messages": "https://github.com/zmkfirmware/zmk-studio-messages"}
 MESSAGES_PATH = "modules/msgs/zmk-studio-messages"
-MODULES = ROOT / "vendor/zmk-modules"
+MODULES = ROOT / "third_party/zmk-modules"
 
 
 def tree_hash(path):
@@ -40,7 +40,7 @@ def local_repo(name, dest):
     info = BASE["modules"][name]
     src = MODULES / name
     if tree_hash(src) != info["tree_sha256"]:
-        raise SystemExit(f"vendor/zmk-modules/{name} does not match base.json; re-review before building")
+        raise SystemExit(f"third_party/zmk-modules/{name} does not match base.json; re-review before building")
     repo = dest / name
     if repo.exists():
         raise SystemExit(f"{repo} already exists")
@@ -59,7 +59,7 @@ def check_patches():
     for item in BASE["patches"]:
         data = (VENDOR / item["file"]).read_bytes()
         if hashlib.sha256(data).hexdigest() != item["sha256"]:
-            raise SystemExit(f"vendor/zmk/{item['file']} does not match base.json; re-review before building")
+            raise SystemExit(f"third_party/zmk/{item['file']} does not match base.json; re-review before building")
 
 
 def manifest(path):
@@ -78,7 +78,7 @@ def manifest(path):
         p.pop("remote", None)
         p["url"] = OFFICIAL[name]
         p["revision"] = rev
-    # Feature modules (combo, macro, tap dance, OS detection, custom settings) come from vendor/zmk-modules.
+    # Feature modules (combo, macro, tap dance, OS detection, custom settings) come from third_party/zmk-modules.
     store = path.parent.parent / ".ryong-vendor"
     store.mkdir(exist_ok=True)
     for p in projects:
@@ -89,7 +89,7 @@ def manifest(path):
             continue
         info = BASE["modules"].get(p["name"])
         if info is None:
-            raise SystemExit(f"{p['name']} is not vendored; add it to vendor/zmk-modules first")
+            raise SystemExit(f"{p['name']} is not vendored; add it to third_party/zmk-modules first")
         if p.get("revision") != info["from_revision"]:
             raise SystemExit(f"{p['name']} is pinned to {p.get('revision')}, vendored copy is {info['from_revision']}")
         p.pop("remote", None)

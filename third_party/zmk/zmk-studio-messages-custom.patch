@@ -1,0 +1,109 @@
+diff --git a/proto/zmk/custom.options.in b/proto/zmk/custom.options.in
+new file mode 100644
+index 0000000000000000000000000000000000000000..c5239fc2f58814ef85921d83dfab1b040c03c605
+--- /dev/null
++++ b/proto/zmk/custom.options.in
+@@ -0,0 +1,2 @@
++zmk.custom.CustomSubsystemInfo.identifier max_size:@CONFIG_ZMK_STUDIO_RPC_CUSTOM_SUBSYSTEM_IDENTIFIER_MAX_LEN@ fixed_length:true
++zmk.custom.CallRequest.payload max_size:@CONFIG_ZMK_STUDIO_RPC_CUSTOM_SUBSYSTEM_REQUEST_PAYLOAD_MAX_BYTES@
+diff --git a/proto/zmk/custom.proto b/proto/zmk/custom.proto
+new file mode 100644
+index 0000000000000000000000000000000000000000..b2b4546b2faec4c9eebf3f6280a9679b38178973
+--- /dev/null
++++ b/proto/zmk/custom.proto
+@@ -0,0 +1,60 @@
++syntax = "proto3";
++
++package zmk.custom;
++
++message ListCustomSubsystemRequest {
++}
++
++message ListCustomSubsystemResponse {
++    repeated CustomSubsystemInfo subsystems = 1;
++}
++
++message CustomSubsystemInfo {
++    // Device specific subsystem index to identify the subsystem in request/response
++    uint32 index = 1;
++    // Unique subsystem identifier
++    string identifier = 2;
++    // Subsystem UI URLs which supports interaction with the subsystem
++    repeated string ui_url = 3;
++}
++
++message CallRequest {
++    // target subsystem index to deliver the payload
++    // The value is the same to CustomSubsystemInfo.index. The value can change per compile and maybe even at startup.
++    uint32 subsystem_index = 1;
++    bytes payload = 2;
++}
++
++message CallResponse {
++    // target subsystem index to deliver the payload
++    // The value is the same to CustomSubsystemInfo.index. The value can change per compile and maybe even at startup.
++    uint32 subsystem_index = 1;
++    bytes payload = 2;
++}
++
++message CustomNotification {
++    // target subsystem index to deliver the payload
++    // The value is the same to CustomSubsystemInfo.index. The value can change per compile and maybe even at startup.
++    uint32 subsystem_index = 1;
++    bytes payload = 2;
++}
++
++message Request {
++    oneof request_type {
++        ListCustomSubsystemRequest list_custom_subsystems = 1;
++        CallRequest call = 2;
++    }
++}
++
++message Response {
++    oneof response_type {
++        ListCustomSubsystemResponse list_custom_subsystems = 1;
++        CallResponse call = 2;
++    }
++}
++
++message Notification {
++    oneof notification_type {
++        CustomNotification custom_notification = 1;
++    }
++}
+diff --git a/proto/zmk/studio.proto b/proto/zmk/studio.proto
+index 2ec053586e477f5ecd23b458cd664f8f95053348..63ae03aeb35955538a9c8dd5913da055a518eec4 100644
+--- a/proto/zmk/studio.proto
++++ b/proto/zmk/studio.proto
+@@ -7,6 +7,7 @@ import "meta.proto";
+ import "core.proto";
+ import "behaviors.proto";
+ import "keymap.proto";
++import "custom.proto";
+ 
+ message Request {
+     uint32 request_id = 1;
+@@ -15,6 +16,7 @@ message Request {
+         zmk.core.Request core = 3;
+         zmk.behaviors.Request behaviors = 4;
+         zmk.keymap.Request keymap = 5;
++        zmk.custom.Request custom = 100;
+     }
+ }
+ 
+@@ -32,6 +34,7 @@ message RequestResponse {
+         zmk.core.Response core = 3;
+         zmk.behaviors.Response behaviors = 4;
+         zmk.keymap.Response keymap = 5;
++        zmk.custom.Response custom = 100;
+     }
+ }
+ 
+@@ -39,5 +42,6 @@ message Notification {
+     oneof subsystem {
+         zmk.core.Notification core = 2;
+         zmk.keymap.Notification keymap = 5;
++        zmk.custom.Notification custom = 100;
+     }
+ }

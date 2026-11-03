@@ -1,0 +1,35 @@
+[
+  {
+    "custom": {
+      "call": {
+        "subsystemIndex": 0,
+        "payload": {
+          "$type": "cormoran.runtime_tapdance.Request",
+          "get": { "index": 0 }
+        }
+      }
+    }
+  },
+  {
+    "custom": {
+      "call": {
+        "subsystemIndex": 0,
+        "payload": {
+          "$type": "cormoran.runtime_tapdance.Request",
+          "setInterval": { "intervalMs": 250, "persist": false }
+        }
+      }
+    }
+  },
+  {
+    "custom": {
+      "call": {
+        "subsystemIndex": 0,
+        "payload": {
+          "$type": "cormoran.runtime_tapdance.Request",
+          "get": { "index": 0 }
+        }
+      }
+    }
+  }
+]

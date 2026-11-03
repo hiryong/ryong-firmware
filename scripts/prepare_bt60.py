@@ -39,7 +39,7 @@ manifest["manifest"]["projects"].append({
     "revision": "3052679f645b8fc1997275c2eaa6b86bdd55ca01",
 })
 manifest_path.write_text(yaml.safe_dump(manifest, sort_keys=False))
-# Official ZMK + our vendored Studio extension and modules; nothing from a third-party fork (vendor/zmk/README.md).
+# Official ZMK + our vendored Studio extension and modules; nothing from a third-party fork (third_party/zmk/README.md).
 sys.path.insert(0, str(root / "scripts"))
 import vendor_zmk
 vendor_zmk.manifest(manifest_path)

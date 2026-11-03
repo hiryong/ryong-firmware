@@ -177,7 +177,7 @@ type ZmkUpdate = {
 };
 const ZMK_STATUS = { ready: "설치 테스트 가능", needs_work: "확인 필요", failed: "빌드 실패" } as const;
 
-/** A new official ZMK release, already combined with our modules and judged (vendor/zmk/README.md). */
+/** A new official ZMK release, already combined with our modules and judged (third_party/zmk/README.md). */
 function ZmkNotice({ z }: { z: ZmkUpdate }) {
   const c = z.candidate!;
   return <Section title={`새 ZMK 정식 버전 · ${c.release}`}>

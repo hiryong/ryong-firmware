@@ -21,7 +21,7 @@ export const onRequestGet: PagesFunction<AdminEnv> = async ({ env }) => {
     })),
     ghJson<{ workflow_runs: Run[] }>(env, `/repos/${r}/actions/workflows/${BUILD_WORKFLOW}/runs?per_page=5&event=workflow_dispatch`).catch(() => ({ workflow_runs: [] as Run[] })),
     readChannels(env),
-    // Written by the weekly ZMK release check (vendor/zmk/README.md): official release + our modules, prepared and judged.
+    // Written by the weekly ZMK release check (third_party/zmk/README.md): official release + our modules, prepared and judged.
     readRegistry<unknown>(env, "zmk-update.json").then((x) => x?.data ?? null).catch(() => null),
   ]);
   return json({
