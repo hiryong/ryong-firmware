@@ -81,6 +81,27 @@ export function DeviceSettingsPanel() {
     if (s?.settings) setDraft((d) => d && { ...d, [k]: { ...d[k]!, brightness: s.settings![k]!.brightness } });
   }
 
+  // The keyboard's own name: Bluetooth at once, USB from its next start. Stored on the keyboard.
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const nameCard = () => {
+    const current = state!.keyboardName, max = state!.keyboardNameMaxBytes;
+    const value = nameDraft ?? current;
+    const bytes = new TextEncoder().encode(value.trim()).length;
+    const changed = value.trim() !== current && bytes > 0 && bytes <= max;
+    return <section className="ry-card ry-setcard" aria-label={t("Keyboard name", "키보드 이름")}>
+      <Row title={t("Keyboard name", "키보드 이름")} hint={t("Shown in Bluetooth lists (with the slot number, e.g. “{n} 1”) and, from the next start, over USB. Computers that already paired may keep the old name until paired again.",
+        "Bluetooth 목록에 슬롯 번호와 함께(예: “{n} 1”) 보이고, USB 이름은 다음에 켤 때부터 바뀌어요. 이미 페어링한 컴퓨터는 다시 페어링할 때까지 예전 이름이 남을 수 있어요.", { n: value.trim() || current })}>
+        <span className="ry-gap">
+          <input type="text" className="ry-input" value={value} aria-label={t("Keyboard name", "키보드 이름")} disabled={busy}
+            onChange={(e) => setNameDraft(e.target.value)} style={{ width: "12em" }} />
+          <button className="ry-primary" disabled={!changed || busy}
+            onClick={async () => { const s = await act(() => dev!.rename(value)); if (s) setNameDraft(null); }}>{t("Rename", "이름 바꾸기")}</button>
+        </span>
+      </Row>
+      {bytes > max && <p className="ry-note">{t("Too long: up to {m} bytes (English {m} letters, Korean {k}).", "너무 길어요: 최대 {m}바이트 (영문 {m}자, 한글 {k}자).", { m: max, k: Math.floor(max / 3) })}</p>}
+    </section>;
+  };
+
   // Bluetooth slot light: blinks on the backlight while a slot waits, flashes once when cleared.
   async function applyIndicatorBrightness(brightness: number) {
     const base = state?.settings;
@@ -173,6 +194,7 @@ export function DeviceSettingsPanel() {
           </span>
         </Row>}
       </section>
+      {state.keyboardNameMaxBytes > 0 && nameCard()}
       {state.caps!.backlight && light("backlight")}
       {state.caps!.underglow && light("underglow")}
       {state.caps!.btIndicator && draft.btIndicator && indicator()}

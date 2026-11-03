@@ -443,6 +443,8 @@ await step("keyboard settings: underglow on at start survives a power cycle", as
 await step("keyboard settings: Bluetooth slot light on/off and brightness", async () => {
   const pane = page.locator("#ry-device-pane");
   const slider = pane.getByRole("slider", { name: "알림 밝기" });
+  await slider.waitFor();
+  await page.waitForTimeout(500); // the previous step's re-read finishes first
   await slider.focus();
   for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowRight"); // 1 → 5
   await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.btIndicator?.brightness === 5, null, { timeout: 5000 });
@@ -454,6 +456,17 @@ await step("keyboard settings: Bluetooth slot light on/off and brightness", asyn
   await pane.getByRole("button", { name: "키보드에 저장" }).click();
   await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.btIndicator?.use === false, null, { timeout: 5000 });
   assert.equal(await pane.getByRole("slider", { name: "알림 밝기" }).count(), 0, "brightness hidden while off");
+});
+
+await step("keyboard settings: rename the keyboard", async () => {
+  const pane = page.locator("#ry-device-pane");
+  const box = pane.getByRole("textbox", { name: "키보드 이름" });
+  await box.fill("민수 키보드");
+  await pane.getByRole("button", { name: "이름 바꾸기" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device.name === "민수 키보드", null, { timeout: 5000 });
+  await box.fill("이름이아주아주긴키보드");
+  assert.equal(await pane.getByRole("button", { name: "이름 바꾸기" }).isDisabled(), true, "over 16 bytes cannot be saved");
+  await box.fill("민수 키보드");
 });
 
 await step("no page errors (desktop)", async () => assert.deepEqual(errors, []));

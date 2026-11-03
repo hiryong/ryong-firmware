@@ -7,6 +7,8 @@
 #include <zmk/studio/custom.h>
 #include <ryong/settings.pb.h>
 #include <ryong/settings_runtime.h>
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zmk/ble.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -65,7 +67,29 @@ static void fill_state(ryong_settings_Response *response) {
     st->underglow_on = live.underglow_on;
     st->usb_powered = live.usb_powered;
     st->protocol_version = RYONG_SETTINGS_PROTOCOL;
+#if IS_ENABLED(CONFIG_BT_DEVICE_NAME_DYNAMIC)
+    strncpy(st->keyboard_name, bt_get_name(), sizeof(st->keyboard_name) - 1);
+    st->keyboard_name_max_bytes = MIN(CONFIG_BT_DEVICE_NAME_MAX, sizeof(st->keyboard_name) - 1);
+#endif
 }
+
+#if IS_ENABLED(CONFIG_BT_DEVICE_NAME_DYNAMIC) && IS_ENABLED(CONFIG_ZMK_BLE)
+/* 1-16 bytes of UTF-8 without control characters (the USB name needs the same). */
+static int set_name(const char *name) {
+    size_t len = strlen(name);
+    if (len < 1 || len > MIN(CONFIG_BT_DEVICE_NAME_MAX, 32)) return -EINVAL;
+    for (size_t i = 0; i < len;) {
+        uint8_t c = (uint8_t)name[i];
+        int n = c < 0x80 ? 1 : (c & 0xE0) == 0xC0 ? 2 : (c & 0xF0) == 0xE0 ? 3 : (c & 0xF8) == 0xF0 ? 4 : 0;
+        if (!n || i + n > len || (n == 1 && (c < 0x20 || c == 0x7F))) return -EINVAL;
+        for (int k = 1; k < n; k++) if (((uint8_t)name[i + k] & 0xC0) != 0x80) return -EINVAL;
+        i += n;
+    }
+    char copy[33];
+    memcpy(copy, name, len + 1);
+    return zmk_ble_set_device_name(copy); /* stored by Zephyr (bt/name); usb_name.c uses it at the next start */
+}
+#endif
 
 static void status(ryong_settings_Response *response, int rc) {
     response->which_response_type = ryong_settings_Response_status_tag;
@@ -112,6 +136,13 @@ static bool handle(const zmk_custom_CallRequest *raw, pb_callback_t *encoded) {
     case ryong_settings_Request_ble_update_tag:
 #if IS_ENABLED(CONFIG_RYONG_BLE_DFU_ENTRY)
         rc = ry_rs_enter_ble_dfu();
+#else
+        rc = -ENOTSUP;
+#endif
+        break;
+    case ryong_settings_Request_set_name_tag:
+#if IS_ENABLED(CONFIG_BT_DEVICE_NAME_DYNAMIC) && IS_ENABLED(CONFIG_ZMK_BLE)
+        rc = set_name(request.request_type.set_name.name);
 #else
         rc = -ENOTSUP;
 #endif

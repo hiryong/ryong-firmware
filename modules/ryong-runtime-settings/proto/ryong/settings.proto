@@ -46,12 +46,18 @@ message State {
     bool underglow_on = 4;
     bool usb_powered = 5;
     uint32 protocol_version = 6;
+    string keyboard_name = 7;
+    uint32 keyboard_name_max_bytes = 8;  // 0: this keyboard cannot be renamed
 }
 
 message LightPower {
     uint32 which = 1;  // 0 = backlight, 1 = underglow
     bool on = 2;
 }
+
+// The keyboard's name: Bluetooth (at once) and USB (from the next power-up or plug-in). Stored on
+// the keyboard, so every computer sees it; firmware updates keep it.
+message KeyboardName { string name = 1; }
 
 message Status { bool ok = 1; uint32 error = 2; }
 
@@ -61,6 +67,7 @@ message Request {
         Settings set = 2;
         LightPower power = 3;
         Empty ble_update = 4;   // restart into Bluetooth update mode (reply first, then restart)
+        KeyboardName set_name = 5;
     }
 }
 

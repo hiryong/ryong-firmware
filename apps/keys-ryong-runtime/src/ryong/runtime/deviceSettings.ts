@@ -89,6 +89,13 @@ export class DeviceSettingsClient {
     finally { this.busy = false; }
   }
 
+  /** Bluetooth name at once, USB name from the keyboard's next start. */
+  rename(name: string) {
+    const n = name.trim();
+    if (!n) throw new KeyboardError(t("Enter a name.", "이름을 입력하세요."));
+    return this.once(S.Request.fromPartial({ setName: { name: n } }), (s) => s.keyboardName === n);
+  }
+
   power(which: number, on: boolean) {
     return this.once(S.Request.fromPartial({ power: { which, on } }), (s) => (which === BACKLIGHT ? s.backlightOn : s.underglowOn) === on);
   }

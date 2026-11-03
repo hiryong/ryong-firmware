@@ -31,7 +31,7 @@ type Macro = { slot: number; name: string; steps: M.MacroStep[] };
 type Dance = { index: number; name: string; config: T.Config };
 type Hold = { slot: number; behaviorId: number; tappingTermMs: number; quickTapMs: number; requirePriorIdleMs: number; flavor: number };
 type Saved = { layers: Layer[]; combos: C.Combo[]; comboTimeout: number; macros: Macro[]; tapMs: number; dances: Dance[]; interval: number; holds: Hold[] };
-type Device = { settings: S.Settings; blOn: boolean; ugOn: boolean; blWanted: boolean; ugWanted: boolean };
+type Device = { settings: S.Settings; blOn: boolean; ugOn: boolean; blWanted: boolean; ugWanted: boolean; name?: string };
 type State = Saved & { slots: Slot[]; active: number; usb: boolean; nextLayerId: number; nextDance: number; device?: Device };
 /* Mirrors modules/ryong-runtime-settings defaults (lights built in but not in use). */
 const deviceFactory = (): Device => ({
@@ -463,9 +463,15 @@ class VirtualDevice {
   private settings(q: S.Request): S.Response {
     const d = this.device, status = (error: number) => S.Response.fromPartial({ status: { ok: false, error } });
     const state = () => S.Response.fromPartial({ state: { settings: d.settings, caps: { backlight: true, underglow: true, sleepMaxMinutes: 1440, bleUpdate: true, btIndicator: true },
-      backlightOn: d.blOn, underglowOn: d.ugOn, usbPowered: this.flash.usb, protocolVersion: 1 } });
+      backlightOn: d.blOn, underglowOn: d.ugOn, usbPowered: this.flash.usb, protocolVersion: 1,
+      keyboardName: d.name ?? "Ryong60 (virtual)", keyboardNameMaxBytes: 16 } });
     if (q.getState) return state();
-    if (q.bleUpdate) return state(); // a real keyboard restarts into the bootloader right after replying
+    if (q.bleUpdate) return state();
+    if (q.setName) {
+      const n = q.setName.name, bytes = new TextEncoder().encode(n).length;
+      if (!n || bytes > 16 || /[\u0000-\u001f\u007f]/.test(n)) return status(22);
+      d.name = n; this.persist(); return state();
+    } // a real keyboard restarts into the bootloader right after replying
     if (q.set) {
       const n = S.Settings.fromPartial(q.set), ok = (v: number, lo: number, hi: number) => Number.isInteger(v) && v >= lo && v <= hi;
       if (!n.backlight || !n.underglow || !ok(n.sleepMinutes, 1, 1440) || !ok(n.backlight.brightness, 0, 100) || !ok(n.underglow.brightness, 0, 100)) return status(22);

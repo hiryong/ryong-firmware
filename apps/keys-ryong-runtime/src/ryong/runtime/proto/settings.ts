@@ -72,12 +72,23 @@ export interface State {
   underglowOn: boolean;
   usbPowered: boolean;
   protocolVersion: number;
+  keyboardName: string;
+  /** 0: this keyboard cannot be renamed */
+  keyboardNameMaxBytes: number;
 }
 
 export interface LightPower {
   /** 0 = backlight, 1 = underglow */
   which: number;
   on: boolean;
+}
+
+/**
+ * The keyboard's name: Bluetooth (at once) and USB (from the next power-up or plug-in). Stored on
+ * the keyboard, so every computer sees it; firmware updates keep it.
+ */
+export interface KeyboardName {
+  name: string;
 }
 
 export interface Status {
@@ -93,6 +104,7 @@ export interface Request {
     | undefined;
   /** restart into Bluetooth update mode (reply first, then restart) */
   bleUpdate?: Empty | undefined;
+  setName?: KeyboardName | undefined;
 }
 
 export interface Response {
@@ -640,6 +652,8 @@ function createBaseState(): State {
     underglowOn: false,
     usbPowered: false,
     protocolVersion: 0,
+    keyboardName: "",
+    keyboardNameMaxBytes: 0,
   };
 }
 
@@ -662,6 +676,12 @@ export const State = {
     }
     if (message.protocolVersion !== 0) {
       writer.uint32(48).uint32(message.protocolVersion);
+    }
+    if (message.keyboardName !== "") {
+      writer.uint32(58).string(message.keyboardName);
+    }
+    if (message.keyboardNameMaxBytes !== 0) {
+      writer.uint32(64).uint32(message.keyboardNameMaxBytes);
     }
     return writer;
   },
@@ -715,6 +735,20 @@ export const State = {
 
           message.protocolVersion = reader.uint32();
           continue;
+        case 7:
+          if (tag !== 58) {
+            break;
+          }
+
+          message.keyboardName = reader.string();
+          continue;
+        case 8:
+          if (tag !== 64) {
+            break;
+          }
+
+          message.keyboardNameMaxBytes = reader.uint32();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -732,6 +766,8 @@ export const State = {
       underglowOn: isSet(object.underglowOn) ? globalThis.Boolean(object.underglowOn) : false,
       usbPowered: isSet(object.usbPowered) ? globalThis.Boolean(object.usbPowered) : false,
       protocolVersion: isSet(object.protocolVersion) ? globalThis.Number(object.protocolVersion) : 0,
+      keyboardName: isSet(object.keyboardName) ? globalThis.String(object.keyboardName) : "",
+      keyboardNameMaxBytes: isSet(object.keyboardNameMaxBytes) ? globalThis.Number(object.keyboardNameMaxBytes) : 0,
     };
   },
 
@@ -755,6 +791,12 @@ export const State = {
     if (message.protocolVersion !== 0) {
       obj.protocolVersion = Math.round(message.protocolVersion);
     }
+    if (message.keyboardName !== "") {
+      obj.keyboardName = message.keyboardName;
+    }
+    if (message.keyboardNameMaxBytes !== 0) {
+      obj.keyboardNameMaxBytes = Math.round(message.keyboardNameMaxBytes);
+    }
     return obj;
   },
 
@@ -773,6 +815,8 @@ export const State = {
     message.underglowOn = object.underglowOn ?? false;
     message.usbPowered = object.usbPowered ?? false;
     message.protocolVersion = object.protocolVersion ?? 0;
+    message.keyboardName = object.keyboardName ?? "";
+    message.keyboardNameMaxBytes = object.keyboardNameMaxBytes ?? 0;
     return message;
   },
 };
@@ -847,6 +891,63 @@ export const LightPower = {
     const message = createBaseLightPower();
     message.which = object.which ?? 0;
     message.on = object.on ?? false;
+    return message;
+  },
+};
+
+function createBaseKeyboardName(): KeyboardName {
+  return { name: "" };
+}
+
+export const KeyboardName = {
+  encode(message: KeyboardName, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): KeyboardName {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseKeyboardName();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): KeyboardName {
+    return { name: isSet(object.name) ? globalThis.String(object.name) : "" };
+  },
+
+  toJSON(message: KeyboardName): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<KeyboardName>, I>>(base?: I): KeyboardName {
+    return KeyboardName.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<KeyboardName>, I>>(object: I): KeyboardName {
+    const message = createBaseKeyboardName();
+    message.name = object.name ?? "";
     return message;
   },
 };
@@ -926,7 +1027,7 @@ export const Status = {
 };
 
 function createBaseRequest(): Request {
-  return { getState: undefined, set: undefined, power: undefined, bleUpdate: undefined };
+  return { getState: undefined, set: undefined, power: undefined, bleUpdate: undefined, setName: undefined };
 }
 
 export const Request = {
@@ -942,6 +1043,9 @@ export const Request = {
     }
     if (message.bleUpdate !== undefined) {
       Empty.encode(message.bleUpdate, writer.uint32(34).fork()).ldelim();
+    }
+    if (message.setName !== undefined) {
+      KeyboardName.encode(message.setName, writer.uint32(42).fork()).ldelim();
     }
     return writer;
   },
@@ -981,6 +1085,13 @@ export const Request = {
 
           message.bleUpdate = Empty.decode(reader, reader.uint32());
           continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.setName = KeyboardName.decode(reader, reader.uint32());
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -996,6 +1107,7 @@ export const Request = {
       set: isSet(object.set) ? Settings.fromJSON(object.set) : undefined,
       power: isSet(object.power) ? LightPower.fromJSON(object.power) : undefined,
       bleUpdate: isSet(object.bleUpdate) ? Empty.fromJSON(object.bleUpdate) : undefined,
+      setName: isSet(object.setName) ? KeyboardName.fromJSON(object.setName) : undefined,
     };
   },
 
@@ -1012,6 +1124,9 @@ export const Request = {
     }
     if (message.bleUpdate !== undefined) {
       obj.bleUpdate = Empty.toJSON(message.bleUpdate);
+    }
+    if (message.setName !== undefined) {
+      obj.setName = KeyboardName.toJSON(message.setName);
     }
     return obj;
   },
@@ -1030,6 +1145,9 @@ export const Request = {
       : undefined;
     message.bleUpdate = (object.bleUpdate !== undefined && object.bleUpdate !== null)
       ? Empty.fromPartial(object.bleUpdate)
+      : undefined;
+    message.setName = (object.setName !== undefined && object.setName !== null)
+      ? KeyboardName.fromPartial(object.setName)
       : undefined;
     return message;
   },
