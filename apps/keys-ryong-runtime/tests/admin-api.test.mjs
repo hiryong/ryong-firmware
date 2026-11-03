@@ -6,6 +6,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { crc32, deflateRawSync } from "node:zlib";
 
 const dir = mkdtempSync(path.join(tmpdir(), "admin-api-"));
 const load = async (rel) => {
@@ -29,8 +30,29 @@ const gh = {
   files: new Map(), releases: new Set(), dispatches: [], calls: [],
 };
 const reply = (data, status = 200, headers = {}) => new Response(data === null ? null : JSON.stringify(data), { status, headers: { "Content-Type": "application/json", ...headers } });
+// A real artifact zip: one stored entry, one deflated entry, one in a folder.
+const UF2 = Buffer.from("UF2\n".repeat(300)), BLE = Buffer.from("PK-ble-package");
+function makeZip(files) {
+  const locals = [], centrals = []; let off = 0;
+  for (const [name, data, deflate] of files) {
+    const n = Buffer.from(name), body = deflate ? deflateRawSync(data) : data, crc = crc32(data);
+    const lh = Buffer.alloc(30); lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt16LE(deflate ? 8 : 0, 8);
+    lh.writeUInt32LE(crc, 14); lh.writeUInt32LE(body.length, 18); lh.writeUInt32LE(data.length, 22); lh.writeUInt16LE(n.length, 26);
+    const ch = Buffer.alloc(46); ch.writeUInt32LE(0x02014b50, 0); ch.writeUInt16LE(20, 4); ch.writeUInt16LE(20, 6); ch.writeUInt16LE(deflate ? 8 : 0, 10);
+    ch.writeUInt32LE(crc, 16); ch.writeUInt32LE(body.length, 20); ch.writeUInt32LE(data.length, 24); ch.writeUInt16LE(n.length, 28); ch.writeUInt32LE(off, 42);
+    locals.push(lh, n, body); centrals.push(ch, n); off += 30 + n.length + body.length;
+  }
+  const cd = Buffer.concat(centrals), e = Buffer.alloc(22);
+  e.writeUInt32LE(0x06054b50, 0); e.writeUInt16LE(files.length, 8); e.writeUInt16LE(files.length, 10); e.writeUInt32LE(cd.length, 12); e.writeUInt32LE(off, 16);
+  return Buffer.concat([...locals, cd, e]);
+}
+const ARTIFACT_ZIP = makeZip([["notes/readme.txt", Buffer.from("x"), false], ["bt60-r101-fffffff.uf2", UF2, true], ["bt60-r101-fffffff-bluetooth.zip", BLE, false]]);
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(typeof input === "string" ? input : input.url), p = url.pathname, m = (init.method || "GET").toUpperCase();
+  if (url.host === "download.example") {
+    assert.equal(new Headers(init.headers).get("Authorization"), null, "GitHub token never sent to the download host");
+    return new Response(ARTIFACT_ZIP, { headers: { "Content-Type": "application/zip" } });
+  }
   gh.calls.push(`${m} ${p}`);
   assert.equal(new Headers(init.headers).get("Authorization"), "Bearer ghp_test", "server token used");
   if (p.endsWith("/dispatches")) {
@@ -128,6 +150,12 @@ r = await call(h.build, "GET", "/api/admin/builds/101", { params: { id: "101" } 
 assert.equal(r.json.artifact.uf2_sha256, SHA);
 assert.ok(r.json.blockers.beta.includes("실기 검증 기록이 없어요."));
 assert.equal((await call(h.download, "GET", "/api/admin/builds/101/download", { params: { id: "101" } })).headers.get("Location"), "https://download.example/zip");
+for (const [file, want, name] of [["uf2", UF2, "bt60-r101-fffffff.uf2"], ["ble", BLE, "bt60-r101-fffffff-bluetooth.zip"]]) {
+  const res = await h.download.onRequestGet({ request: new Request(`https://x/api/admin/builds/101/download?file=${file}`), env, params: { id: "101" } });
+  assert.equal(res.status, 200, file);
+  assert.equal(res.headers.get("Content-Disposition"), `attachment; filename="${name}"`);
+  assert.deepEqual(Buffer.from(await res.arrayBuffer()), want, `${file} bytes`);
+}
 const allPass = { boots: "pass", all_keys: "pass", usb_typing: "pass", ble_pair: "pass", ble_switch: "pass", studio_save: "pass", runtime_features: "pass", device_settings: "pass", sleep_wake: "pass", recovery: "pass" };
 r = await call(h.validation, "PUT", "/api/admin/validation/101", { params: { id: "101" }, body: { tested_board: "bt60", items: { ...allPass, recovery: "skip" }, result: "pass", uf2_sha256: "evil" } });
 assert.equal(r.status, 200);

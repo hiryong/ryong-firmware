@@ -217,7 +217,8 @@ function BuildList({ rows, go }: { rows: BuildRow[]; go: (to: "test", id?: numbe
     <Dot run={b} />
     <span className="kc-item-t">{TARGET_LABEL[b.target ?? ""] ?? "?"} · {b.label} <span className="ry-faint">r{b.id}</span></span>
     <span className="ry-faint">{b.validated ? t("Bench-tested · ", "검증 기록 있음 · ") : ""}{ago(b.at)}</span>
-    {b.conclusion === "success" && <a className="ry-text" href={`/api/admin/builds/${b.id}/download`}>{t("Download", "파일 받기")}</a>}
+    {b.conclusion === "success" && <a className="ry-text" href={`/api/admin/builds/${b.id}/download?file=uf2`} title={t("Copy to the keyboard's drive", "키보드 드라이브에 복사")}>{t("USB file", "USB용 파일")}</a>}
+    {b.conclusion === "success" && b.target?.startsWith("bt60") && <a className="ry-text" href={`/api/admin/builds/${b.id}/download?file=ble`} title={t("For the nRF Device Firmware Update app", "nRF Device Firmware Update 앱용")}>{t("Bluetooth file", "블루투스용 파일")}</a>}
     {b.conclusion === "success" && <button className="ry-text" onClick={() => go("test", b.id)}>{t("Test", "검증")}</button>}
     <a className="ry-text" href={b.url} target="_blank" rel="noreferrer">{t("Log", "로그")}</a>
   </div>)}</div>;
@@ -340,7 +341,8 @@ function Test({ onError, focus, setFocus, go }: { onError: (e: unknown) => void;
           <div className="kc-kv">
             <span>{t("Target", "대상")}</span><b>{TARGET_LABEL[d.target]}</b>
             <span>{t("File", "파일")}</span><span>{d.artifact ? <><code className="kc-hash" title={d.artifact.uf2_sha256}>SHA-256 {d.artifact.uf2_sha256.slice(0, 16)}…</code>
-              {d.artifact.expired ? <span className="ry-danger"> {t("Expired", "보관 기간 지남")}</span> : <a className="ry-text" href={`/api/admin/builds/${d.id}/download`}>{t("Download", "받기")}</a>}</> : t("None", "없음")}</span>
+              {d.artifact.expired ? <span className="ry-danger"> {t("Expired", "보관 기간 지남")}</span> : <><a className="ry-text" href={`/api/admin/builds/${d.id}/download?file=uf2`}>{t("USB file", "USB용 파일")}</a>
+                {d.target.startsWith("bt60") && <a className="ry-text" href={`/api/admin/builds/${d.id}/download?file=ble`}>{t("Bluetooth file", "블루투스용 파일")}</a>}</>}</> : t("None", "없음")}</span>
             <span>{t("Code", "코드")}</span><span><code>{d.sha.slice(0, 7)}</code> · {ago(d.at)}</span>
           </div>
           <p className="ry-faint">{t("Flash this file onto the keyboard yourself and check each item below. The record applies only to this file (SHA-256).", "이 파일을 키보드에 직접 올려 아래 항목을 하나씩 확인하세요. 기록은 이 파일(SHA-256)에만 적용돼요.")}</p>
