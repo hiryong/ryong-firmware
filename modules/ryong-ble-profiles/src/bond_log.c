@@ -63,7 +63,7 @@ int ryong_bt_bond_history(struct ryong_bt_bond_event *out, int max, uint16_t *cu
     return n;
 }
 
-static int settings_set(const char *name, size_t len, settings_read_cb read_cb, void *cb_arg) {
+static int bond_log_set(const char *name, size_t len, settings_read_cb read_cb, void *cb_arg) {
     if (settings_name_steq(name, "store", NULL)) {
         struct stored s;
         if (len != sizeof(s) || read_cb(cb_arg, &s, sizeof(s)) != sizeof(s) || s.count > LOG_MAX) return 0;
@@ -84,7 +84,7 @@ static void boot_work_cb(struct k_work *work) {
 }
 static K_WORK_DEFINE(boot_work, boot_work_cb);
 
-static int settings_commit(void) {
+static int bond_log_commit(void) {
     if (!boot_counted) {
         boot_counted = true;
         boot++;
@@ -93,4 +93,4 @@ static int settings_commit(void) {
     return 0;
 }
 
-SETTINGS_STATIC_HANDLER_DEFINE(ryong_bt_log, "ryong_btlog", NULL, settings_set, settings_commit, NULL);
+SETTINGS_STATIC_HANDLER_DEFINE(ryong_bt_log, "ryong_btlog", NULL, bond_log_set, bond_log_commit, NULL);
