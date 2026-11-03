@@ -257,23 +257,19 @@ await step("keymap: put the macro on Z from the 매크로·탭댄스 tab", async
   assert.ok((await key(42).innerText()).includes(globalThis.createdMacro));
 });
 
-await step("keymap: Layer-Tap and Mod-Tap from the 탭·홀드 tab", async () => {
+await step("keymap: tap·hold keeps the key for tap, hold = layer or modifier", async () => {
   await tab("키맵");
-  await key(29).click(); // Caps
+  await key(32).click(); // F
   await page.getByRole("tab", { name: "탭·홀드" }).click();
-  await page.getByRole("button", { name: "누르면 레이어 (Layer-Tap)" }).click();
-  await page.getByLabel("짧게 누르면").selectOption({ label: "Esc" });
-  await page.getByLabel("누르고 있으면").selectOption({ index: 1 });
+  assert.equal(await page.getByLabel("짧게 누르면").locator("option:checked").innerText(), "F", "tap defaults to the key itself");
+  await page.getByLabel("길게 누르면").selectOption({ label: await page.getByLabel("길게 누르면").locator("optgroup").last().locator("option").nth(1).innerText() });
   await page.getByRole("button", { name: "이 키에 적용" }).click();
-  await page.getByRole("button", { name: "누르면 수정키 (Mod-Tap)" }).waitFor();
-  await key(41).click(); // Z row start: left Shift
+  await key(33).click(); // G
   await page.getByRole("tab", { name: "탭·홀드" }).click();
-  await page.getByRole("button", { name: "누르면 수정키 (Mod-Tap)" }).click();
-  await page.getByLabel("짧게 누르면").selectOption({ label: "Space" });
-  await page.getByLabel("누르고 있으면").selectOption({ label: "L Shift" });
+  await page.getByLabel("길게 누르면").selectOption({ label: "L Shift" });
   await page.getByRole("button", { name: "이 키에 적용" }).click();
   await page.locator("button:has([aria-label=Save])").click();
-  await page.waitForFunction(() => { const b = window.__ryongVirtual.flash.layers[0].bindings; return b[29].behaviorId === 10 && b[29].param1 === 1 && b[41].behaviorId === 9; }, null, { timeout: 3000 });
+  await page.waitForFunction(() => { const b = window.__ryongVirtual.flash.layers[0].bindings; return b[32].behaviorId === 10 && b[32].param1 === 1 && b[33].behaviorId === 9; }, null, { timeout: 3000 });
 });
 
 await step("tap dance: new dance with 1× A, 2× B and save", async () => {
@@ -305,26 +301,21 @@ await step("tap dance lab: double tap → second action", async () => {
 });
 
 /* hold-tap */
-await step("hold-tap: change mt tapping term and save", async () => {
-  await tab("Hold-Tap");
+await step("tap·hold: preset hold time applies to Mod-Tap and Layer-Tap together", async () => {
+  await tab("탭·홀드");
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${output}/05-settings.png`, fullPage: true });
-  const term = page.locator("input[type=number]").first();
-  await term.fill("240");
+  await page.getByRole("button", { name: /여유 있게/ }).click();
   await saveBehaviors();
   const f = await flash();
-  assert.ok(f.holds.some((h) => h.tappingTermMs === 240), "a hold-tap term is 240");
+  assert.ok(f.holds.length >= 2 && f.holds.every((h) => h.tappingTermMs === 280), "all tap·hold keys 280 ms");
 });
 
-await step("hold-tap: change flavor, lab explanation follows", async () => {
-  const card = page.locator("article.ry-item").first();
-  const before = JSON.stringify((await flash()).holds);
-  await card.locator("select").first().selectOption("balanced");
-  await card.locator("summary", { hasText: "시간 흐름으로 자세히 보기" }).click();
-  await card.getByText("누르고 있는 동안 다른 키를 눌렀다 떼면 홀드", { exact: false }).first().waitFor({ timeout: 3000 });
+await step("tap·hold: decision in plain words, stored for both", async () => {
+  await page.getByRole("radio", { name: /균형/ }).check();
+  await page.getByRole("radio", { name: /균형/ }).waitFor();
   await saveBehaviors();
-  assert.notEqual(JSON.stringify((await flash()).holds), before, "flavor stored");
-  assert.ok((await flash()).holds.some((h) => h.flavor === 1), "balanced = 1");
+  assert.ok((await flash()).holds.every((h) => h.flavor === 1), "balanced = 1 for both");
 });
 
 await step("combo: delete", async () => {
@@ -461,7 +452,7 @@ await step("phone: connect, edit a key with touch, no sideways scroll", async ()
     assert.ok(r && r.x >= 0 && r.x + r.width <= 390, `${name} button fully on screen`);
   }
   assert.equal(await page.evaluate(() => scrollX), 0, "page not scrolled sideways");
-  for (const name of ["콤보", "매크로", "탭댄스", "Hold-Tap", "Bluetooth 기기"]) {
+  for (const name of ["콤보", "매크로", "탭댄스", "탭·홀드", "Bluetooth 기기"]) {
     await tab(name);
     await page.waitForTimeout(400);
     const o = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

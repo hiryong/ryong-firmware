@@ -35,6 +35,7 @@ import { baseKeyName, baseLabels, findInKeymap, KeyLabel, keysAt, positionsAt, P
 import { useSub } from "../../usePubSub";
 import { WakePicker } from "../PowerInfo";
 import { KeyPress } from "../UnlockAnim";
+import { TapHoldSettings } from "./TapHoldSettings";
 import { BehaviorLab } from "./BehaviorLab";
 import { FriendlyBindingPicker, friendlyLabel } from "./FriendlyBindingPicker";
 import type { MacroItem } from "./labEngine";
@@ -650,7 +651,7 @@ const Editor = ({
             <pre className="ry-pre">{dtsi}</pre>
           ) : (
             <div className="ry-sec">
-              <p className="ry-muted">{SECTIONS.find((s) => s.id === section)!.hint()}</p>
+              {!(runtime && section === "settings") && <p className="ry-muted">{SECTIONS.find((s) => s.id === section)!.hint()}</p>}
 
               {section === "combos" &&
                 doc.combos.map((c) => (
@@ -822,8 +823,9 @@ const Editor = ({
                       liveLabels={liveLabels}
                     />
                   )}
+                  {runtime ? <TapHoldSettings doc={doc} setDoc={setDoc} /> : <>
                   <h3 className="ry-h2" style={{ marginTop: 8 }}>{t("Behavior options", "동작 옵션")}</h3>
-                  <SettingsEditor doc={doc} setDoc={setDoc} kb={kb} skip={runtime ? Object.keys(SETTING_SPECS).filter(k=>!doc.settings.some(s=>s.behavior===k)) : loaded.board ? ["soft_off"] : []} />
+                  <SettingsEditor doc={doc} setDoc={setDoc} kb={kb} skip={loaded.board ? ["soft_off"] : []} /></>}
                 </>
               )}
 

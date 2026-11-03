@@ -133,7 +133,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
     </nav>
     <div className="ry-via-body">
       {detail ? <div className="ry-via-detail">{children}</div>
-        : current.id === "holdtap" ? <HoldTapBuilder modTap={id("modtap")} layerTap={id("layertap")} layers={layers} binding={binding} onChange={onChange} />
+        : current.id === "holdtap" ? <HoldTapBuilder key={`${binding.behaviorId}:${binding.param1}:${binding.param2}`} keyPress={id("keypress")} modTap={id("modtap")} layerTap={id("layertap")} layers={layers} binding={binding} onChange={onChange} />
         : <div className="ry-via-grid" role="tabpanel" aria-label={current.label}>
           {current.tiles.map((tile, i) => <button key={i} className={"ry-via-key" + size(tile.label)} title={tile.title} aria-pressed={same(tile.binding)}
             onClick={async () => {
@@ -157,43 +157,40 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
 const TAP_KEYS: [string, string][] = ([...BASIC, ...NAV, ["Bksp", "BSPC"], ["Del", "DEL"], ["Esc", "ESC"], ["Tab", "TAB"], ["Enter", "RET"], ["Space", "SPACE"], ["한/영", "LANG1"], ["한자", "LANG2"], ...MODS] as [string, string][])
   .filter(([, k], i, all) => usage(k) !== undefined && all.findIndex(([, x]) => x === k) === i);
 
-function HoldTapBuilder({ modTap, layerTap, layers, binding, onChange }: {
-  modTap?: number; layerTap?: number; layers: { id: number; name: string }[];
+function HoldTapBuilder({ keyPress, modTap, layerTap, layers, binding, onChange }: {
+  keyPress?: number; modTap?: number; layerTap?: number; layers: { id: number; name: string }[];
   binding: BehaviorBinding; onChange: (binding: BehaviorBinding) => void;
 }) {
-  const isLt = binding.behaviorId === layerTap && layerTap !== undefined;
-  const isMt = binding.behaviorId === modTap && modTap !== undefined;
-  const [kind, setKind] = useState<"mt" | "lt">(isLt ? "lt" : modTap !== undefined ? "mt" : "lt");
-  const [tap, setTap] = useState<number>(isLt || isMt ? binding.param2 : usage("SPACE")!);
-  const [mod, setMod] = useState<number>(isMt ? binding.param1 : usage("LSHFT")!);
-  const [layer, setLayer] = useState<number>(isLt ? binding.param1 : Math.min(1, layers.length - 1));
+  // One "hold" list (modifiers and layers together): which ZMK behavior that needs is our job.
+  const isLt = layerTap !== undefined && binding.behaviorId === layerTap;
+  const isMt = modTap !== undefined && binding.behaviorId === modTap;
+  // Tap = the key that is already there (F stays F when tapped), unless it is already a tap·hold.
+  const own = keyPress !== undefined && binding.behaviorId === keyPress && TAP_KEYS.some(([, k]) => usage(k) === binding.param1) ? binding.param1 : undefined;
+  const [tap, setTap] = useState<number>(isLt || isMt ? binding.param2 : own ?? usage("F")!);
+  const [hold, setHold] = useState<string>(isMt ? `m${binding.param1}` : isLt ? `l${binding.param1}` : modTap !== undefined ? `m${usage("LSHFT")}` : "l1");
   const tapName = TAP_KEYS.find(([, k]) => usage(k) === tap)?.[0] ?? "?";
-  const holdName = kind === "mt" ? MODS.find(([, k]) => usage(k) === mod)?.[0] ?? "?" : layers[layer]?.name || t("layer {n}", "레이어 {n}", { n: layer });
-  const next: BehaviorBinding | undefined = kind === "mt" ? (modTap === undefined ? undefined : { behaviorId: modTap, param1: mod, param2: tap })
-    : (layerTap === undefined ? undefined : { behaviorId: layerTap, param1: layer, param2: tap });
+  const holdIsLayer = hold.startsWith("l");
+  const holdVal = Number(hold.slice(1));
+  const holdName = holdIsLayer ? (layers[holdVal]?.name || t("Layer {n}", "레이어 {n}", { n: holdVal })) : MODS.find(([, k]) => usage(k) === holdVal)?.[0] ?? "?";
+  const next: BehaviorBinding | undefined = holdIsLayer ? (layerTap === undefined ? undefined : { behaviorId: layerTap, param1: holdVal, param2: tap })
+    : (modTap === undefined ? undefined : { behaviorId: modTap, param1: holdVal, param2: tap });
   const applied = !!next && next.behaviorId === binding.behaviorId && next.param1 === binding.param1 && next.param2 === binding.param2;
   return <div className="ry-via-detail ry-holdtap" role="tabpanel" aria-label={t("Tap · Hold", "탭·홀드")}>
-    <p className="ry-faint">{t("One key, two jobs: a quick tap types a key, holding it acts as a modifier or a layer. Timing is set in the Hold-Tap tab.",
-      "키 하나에 두 가지 역할: 짧게 누르면 키 입력, 누르고 있으면 수정키나 레이어로 동작해요. 판단 시간은 Hold-Tap 탭에서 바꿔요.")}</p>
-    <div className="ry-seg" role="group" aria-label={t("Hold action", "누르고 있을 때")}>
-      {modTap !== undefined && <button aria-pressed={kind === "mt"} onClick={() => setKind("mt")}>{t("Hold = modifier (Mod-Tap)", "누르면 수정키 (Mod-Tap)")}</button>}
-      {layerTap !== undefined && <button aria-pressed={kind === "lt"} onClick={() => setKind("lt")}>{t("Hold = layer (Layer-Tap)", "누르면 레이어 (Layer-Tap)")}</button>}
-    </div>
+    <p className="ry-faint">{t("One key, two jobs. E.g. F: tap types F, hold works as Shift (or switches to a layer while held).",
+      "키 하나에 두 역할. 예: F를 짧게 누르면 F, 길게 누르면 Shift (또는 누르는 동안 다른 레이어). 판단 시간은 탭·홀드 탭에서 바꿔요.")}</p>
     <label className="ry-field">{t("Tap", "짧게 누르면")}
       <select value={tap} onChange={(e) => setTap(Number(e.target.value))}>
         {TAP_KEYS.map(([label, k]) => <option key={k} value={usage(k)}>{label}</option>)}
       </select></label>
-    {kind === "mt"
-      ? <label className="ry-field">{t("Hold", "누르고 있으면")}
-          <select value={mod} onChange={(e) => setMod(Number(e.target.value))}>
-            {MODS.map(([label, k]) => <option key={k} value={usage(k)}>{label}</option>)}
-          </select></label>
-      : <label className="ry-field">{t("Hold", "누르고 있으면")}
-          <select value={layer} onChange={(e) => setLayer(Number(e.target.value))}>
-            {layers.map((l, i) => <option key={l.id} value={i}>{l.name || t("Layer {n}", "레이어 {n}", { n: i })}</option>)}
-          </select></label>}
+    <label className="ry-field">{t("Hold", "길게 누르면")}
+      <select value={hold} onChange={(e) => setHold(e.target.value)}>
+        {modTap !== undefined && <optgroup label={t("Modifier", "수정키")}>
+          {MODS.map(([label, k]) => <option key={k} value={`m${usage(k)}`}>{label}</option>)}</optgroup>}
+        {layerTap !== undefined && <optgroup label={t("Layer (while held)", "레이어 (누르는 동안)")}>
+          {layers.map((l, i) => <option key={l.id} value={`l${i}`}>{l.name || t("Layer {n}", "레이어 {n}", { n: i })}</option>)}</optgroup>}
+      </select></label>
     <div className="ry-row">
-      <span className="ry-faint">{t("Tap {tap} · hold {hold}", "탭 {tap} · 홀드 {hold}", { tap: tapName, hold: holdName })}</span>
+      <span>{t("Tap {tap} · hold {hold}", "짧게 {tap} · 길게 {hold}", { tap: tapName, hold: holdName })}</span>
       <button className="ry-primary" disabled={!next || applied} onClick={() => next && onChange(next)}>
         {applied ? t("Assigned", "적용됨") : t("Assign to this key", "이 키에 적용")}</button>
     </div>

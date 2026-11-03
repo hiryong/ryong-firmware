@@ -1017,3 +1017,13 @@ header .ry-tabs { flex-wrap: nowrap; white-space: nowrap; }
 .ry-holdtap .ry-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .ry-holdtap select { min-height: 40px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: #000; color: var(--ink); font: inherit; }
 .ry-holdtap .ry-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ry-taphold { display: flex; flex-direction: column; gap: 12px; max-width: 640px; }
+.ry-taphold .ry-setcard { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.ry-taphold .ry-chips { justify-content: flex-start; }
+.ry-taphold summary { cursor: pointer; font-size: 13px; color: var(--ink); }
+.ry-choices { display: flex; flex-direction: column; gap: 6px; }
+.ry-choice { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; font-size: 13px; }
+.ry-choice.is-on { border-color: rgba(255, 255, 255, 0.4); background: rgba(255, 255, 255, 0.05); }
+.ry-choice input { margin-top: 3px; accent-color: #fff; }
+.ry-choice > span { display: flex; flex-direction: column; gap: 2px; }
+.ry-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }

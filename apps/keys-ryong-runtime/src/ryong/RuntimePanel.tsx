@@ -26,7 +26,7 @@ export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSec
     { id: "combos", label: t("Combos", "콤보") },
     { id: "macros", label: t("Macros", "매크로") },
     { id: "tapDances", label: t("Tap Dance", "탭댄스") },
-    { id: "settings", label: "Hold-Tap" },
+    { id: "settings", label: t("Tap · Hold", "탭·홀드") },
     { id: "host", label: t("Bluetooth", "Bluetooth 기기") },
     { id: "device", label: t("Keyboard settings", "키보드 설정") },
   ];
