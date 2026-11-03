@@ -109,6 +109,8 @@ export function legendFor(
       return { main: "", quiet: true };
     case "Bluetooth":
       return { main: p1 === 3 || p1 === 5 ? `${BT[p1]} ${p2}` : BT[p1] ?? "BT" };
+    case "Bluetooth Slot":
+      return { main: `BT ${p1 + 1}` };
     case "Output Selection":
       return { main: OUT[p1] ?? "Out" };
     case "Bootloader":

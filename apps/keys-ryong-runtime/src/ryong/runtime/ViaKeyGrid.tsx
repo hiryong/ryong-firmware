@@ -73,7 +73,12 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       ...simple("togglelayer", `TG ${i}`, t("Toggle layer {n}", "{n} 켜기/끄기", { n: l.name || i }), i),
       ...simple("tolayer", `TO ${i}`, t("Switch to layer {n}", "{n}로 전환", { n: l.name || i }), i),
     ]);
-    const bt = [0, 1, 2, 3, 4].flatMap(n => simple("bluetooth", `BT ${n + 1}`, t("Select Bluetooth slot {n}", "Bluetooth 슬롯 {n} 선택", { n: n + 1 }), codes.__bt_BT_SEL, n));
+    // Ryong firmware's slot key: tap selects the slot, hold 3 s clears it for a new pairing.
+    // Older firmware only has ZMK's plain "select" (&bt BT_SEL).
+    const slotKeys = [0, 1, 2, 3, 4].flatMap(n => simple("bluetoothslot", `BT ${n + 1}`,
+      t("Slot {n}: tap to select, hold 3 s to clear it for a new pairing", "슬롯 {n}: 누르면 선택, 3초 누르면 등록 삭제(새로 페어링)", { n: n + 1 }), n));
+    const bt = slotKeys.length ? slotKeys
+      : [0, 1, 2, 3, 4].flatMap(n => simple("bluetooth", `BT ${n + 1}`, t("Select Bluetooth slot {n}", "Bluetooth 슬롯 {n} 선택", { n: n + 1 }), codes.__bt_BT_SEL, n));
     const bt2 = [
       ...simple("bluetooth", t("Next", "다음"), t("Next slot", "다음 슬롯"), codes.__bt_BT_NXT),
       ...simple("bluetooth", t("Prev", "이전"), t("Previous slot", "이전 슬롯"), codes.__bt_BT_PRV),
