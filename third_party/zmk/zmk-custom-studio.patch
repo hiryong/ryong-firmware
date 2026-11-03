@@ -1145,10 +1145,10 @@ index 0000000000000000000000000000000000000000..cdbbb05b27c7f5a3ef48d2556a0ebe3b
 +ZMK_SUBSCRIPTION(ble_indicator, zmk_ble_active_profile_changed);
 diff --git a/app/src/ble_slots.c b/app/src/ble_slots.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..bb686f3215c66d4dc0c51daf6ae011b4c0de8718
+index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a2127845e
 --- /dev/null
 +++ b/app/src/ble_slots.c
-@@ -0,0 +1,928 @@
+@@ -0,0 +1,957 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -1217,16 +1217,42 @@ index 0000000000000000000000000000000000000000..bb686f3215c66d4dc0c51daf6ae011b4
 +/* A computer that connects to the selected slot but neither pairs nor encrypts is dropped. */
 +#define UNAUTH_TIMEOUT K_SECONDS(30)
 +
-+#define ZMK_ADV_CONN_NAME                                                                          \
-+    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN | BT_LE_ADV_OPT_USE_NAME | BT_LE_ADV_OPT_FORCE_NAME_IN_AD,  \
-+                    BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
++#define ZMK_ADV_CONN                                                                               \
++    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
 +
-+static const struct bt_data zmk_ble_ad[] = {
-+    BT_DATA_BYTES(BT_DATA_GAP_APPEARANCE, BT_BYTES_LIST_LE16(CONFIG_BT_DEVICE_APPEARANCE)),
++/* Each slot advertises its own name, "<keyboard name> <slot number>" (e.g. "Oreo 2"), so a
++ * computer's list of nearby devices says which slot it is about to pair with. (A computer may
++ * still list addresses it saw a moment ago; the number tells them apart.) The name stays the
++ * keyboard's own name once paired (GAP device name). */
++#define ADV_NAME_MAX (CONFIG_BT_DEVICE_NAME_MAX + 3)
++static char adv_name[ADV_NAME_MAX];
++static struct bt_data zmk_ble_ad[] = {
 +    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
++    BT_DATA_BYTES(BT_DATA_GAP_APPEARANCE, BT_BYTES_LIST_LE16(CONFIG_BT_DEVICE_APPEARANCE)),
 +    BT_DATA_BYTES(BT_DATA_UUID16_SOME, BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
 +                  BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)),
++    BT_DATA(BT_DATA_NAME_COMPLETE, adv_name, 0), /* length set per slot */
 +};
++/* Legacy advertising holds 31 bytes: the first three entries take 13; a longer name goes into
++ * the scan response instead (computers ask for it while listing devices). */
++#define AD_FIXED_LEN 13
++static struct bt_data zmk_ble_sd[] = {
++    BT_DATA(BT_DATA_NAME_COMPLETE, adv_name, 0),
++};
++
++static void prepare_adv_name(uint8_t slot, size_t *ad_len, size_t *sd_len) {
++    int n = snprintk(adv_name, sizeof(adv_name), "%s %d", bt_get_name(), slot + 1);
++    uint8_t len = (uint8_t)MIN(MAX(n, 0), (int)sizeof(adv_name) - 1);
++    if (AD_FIXED_LEN + 2 + len <= 31) {
++        zmk_ble_ad[3].data_len = len;
++        *ad_len = ARRAY_SIZE(zmk_ble_ad);
++        *sd_len = 0;
++    } else {
++        zmk_ble_sd[0].data_len = len;
++        *ad_len = ARRAY_SIZE(zmk_ble_ad) - 1;
++        *sd_len = ARRAY_SIZE(zmk_ble_sd);
++    }
++}
 +
 +/* ---- state (written by the worker only; read anywhere) ---- */
 +static struct zmk_ble_profile profiles[SLOTS];
@@ -1519,13 +1545,16 @@ index 0000000000000000000000000000000000000000..bb686f3215c66d4dc0c51daf6ae011b4
 +    if (!want || adv_id == id) {
 +        return;
 +    }
-+    struct bt_le_adv_param param = *ZMK_ADV_CONN_NAME;
++    struct bt_le_adv_param param = *ZMK_ADV_CONN;
 +    param.id = id;
-+    int err = bt_le_adv_start(&param, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), NULL, 0);
++    size_t ad_len, sd_len;
++    prepare_adv_name(slot, &ad_len, &sd_len);
++    const struct bt_data *sd = sd_len ? zmk_ble_sd : NULL;
++    int err = bt_le_adv_start(&param, zmk_ble_ad, ad_len, sd, sd_len);
 +    if (err == -EALREADY) {
 +        /* our bookkeeping lost track of a running advertiser: stop whatever runs, try again */
 +        (void)bt_le_adv_stop();
-+        err = bt_le_adv_start(&param, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), NULL, 0);
++        err = bt_le_adv_start(&param, zmk_ble_ad, ad_len, sd, sd_len);
 +    }
 +    if (err == -ENOMEM) {
 +        LOG_WRN("No free connection object yet; advertising starts when one is released");
