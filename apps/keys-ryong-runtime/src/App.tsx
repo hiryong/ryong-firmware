@@ -52,7 +52,9 @@ declare global {
 const VIRTUAL: TransportFactory[] = import.meta.env.VITE_RYONG_RUNTIME === "1" ? [{ label: t("Virtual keyboard", "가상 키보드"), connect: virtualConnect }] : [];
 const TRANSPORTS: TransportFactory[] = import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1" ? VIRTUAL : [...VIRTUAL,
   navigator.serial && { label: "USB", connect: serial_connect },
-  ...(navigator.bluetooth && navigator.userAgent.indexOf("Linux") >= 0
+  // Linux/Android Chrome, plus iPhone/iPad browsers that add Web Bluetooth themselves (e.g. Bluefy):
+  // Safari and other iOS browsers have no navigator.bluetooth, so the button stays hidden there.
+  ...(navigator.bluetooth && /Linux|iPhone|iPad/.test(navigator.userAgent)
     ? [{ label: "BLE", connect: gatt_connect }]
     : []),
   ...(window.__TAURI_INTERNALS__
