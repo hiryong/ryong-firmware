@@ -11,6 +11,14 @@ if dest.exists():
 shutil.copytree(root / "hardware/ryong60", dest / "board")
 shutil.copy2(root / "experiments/dya-runtime/west.yml", dest / "config/west.yml")
 # Official ZMK + our vendored Studio extension instead of a third-party fork (third_party/zmk/README.md).
+if "--host-layout" in sys.argv[2:]:
+    # OS detection module, same pinned (vendored) copy as BT60.
+    import yaml
+    mp = dest / "config/west.yml"
+    m = yaml.safe_load(mp.read_text())
+    m["manifest"]["projects"].append({"name": "zmk-feature-os-detection", "remote": "cormoran",
+                                      "revision": "3052679f645b8fc1997275c2eaa6b86bdd55ca01"})
+    mp.write_text(yaml.safe_dump(m, sort_keys=False))
 sys.path.insert(0, str(root / "scripts"))
 import vendor_zmk
 vendor_zmk.manifest(dest / "config/west.yml")
