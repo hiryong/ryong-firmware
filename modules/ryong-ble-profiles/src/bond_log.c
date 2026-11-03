@@ -47,6 +47,10 @@ void zmk_ble_bond_event(uint8_t profile, enum zmk_ble_bond_cause cause) {
         c = atomic_get(&from_site) ? RY_BT_EVENT_CLEARED_SITE : RY_BT_EVENT_CLEARED_KEY;
     }
     k_spinlock_key_t key = k_spin_lock(&lock);
+    if (store.count && store.e[0].boot == boot && store.e[0].slot == profile && store.e[0].cause == c) {
+        k_spin_unlock(&lock, key); /* the same thing again (a host retrying): keep the history readable */
+        return;
+    }
     memmove(&store.e[1], &store.e[0], sizeof(store.e[0]) * (LOG_MAX - 1));
     store.e[0] = (struct ryong_bt_bond_event){.boot = boot, .slot = profile, .cause = c};
     if (store.count < LOG_MAX) store.count++;

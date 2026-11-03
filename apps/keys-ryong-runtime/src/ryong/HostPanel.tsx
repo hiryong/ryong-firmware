@@ -24,7 +24,10 @@ const fingerprintText = (f: NonNullable<O_BleProfileState["fingerprint"]>) =>
 const causeLabel = (c: number) => c === 1 ? t("paired", "페어링됨") : c === 2 ? t("cleared with the keyboard's clear key", "키보드의 슬롯 지우기 키로 지워짐")
   : c === 3 ? t("all slots cleared with the keyboard's key", "키보드 키로 전체 지워짐") : c === 4 ? t("pairing refused (slot taken)", "페어링 거부됨 (사용 중인 슬롯)")
   : c === 5 ? t("removed on this page", "이 페이지에서 등록 삭제")
-  : c === 6 ? t("needs a new pairing after the update (slots now have their own address)", "업데이트로 슬롯별 주소가 생겨 다시 페어링 필요") : t("changed", "변경됨");
+  : c === 6 ? t("needs a new pairing after the update (slots now have their own address)", "업데이트로 슬롯별 주소가 생겨 다시 페어링 필요")
+  : c === 7 ? t("its pairing record was missing at start-up", "켤 때 페어링 기록이 없어 비워짐")
+  : c === 8 ? t("its device paired on another slot", "그 기기가 다른 슬롯에 새로 페어링됨")
+  : c === 9 ? t("a pairing attempt failed", "페어링 시도가 실패함") : t("changed", "변경됨");
 const detectedLabel = (os: Os) => os === Os.OS_UNKNOWN || os === Os.OS_UNSPECIFIED
   ? t("Not detected yet", "아직 감지 안 됨") : apple(os) ? t("Apple (macOS / iOS)", "Apple 계열 (macOS / iOS)") : t("Windows or other", "Windows 또는 기타");
 
