@@ -22,6 +22,26 @@ index c41153cb17c97f790b3c7dac2262c7ee04a65cd2..916c78494092c8386f823ce3ba1eeea5
    )
  
    target_include_directories(app PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+diff --git a/app/Kconfig b/app/Kconfig
+index 8c0675e0d686fd3951ba23d51b37700720285cb3..36ad958b38db999b77a2457755e0c65111666bf3 100644
+--- a/app/Kconfig
++++ b/app/Kconfig
+@@ -351,6 +351,15 @@ menuconfig ZMK_BACKLIGHT
+ 
+ if ZMK_BACKLIGHT
+ 
++config ZMK_BACKLIGHT_PERCEPTUAL
++    bool "Map brightness to what the eye sees (PWM LEDs)"
++    default y
++    depends on PWM
++    help
++      Ryong: LEDs look almost fully bright at a few percent duty, so a linear 1..100 % spends most
++      of its range at "bright". With PWM LEDs, duty = brightness^2 / 100 (10 % -> 1 % duty,
++      50 % -> 25 %), with sub-percent resolution. Same keys and settings, more usable range.
++
+ config ZMK_BACKLIGHT_BRT_STEP
+     int "Brightness step in percent"
+     range 1 100
 diff --git a/app/include/linker/zmk-rpc-custom-subsystems.ld b/app/include/linker/zmk-rpc-custom-subsystems.ld
 new file mode 100644
 index 0000000000000000000000000000000000000000..39927f4a4d38e3913000795c47c4c26673c5aded
@@ -656,6 +676,59 @@ index e223b7a5af98325d3b0224fa33307e8c00d515b2..01d65fc938cd3d7b01c74d73fdeca2c7
  #define ZMK_RPC_TRANSPORT(name, _transport, _rx_start, _rx_stop, _tx_user_data, _tx_notify)        \
      STRUCT_SECTION_ITERABLE(zmk_rpc_transport, name) = {                                           \
          .transport = _transport,                                                                   \
+diff --git a/app/src/backlight.c b/app/src/backlight.c
+index 22b730669ab6bffe6df2e2d95f8e866e9b809d86..352587555860e19e2777c7339b0a9b1bcecc111e 100644
+--- a/app/src/backlight.c
++++ b/app/src/backlight.c
+@@ -7,6 +7,7 @@
+ #include <zephyr/device.h>
+ #include <zephyr/devicetree.h>
+ #include <zephyr/drivers/led.h>
++#include <zephyr/drivers/pwm.h>
+ #include <zephyr/init.h>
+ #include <zephyr/kernel.h>
+ 
+@@ -42,10 +43,32 @@ struct backlight_state {
+ static struct backlight_state state = {.brightness = CONFIG_ZMK_BACKLIGHT_BRT_START,
+                                        .on = IS_ENABLED(CONFIG_ZMK_BACKLIGHT_ON_START)};
+ 
++#define BL_PERCEPTUAL                                                                              \
++    (IS_ENABLED(CONFIG_ZMK_BACKLIGHT_PERCEPTUAL) && DT_NODE_HAS_COMPAT(DT_CHOSEN(zmk_backlight), pwm_leds))
++
++#if BL_PERCEPTUAL
++#define BL_PWM_SPEC(node_id) PWM_DT_SPEC_GET(node_id),
++static const struct pwm_dt_spec bl_pwms[] = {DT_FOREACH_CHILD(DT_CHOSEN(zmk_backlight), BL_PWM_SPEC)};
++#endif
++
+ static int zmk_backlight_update(void) {
+     uint8_t brt = zmk_backlight_get_brt();
+     LOG_DBG("Update backlight brightness: %d%%", brt);
+ 
++#if BL_PERCEPTUAL
++    for (int i = 0; i < ARRAY_SIZE(bl_pwms); i++) {
++        uint32_t period = bl_pwms[i].period;
++        uint32_t pulse = (uint32_t)((uint64_t)period * brt * brt / (BRT_MAX * BRT_MAX));
++        if (brt > 0 && pulse < period / 4000) {
++            pulse = period / 4000; /* keep the lowest step visible */
++        }
++        int rc = pwm_set_pulse_dt(&bl_pwms[i], pulse);
++        if (rc != 0) {
++            LOG_ERR("Failed to update backlight LED %d: %d", i, rc);
++            return rc;
++        }
++    }
++#else
+     for (int i = 0; i < BACKLIGHT_NUM_LEDS; i++) {
+         int rc = led_set_brightness(backlight_dev, i, brt);
+         if (rc != 0) {
+@@ -53,6 +76,7 @@ static int zmk_backlight_update(void) {
+             return rc;
+         }
+     }
++#endif
+     return 0;
+ }
+ 
 diff --git a/app/src/ble.c b/app/src/ble.c
 index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..ef4cb597682431594e1088d4f5a79eeb8686afeb 100644
 --- a/app/src/ble.c

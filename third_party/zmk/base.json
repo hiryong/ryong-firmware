@@ -6,8 +6,8 @@
       "file": "zmk-custom-studio.patch",
       "repo_path": "zmk",
       "applies_to": "ed56d81db79cf3a6e5dc02697277c0fad880ad34",
-      "sha256": "254e614d29dfc1c501a6240de6fcde22b872d1b58d3213e671a4f4688d74a43f",
-      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx)"
+      "sha256": "088d9a933d1a8919fc1de85d71ede62de9732ca9f1281516d725b471b57ce426",
+      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx); backlight.c: perceptual brightness for PWM LEDs (duty = brightness^2/100, ZMK_BACKLIGHT_PERCEPTUAL)"
     },
     {
       "file": "zmk-studio-messages-custom.patch",
