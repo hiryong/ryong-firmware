@@ -153,6 +153,14 @@ static void settle_work_handler(struct k_work *work) {
     }
     s->settled = true;
     s->profile = profile;
+#if IS_ENABLED(CONFIG_ZMK_CUSTOM_SETTINGS)
+    if (s->fresh) {
+        /* A new computer on this slot: the previous one's manual choice must not carry over. */
+        if (zmk_os_detection_settings_get_override(profile) != ZMK_OS_UNKNOWN) {
+            zmk_os_detection_settings_set_override(profile, ZMK_OS_UNKNOWN);
+        }
+    }
+#endif
     decide(s);
 #if IS_ENABLED(CONFIG_ZMK_OS_DETECTION_BLE_GATT_CLIENT_PROBE)
     zmk_os_detection_probe_start(s->conn, profile, s->fresh);

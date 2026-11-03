@@ -640,10 +640,10 @@ index 0000000000000000000000000000000000000000..f9033a4127980f3f09dd683fcd490d28
 +    zmk_rpc_custom_subsystem_response_buffer_allocate_##_subsystem_identifier(encode_response)
 diff --git a/app/include/zmk/studio/hid_transport.h b/app/include/zmk/studio/hid_transport.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..07ea65aa6a1c0bf5a9f710ca2036669b3580b25a
+index 0000000000000000000000000000000000000000..9ba5794150688051fb7e691d5d2386b4f99a91d8
 --- /dev/null
 +++ b/app/include/zmk/studio/hid_transport.h
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,22 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -664,23 +664,29 @@ index 0000000000000000000000000000000000000000..07ea65aa6a1c0bf5a9f710ca2036669b
 +/* Send one input report: BLE body only (HOG adds no ID), USB with the report ID first. */
 +int zmk_hog_send_studio_report(struct bt_conn *conn, const uint8_t *body, size_t len);
 +int zmk_usb_hid_send_studio_report(const uint8_t *report, size_t len);
++/* A link went away: notifications still counted as in flight will never complete. */
++void zmk_hog_studio_link_reset(void);
 diff --git a/app/include/zmk/studio/rpc.h b/app/include/zmk/studio/rpc.h
-index e223b7a5af98325d3b0224fa33307e8c00d515b2..01d65fc938cd3d7b01c74d73fdeca2c76a316fe9 100644
+index e223b7a5af98325d3b0224fa33307e8c00d515b2..655d7afdffd07e45f8629346c65231ff8faef0c7 100644
 --- a/app/include/zmk/studio/rpc.h
 +++ b/app/include/zmk/studio/rpc.h
-@@ -219,6 +219,10 @@ struct ring_buf *zmk_rpc_get_tx_buf(void);
+@@ -218,6 +218,14 @@ zmk_studio_Response zmk_rpc_subsystem_delegate_to_subs(const struct zmk_rpc_subs
+ struct ring_buf *zmk_rpc_get_tx_buf(void);
  struct ring_buf *zmk_rpc_get_rx_buf(void);
  void zmk_rpc_rx_notify(void);
- 
++/* Ryong: put request bytes into the RX buffer (any thread; transports may receive at once).
++ * Returns how many fit. zmk_rpc_rx_put_all puts all or nothing (for callers that must not wait). */
++size_t zmk_rpc_rx_put(const uint8_t *data, size_t len);
++bool zmk_rpc_rx_put_all(const uint8_t *data, size_t len);
++
 +struct zmk_rpc_transport;
 +/* Call when bytes arrive on t (any context): t answers the next request. */
 +void zmk_rpc_note_rx(const struct zmk_rpc_transport *t);
-+
+ 
  #define ZMK_RPC_TRANSPORT(name, _transport, _rx_start, _rx_stop, _tx_user_data, _tx_notify)        \
      STRUCT_SECTION_ITERABLE(zmk_rpc_transport, name) = {                                           \
-         .transport = _transport,                                                                   \
 diff --git a/app/src/backlight.c b/app/src/backlight.c
-index 22b730669ab6bffe6df2e2d95f8e866e9b809d86..352587555860e19e2777c7339b0a9b1bcecc111e 100644
+index 22b730669ab6bffe6df2e2d95f8e866e9b809d86..d2103822e0acb99b226912ea0b28c5ea9eadc067 100644
 --- a/app/src/backlight.c
 +++ b/app/src/backlight.c
 @@ -7,6 +7,7 @@
@@ -691,7 +697,7 @@ index 22b730669ab6bffe6df2e2d95f8e866e9b809d86..352587555860e19e2777c7339b0a9b1b
  #include <zephyr/init.h>
  #include <zephyr/kernel.h>
  
-@@ -42,10 +43,32 @@ struct backlight_state {
+@@ -42,10 +43,39 @@ struct backlight_state {
  static struct backlight_state state = {.brightness = CONFIG_ZMK_BACKLIGHT_BRT_START,
                                         .on = IS_ENABLED(CONFIG_ZMK_BACKLIGHT_ON_START)};
  
@@ -711,8 +717,15 @@ index 22b730669ab6bffe6df2e2d95f8e866e9b809d86..352587555860e19e2777c7339b0a9b1b
 +    for (int i = 0; i < ARRAY_SIZE(bl_pwms); i++) {
 +        uint32_t period = bl_pwms[i].period;
 +        uint32_t pulse = (uint32_t)((uint64_t)period * brt * brt / (BRT_MAX * BRT_MAX));
-+        if (brt > 0 && pulse < period / 4000) {
-+            pulse = period / 4000; /* keep the lowest step visible */
++        if (brt > 0) {
++            /* Keep the lowest steps visible: a pulse of at least 8 PWM clock cycles (a 125 us period
++             * rounded period/4000 down to 0 cycles, so the first steps were dark), or 0.1 %. */
++            uint64_t cps = 0;
++            uint32_t floor = period / 1000;
++            if (pwm_get_cycles_per_sec(bl_pwms[i].dev, bl_pwms[i].channel, &cps) == 0 && cps > 0) {
++                floor = MAX(floor, (uint32_t)(8ULL * NSEC_PER_SEC / cps));
++            }
++            pulse = MIN(MAX(pulse, floor), period);
 +        }
 +        int rc = pwm_set_pulse_dt(&bl_pwms[i], pulse);
 +        if (rc != 0) {
@@ -724,7 +737,7 @@ index 22b730669ab6bffe6df2e2d95f8e866e9b809d86..352587555860e19e2777c7339b0a9b1b
      for (int i = 0; i < BACKLIGHT_NUM_LEDS; i++) {
          int rc = led_set_brightness(backlight_dev, i, brt);
          if (rc != 0) {
-@@ -53,6 +76,7 @@ static int zmk_backlight_update(void) {
+@@ -53,6 +83,7 @@ static int zmk_backlight_update(void) {
              return rc;
          }
      }
@@ -780,7 +793,7 @@ index c28da97f5944fff51fada51a146b8989a0245bfc..037c647e831c1c29905bfcb7b636e5f2
 +
 +#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
 diff --git a/app/src/hog.c b/app/src/hog.c
-index c7d9b861d4ae9df67e264126be033baf281c3124..7f3800546808bbb12035f192f262382e10bd9756 100644
+index c7d9b861d4ae9df67e264126be033baf281c3124..53cb04a37590028f6c5f66e53e03adf4d14fc378 100644
 --- a/app/src/hog.c
 +++ b/app/src/hog.c
 @@ -248,6 +248,44 @@ static ssize_t write_ctrl_point(struct bt_conn *conn, const struct bt_gatt_attr
@@ -828,7 +841,7 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..7f3800546808bbb12035f192f262382e
  /* HID Service Declaration */
  BT_GATT_SERVICE_DEFINE(
      hog_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
-@@ -298,7 +336,39 @@ BT_GATT_SERVICE_DEFINE(
+@@ -298,7 +336,63 @@ BT_GATT_SERVICE_DEFINE(
  #endif // IS_ENABLED(CONFIG_ZMK_HID_INDICATORS)
  
      BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT, BT_GATT_CHRC_WRITE_WITHOUT_RESP,
@@ -854,6 +867,23 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..7f3800546808bbb12035f192f262382e
 +#if IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
 +#define STUDIO_INPUT_ATTR (&hog_svc.attrs[hog_svc.attr_count - 6])
 +
++/* At most this many Studio notifications wait in the Bluetooth stack: they share the ATT buffers
++ * with keyboard reports, and a keymap load must never take all of them. */
++#define STUDIO_CREDITS 2
++K_SEM_DEFINE(studio_credits, STUDIO_CREDITS, STUDIO_CREDITS);
++
++static void studio_sent(struct bt_conn *conn, void *user_data) {
++    ARG_UNUSED(conn);
++    ARG_UNUSED(user_data);
++    k_sem_give(&studio_credits); /* never above the limit, so late callbacks are harmless */
++}
++
++void zmk_hog_studio_link_reset(void) {
++    for (int i = 0; i < STUDIO_CREDITS; i++) {
++        k_sem_give(&studio_credits);
++    }
++}
++
 +int zmk_hog_send_studio_report(struct bt_conn *conn, const uint8_t *data, size_t len) {
 +    if (!conn) {
 +        return -ENOTCONN;
@@ -862,8 +892,15 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..7f3800546808bbb12035f192f262382e
 +        LOG_WRN("Studio HID report needs ATT MTU %d, have %d", (int)(len + 3), bt_gatt_get_mtu(conn));
 +        return -EMSGSIZE;
 +    }
-+    struct bt_gatt_notify_params params = {.attr = STUDIO_INPUT_ATTR, .data = data, .len = len};
-+    return bt_gatt_notify_cb(conn, &params);
++    if (k_sem_take(&studio_credits, K_MSEC(50)) != 0) {
++        return -EAGAIN; /* the caller waits and tries again */
++    }
++    struct bt_gatt_notify_params params = {.attr = STUDIO_INPUT_ATTR, .data = data, .len = len, .func = studio_sent};
++    int err = bt_gatt_notify_cb(conn, &params);
++    if (err) {
++        k_sem_give(&studio_credits);
++    }
++    return err;
 +}
 +#endif // IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
  
@@ -2110,7 +2147,7 @@ index 0000000000000000000000000000000000000000..b2096405bbe045bf04fc7234ec4f46d9
 +SYS_INIT(custom_subsystem_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 +#endif
 diff --git a/app/src/studio/gatt_rpc_transport.c b/app/src/studio/gatt_rpc_transport.c
-index dff1825908b8f8c54bce758aa8701a25ce928d20..c6aa9f8b032ab69a61b8ac2d4ff045381b729657 100644
+index dff1825908b8f8c54bce758aa8701a25ce928d20..993276f210854361f15185d88853df53e6393f68 100644
 --- a/app/src/studio/gatt_rpc_transport.c
 +++ b/app/src/studio/gatt_rpc_transport.c
 @@ -16,7 +16,6 @@
@@ -2121,7 +2158,7 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..c6aa9f8b032ab69a61b8ac2d4ff04538
  #include "uuid.h"
  
  #include <zephyr/logging/log.h>
-@@ -41,10 +40,13 @@ static void rpc_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
+@@ -41,10 +40,11 @@ static void rpc_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
          uint8_t latency = notif_enabled ? CONFIG_ZMK_STUDIO_TRANSPORT_BLE_PREF_LATENCY
                                          : CONFIG_BT_PERIPHERAL_PREF_LATENCY;
  
@@ -2133,13 +2170,11 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..c6aa9f8b032ab69a61b8ac2d4ff04538
 +         * with ZMK's default minimum (7.5 ms) a Mac rejects the request and keeps the latency. */
 +        int ret = notif_enabled
 +                      ? bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(12, 24, latency, 400))
-+                      : bt_conn_le_param_update(
-+                            conn, BT_LE_CONN_PARAM(CONFIG_BT_PERIPHERAL_PREF_MIN_INT, CONFIG_BT_PERIPHERAL_PREF_MAX_INT,
-+                                                   latency, CONFIG_BT_PERIPHERAL_PREF_TIMEOUT));
++                      : bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(12, 24, MIN(latency, 30), 400));
          if (ret < 0) {
              LOG_WRN("Failed to request lower latency while studio is active (%d)", ret);
          }
-@@ -61,11 +63,14 @@ static ssize_t read_rpc_resp(struct bt_conn *conn, const struct bt_gatt_attr *at
+@@ -61,24 +61,22 @@ static ssize_t read_rpc_resp(struct bt_conn *conn, const struct bt_gatt_attr *at
      return 0;
  }
  
@@ -2150,15 +2185,59 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..c6aa9f8b032ab69a61b8ac2d4ff04538
      if (!handling_rx) {
          return len;
      }
+-
+-    uint32_t copied = 0;
+-    struct ring_buf *rpc_buf = zmk_rpc_get_rx_buf();
+-    while (copied < len) {
+-        uint8_t *buffer;
+-        uint32_t claim_len = ring_buf_put_claim(rpc_buf, &buffer, len - copied);
+-
+-        if (claim_len > 0) {
+-            memcpy(buffer, ((uint8_t *)buf) + copied, claim_len);
+-            copied += claim_len;
+-        }
+-
+-        ring_buf_put_finish(rpc_buf, claim_len);
 +    zmk_rpc_note_rx(&gatt);
++
++    /* Ryong: this runs in the Bluetooth RX thread, which must never wait for the (lowest
++     * priority) RPC thread: waiting for room here could stall the whole Bluetooth stack. All or
++     * nothing; a full buffer refuses the write and the host sees an error. */
++    if (!zmk_rpc_rx_put_all(buf, len)) {
++        LOG_WRN("Studio RX buffer full, refusing a GATT write");
++        zmk_rpc_rx_notify();
++        return BT_GATT_ERR(BT_ATT_ERR_PREPARE_QUEUE_FULL);
+     }
  
-     uint32_t copied = 0;
-     struct ring_buf *rpc_buf = zmk_rpc_get_rx_buf();
-@@ -196,7 +201,21 @@ static void gatt_tx_notify(struct ring_buf *tx_buf, size_t added, bool msg_done,
+     zmk_rpc_rx_notify();
+@@ -142,7 +140,7 @@ static void notif_rpc_tx_cb(struct k_work *work) {
+ 
+     if (!conn) {
+         LOG_WRN("No active connection for queued data, dropping");
+-        ring_buf_reset(tx_buf);
++        ring_buf_get(tx_buf, NULL, ring_buf_size_get(tx_buf)); /* consumer-side discard, no reset race */
+         return;
+     }
+ 
+@@ -169,8 +167,10 @@ static void notif_rpc_tx_cb(struct k_work *work) {
+ 
+         int err = bt_gatt_indicate(conn, &rpc_indicate_params);
+         if (err < 0) {
+-            LOG_WRN("Failed to notify the response %d", err);
++            LOG_WRN("Failed to notify the response %d, dropping it", err);
+             k_sem_give(&indicate_sem);
++            /* Nothing would drain the rest: drop it rather than leave the RPC thread waiting. */
++            ring_buf_get(tx_buf, NULL, ring_buf_size_get(tx_buf));
+         }
+     }
+ 
+@@ -195,8 +195,22 @@ static void gatt_tx_notify(struct ring_buf *tx_buf, size_t added, bool msg_done,
+ 
      atomic_t ns = atomic_get(&notify_size);
  
-     if (msg_done || state->pending_notify > ns) {
+-    if (msg_done || state->pending_notify > ns) {
 -        k_work_submit(&notify_tx_work);
++    if (msg_done || state->pending_notify > ns || ring_buf_space_get(tx_buf) == 0) {
 +        if (k_current_get() == k_work_queue_thread_get(&k_sys_work_q)) {
 +            /* We are already running on the system work queue (e.g. a Studio RPC
 +             * notification raised from a listener on that queue). Submitting
@@ -2179,10 +2258,10 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..c6aa9f8b032ab69a61b8ac2d4ff04538
  }
 diff --git a/app/src/studio/hid_rpc_transport.c b/app/src/studio/hid_rpc_transport.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..37fa8f8a326ce5b898b15223e457d31f7b686941
+index 0000000000000000000000000000000000000000..5a20e1f2e95ae9bbf4705355b845481b028b749b
 --- /dev/null
 +++ b/app/src/studio/hid_rpc_transport.c
-@@ -0,0 +1,294 @@
+@@ -0,0 +1,297 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -2194,16 +2273,24 @@ index 0000000000000000000000000000000000000000..37fa8f8a326ce5b898b15223e457d31f
 + *
 + * Browsers cannot reach a Bluetooth keyboard that is already connected to the computer over Web
 + * Bluetooth, but WebHID can open any connected HID device, USB or Bluetooth. The keyboard exposes
-+ * one extra collection (usage page 0xFF5A) with a 32-byte input and output report:
-+ *   byte 0 = number of valid bytes (0..31), bytes 1.. = the Studio byte stream (same framing as
-+ *   the serial and GATT transports).
-+ * Studio answers on the transport a request arrived on (zmk_rpc_note_rx), so this one
-+ * answers on the same link: the BLE connection the request came from, or USB.
++ * one extra collection (usage page 0xFF5A) with a ZMK_HID_STUDIO_REPORT_SIZE-byte input and output
++ * report: byte 0 = number of valid bytes, then the Studio byte stream (same framing as the serial
++ * and GATT transports). Studio answers on the transport a request arrived on (zmk_rpc_note_rx).
++ *
++ * Rules this file keeps (each one was a field bug):
++ *  - No bt_conn reference is held beyond one call. Peers are remembered by ADDRESS and looked up
++ *    per send; ZMK finds a profile's connection by address, and a dead connection object kept
++ *    alive by a reference could be returned instead of the live one after a reconnect - keys
++ *    then went nowhere until a restart.
++ *  - Studio never takes every ATT buffer: hog.c keeps at most a few Studio notifications queued
++ *    in the stack, so keyboard reports always find a buffer.
++ *  - Every wait is bounded; nothing here runs in the Bluetooth RX thread except queueing.
 + */
 +
 +#include <zephyr/kernel.h>
 +#include <zephyr/init.h>
 +#include <zephyr/sys/ring_buffer.h>
++#include <zephyr/bluetooth/bluetooth.h>
 +#include <zephyr/bluetooth/conn.h>
 +#include <string.h>
 +
@@ -2216,16 +2303,17 @@ index 0000000000000000000000000000000000000000..37fa8f8a326ce5b898b15223e457d31f
 +
 +#define PAYLOAD (ZMK_HID_STUDIO_REPORT_SIZE - 1)
 +
++/* Who sent the last request: a BLE address, or USB. */
++struct peer {
++    bool valid;
++    bool usb;
 +#if IS_ENABLED(CONFIG_ZMK_BLE)
-+#define CONN_REF(c) ((c) ? bt_conn_ref(c) : NULL)
-+#define CONN_UNREF(c) do { if (c) bt_conn_unref(c); } while (0)
-+#else
-+#define CONN_REF(c) ((c), (struct bt_conn *)NULL)
-+#define CONN_UNREF(c) ((void)(c))
++    bt_addr_le_t addr;
 +#endif
++};
 +
 +struct rx_item {
-+    struct bt_conn *conn; /* referenced; NULL = USB */
++    struct peer from;
 +    uint8_t len;
 +    uint8_t data[PAYLOAD];
 +};
@@ -2236,91 +2324,94 @@ index 0000000000000000000000000000000000000000..37fa8f8a326ce5b898b15223e457d31f
 +static struct k_work_q hid_rpc_q;
 +
 +static K_MUTEX_DEFINE(peer_lock);
-+static struct bt_conn *peer_conn; /* referenced; NULL with peer_usb = USB */
-+static bool peer_usb;
-+static bool handling_rx;
++static struct peer peer;
 +
 +static void tx_work_cb(struct k_work *work);
 +static K_WORK_DEFINE(tx_work, tx_work_cb);
 +
 +#if IS_ENABLED(CONFIG_ZMK_BLE)
-+/* While Studio talks over BLE HID, ask the host to drop peripheral latency: with the keyboard's
-+ * usual latency (CONFIG_BT_PERIPHERAL_PREF_LATENCY, often 30) every request waits for the
-+ * keyboard's next listening slot, ~0.5 s, and loading a keymap takes hundreds of requests.
-+ * Restored after a quiet period, so battery use is unchanged otherwise. (The GATT transport does
-+ * the same when its notifications are enabled.) */
-+#define FAST_IDLE K_SECONDS(20)
-+static struct bt_conn *fast_conn;
-+static void slow_work_cb(struct k_work *work);
-+static K_WORK_DELAYABLE_DEFINE(slow_work, slow_work_cb);
++/* Referenced live connection for an address, or NULL. Caller unrefs. */
++static struct bt_conn *live_conn(const bt_addr_le_t *addr) {
++    struct bt_conn *conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, addr);
++    struct bt_conn_info info;
++    if (conn && (bt_conn_get_info(conn, &info) || info.state != BT_CONN_STATE_CONNECTED)) {
++        bt_conn_unref(conn);
++        conn = NULL;
++    }
++    return conn;
++}
 +
-+/* Within Apple's accessory rules (interval min >= 15 ms, max >= min + 15 ms, timeout 2-6 s): macOS
-+ * rejects requests outside them, and ZMK's own preference (min 7.5 ms) is outside, so asking with it
-+ * silently changed nothing on a Mac. Windows and others accept these too. */
++/* While Studio talks over BLE HID, drop peripheral latency (every request would otherwise wait for
++ * the keyboard's next listening slot) and ask for long radio packets; restored after a quiet
++ * period, so battery use is unchanged otherwise. Within Apple's accessory rules (interval min >=
++ * 15 ms, max >= min + 15 ms, (1 + latency) x max <= 2 s, timeout 2-6 s): macOS rejects requests
++ * outside them, ZMK's own preference (min 7.5 ms) included. */
++#define FAST_IDLE K_SECONDS(20)
 +#define STUDIO_INT_MIN 12 /* 15 ms */
 +#define STUDIO_INT_MAX 24 /* 30 ms */
 +#define STUDIO_TIMEOUT 400 /* 4 s */
-+/* Back to battery saving afterwards, also within Apple's rules (ZMK's own 7.5 ms minimum is not, so
-+ * a Mac refused the restore and stayed on latency 0): 30 ms x (1 + 30) = 0.93 s <= 2 s. */
 +#define IDLE_LATENCY MIN(CONFIG_BT_PERIPHERAL_PREF_LATENCY, 30)
 +
++static K_MUTEX_DEFINE(fast_lock);
++static bool fast_valid;
++static bt_addr_le_t fast_addr;
++
 +static void set_latency(struct bt_conn *conn, uint16_t latency) {
-+    int err = latency == 0
-+                  ? bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(STUDIO_INT_MIN, STUDIO_INT_MAX, 0, STUDIO_TIMEOUT))
-+                  : bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(STUDIO_INT_MIN, STUDIO_INT_MAX, latency, STUDIO_TIMEOUT));
++    int err = bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(STUDIO_INT_MIN, STUDIO_INT_MAX, latency, STUDIO_TIMEOUT));
 +    if (err < 0 && err != -EALREADY) {
 +        LOG_WRN("Studio HID: connection parameter update failed (%d)", err);
 +    }
 +}
 +
-+static K_MUTEX_DEFINE(fast_lock);
++static void slow_work_cb(struct k_work *work);
++static K_WORK_DELAYABLE_DEFINE(slow_work, slow_work_cb);
 +
 +static void slow_work_cb(struct k_work *work) {
 +    ARG_UNUSED(work);
 +    k_mutex_lock(&fast_lock, K_FOREVER);
-+    if (fast_conn) {
-+        set_latency(fast_conn, IDLE_LATENCY);
-+        bt_conn_unref(fast_conn);
-+        fast_conn = NULL;
++    if (fast_valid) {
++        struct bt_conn *conn = live_conn(&fast_addr);
++        if (conn) {
++            set_latency(conn, IDLE_LATENCY);
++            bt_conn_unref(conn);
++        }
++        fast_valid = false;
 +    }
 +    k_mutex_unlock(&fast_lock);
 +}
 +
-+static void keep_fast(struct bt_conn *conn) {
++static void keep_fast(const bt_addr_le_t *addr) {
 +    k_mutex_lock(&fast_lock, K_FOREVER);
-+    if (conn != fast_conn) {
-+        if (fast_conn) {
-+            bt_conn_unref(fast_conn);
-+        }
-+        fast_conn = bt_conn_ref(conn);
-+        set_latency(conn, 0);
-+        /* Longer radio packets (Data Length Extension): a 62-byte report then goes out in one packet
-+         * instead of three 27-byte pieces. Hosts that can't simply keep 27. */
-+        int dle = bt_conn_le_data_len_update(conn, BT_LE_DATA_LEN_PARAM_MAX);
-+        if (dle < 0 && dle != -EALREADY) {
-+            LOG_DBG("Studio HID: data length update not started (%d)", dle);
++    if (!fast_valid || !bt_addr_le_eq(addr, &fast_addr)) {
++        struct bt_conn *conn = live_conn(addr);
++        if (conn) {
++            set_latency(conn, 0);
++            /* Long radio packets: a Studio report then leaves in one packet instead of three. */
++            int dle = bt_conn_le_data_len_update(conn, BT_LE_DATA_LEN_PARAM_MAX);
++            if (dle < 0 && dle != -EALREADY) {
++                LOG_DBG("Studio HID: data length update not started (%d)", dle);
++            }
++            bt_conn_unref(conn);
++            fast_addr = *addr;
++            fast_valid = true;
 +        }
 +    }
 +    k_mutex_unlock(&fast_lock);
 +    k_work_reschedule_for_queue(&hid_rpc_q, &slow_work, FAST_IDLE);
 +}
 +
-+/* Never keep a reference to a closed connection: ZMK finds a profile's connection by address, and a
-+ * still-referenced dead connection object can be returned instead of the live one after the host
-+ * reconnects - keystrokes would then go nowhere until a restart. */
 +static void studio_hid_disconnected(struct bt_conn *conn, uint8_t reason) {
 +    ARG_UNUSED(reason);
++    zmk_hog_studio_link_reset();
++    const bt_addr_le_t *dst = bt_conn_get_dst(conn);
 +    k_mutex_lock(&fast_lock, K_FOREVER);
-+    if (fast_conn == conn) {
-+        bt_conn_unref(fast_conn);
-+        fast_conn = NULL;
++    if (fast_valid && bt_addr_le_eq(dst, &fast_addr)) {
++        fast_valid = false;
 +    }
 +    k_mutex_unlock(&fast_lock);
 +    k_mutex_lock(&peer_lock, K_FOREVER);
-+    if (peer_conn == conn) {
-+        bt_conn_unref(peer_conn);
-+        peer_conn = NULL;
-+        peer_usb = false;
++    if (peer.valid && !peer.usb && bt_addr_le_eq(dst, &peer.addr)) {
++        peer.valid = false;
 +    }
 +    k_mutex_unlock(&peer_lock);
 +}
@@ -2330,15 +2421,8 @@ index 0000000000000000000000000000000000000000..37fa8f8a326ce5b898b15223e457d31f
 +};
 +#endif
 +
-+static int hid_start_rx(void) {
-+    handling_rx = true;
-+    return 0;
-+}
-+
-+static int hid_stop_rx(void) {
-+    handling_rx = false;
-+    return 0;
-+}
++static int hid_start_rx(void) { return 0; }
++static int hid_stop_rx(void) { return 0; }
 +
 +/* Set when a message is complete: only then may a partly filled report go out. */
 +static atomic_t tx_msg_done;
@@ -2349,7 +2433,7 @@ index 0000000000000000000000000000000000000000..37fa8f8a326ce5b898b15223e457d31f
 +    if (msg_done) {
 +        atomic_set(&tx_msg_done, 1);
 +    }
-+    if (msg_done || ring_buf_size_get(tx_buf) >= PAYLOAD) {
++    if (msg_done || ring_buf_size_get(tx_buf) >= PAYLOAD || ring_buf_space_get(tx_buf) == 0) {
 +        k_work_submit_to_queue(&hid_rpc_q, &tx_work);
 +    }
 +}
@@ -2357,84 +2441,82 @@ index 0000000000000000000000000000000000000000..37fa8f8a326ce5b898b15223e457d31f
 +/* Never matches an endpoint, so endpoint changes never pick it; it is chosen by its own traffic. */
 +ZMK_RPC_TRANSPORT(studio_hid_transport, ZMK_TRANSPORT_NONE, hid_start_rx, hid_stop_rx, NULL, hid_tx_notify);
 +
++/* Bluetooth RX thread / USB callback: only copy and queue. */
 +void zmk_studio_hid_rx(struct bt_conn *conn, const uint8_t *body, size_t len) {
 +    if (len < 1) {
 +        return;
 +    }
 +    struct rx_item item = {.len = MIN(body[0], MIN(len - 1, PAYLOAD))};
 +    memcpy(item.data, body + 1, item.len);
-+    item.conn = CONN_REF(conn);
++    item.from.valid = true;
++    item.from.usb = conn == NULL;
++#if IS_ENABLED(CONFIG_ZMK_BLE)
++    if (conn) {
++        item.from.addr = *bt_conn_get_dst(conn);
++    }
++#endif
 +    if (k_msgq_put(&hid_rx_q, &item, K_NO_WAIT) < 0) {
 +        LOG_WRN("Studio HID RX queue full, dropping a report");
-+        CONN_UNREF(item.conn);
-+        return;
 +    }
 +}
 +
-+static void set_peer(struct bt_conn *conn) {
-+    k_mutex_lock(&peer_lock, K_FOREVER);
-+    CONN_UNREF(peer_conn);
-+    peer_conn = conn; /* takes over the reference */
-+    peer_usb = conn == NULL;
-+    k_mutex_unlock(&peer_lock);
-+}
-+
-+/* Own thread, not a work item: taking over the transport may wait for a reply still being sent on
-+ * another transport, whose draining runs on the system work queue or our TX queue. */
 +static void rx_main(void) {
 +    struct rx_item item;
 +    while (k_msgq_get(&hid_rx_q, &item, K_FOREVER) == 0) {
 +#if IS_ENABLED(CONFIG_ZMK_BLE)
-+        if (item.conn) {
-+            keep_fast(item.conn);
++        if (!item.from.usb) {
++            keep_fast(&item.from.addr);
 +        }
 +#endif
-+        set_peer(item.conn);
++        k_mutex_lock(&peer_lock, K_FOREVER);
++        peer = item.from;
++        k_mutex_unlock(&peer_lock);
 +        zmk_rpc_note_rx(&studio_hid_transport);
-+        struct ring_buf *rx = zmk_rpc_get_rx_buf();
-+        uint32_t copied = 0;
-+        while (copied < item.len) {
-+            uint32_t n = ring_buf_put(rx, item.data + copied, item.len - copied);
-+            if (n == 0) {
-+                zmk_rpc_rx_notify();
-+                k_sleep(K_MSEC(1));
-+                continue;
++        size_t copied = 0;
++        for (int tries = 0; copied < item.len && tries < 2000; tries++) {
++            copied += zmk_rpc_rx_put(item.data + copied, item.len - copied);
++            zmk_rpc_rx_notify();
++            if (copied < item.len) {
++                k_sleep(K_MSEC(1)); /* RPC thread is still reading the previous request */
 +            }
-+            copied += n;
 +        }
-+        zmk_rpc_rx_notify();
++        if (copied < item.len) {
++            LOG_WRN("Studio RX buffer stayed full, request bytes dropped");
++        }
 +    }
 +}
 +
-+K_THREAD_DEFINE(studio_hid_rx, 1024, rx_main, NULL, NULL, NULL, 6, 0, 0);
++K_THREAD_DEFINE(studio_hid_rx, 1536, rx_main, NULL, NULL, NULL, 6, 0, 0);
 +
 +static int send_one(const uint8_t *report_body) {
-+    struct bt_conn *conn = NULL;
-+    bool usb;
++    struct peer p;
 +    k_mutex_lock(&peer_lock, K_FOREVER);
-+    usb = peer_usb;
-+    conn = CONN_REF(peer_conn);
++    p = peer;
 +    k_mutex_unlock(&peer_lock);
-+
-+    int err;
-+    if (usb) {
++    if (!p.valid) {
++        return -ENOTCONN;
++    }
++    if (p.usb) {
 +#if IS_ENABLED(CONFIG_ZMK_USB)
 +        uint8_t report[ZMK_HID_STUDIO_REPORT_SIZE + 1];
 +        report[0] = ZMK_HID_REPORT_ID_STUDIO;
 +        memcpy(report + 1, report_body, ZMK_HID_STUDIO_REPORT_SIZE);
-+        err = zmk_usb_hid_send_studio_report(report, sizeof(report));
++        return zmk_usb_hid_send_studio_report(report, sizeof(report));
 +#else
-+        err = -ENOTSUP;
-+#endif
-+    } else {
-+#if IS_ENABLED(CONFIG_ZMK_BLE)
-+        err = zmk_hog_send_studio_report(conn, report_body, ZMK_HID_STUDIO_REPORT_SIZE);
-+#else
-+        err = -ENOTSUP;
++        return -ENOTSUP;
 +#endif
 +    }
-+    CONN_UNREF(conn);
++#if IS_ENABLED(CONFIG_ZMK_BLE)
++    struct bt_conn *conn = live_conn(&p.addr);
++    if (!conn) {
++        return -ENOTCONN;
++    }
++    int err = zmk_hog_send_studio_report(conn, report_body, ZMK_HID_STUDIO_REPORT_SIZE);
++    bt_conn_unref(conn);
 +    return err;
++#else
++    return -ENOTSUP;
++#endif
 +}
 +
 +/* Drains the Studio TX ring into full reports (a partial one only at the end of a message). Only
@@ -2447,14 +2529,14 @@ index 0000000000000000000000000000000000000000..37fa8f8a326ce5b898b15223e457d31f
 +    uint8_t body[ZMK_HID_STUDIO_REPORT_SIZE];
 +    for (;;) {
 +        uint32_t avail = ring_buf_size_get(tx);
-+        if (avail == 0 || (avail < PAYLOAD && !done)) {
++        if (avail == 0 || (avail < PAYLOAD && !done && ring_buf_space_get(tx) > 0)) {
 +            return;
 +        }
 +        memset(body, 0, sizeof(body));
 +        uint32_t n = ring_buf_peek(tx, body + 1, PAYLOAD);
 +        body[0] = n;
 +        int err = -EAGAIN;
-+        for (int tries = 0; tries < 100; tries++) {
++        for (int tries = 0; tries < 400; tries++) { /* up to ~2 s on a slow link */
 +            err = send_one(body);
 +            if (err != -ENOMEM && err != -EAGAIN && err != -EBUSY) {
 +                break;
@@ -2478,7 +2560,7 @@ index 0000000000000000000000000000000000000000..37fa8f8a326ce5b898b15223e457d31f
 +
 +SYS_INIT(hid_rpc_transport_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 diff --git a/app/src/studio/rpc.c b/app/src/studio/rpc.c
-index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd29e38f952 100644
+index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..9c33bf15eea4cb1d57818257317aa1fd125c623a 100644
 --- a/app/src/studio/rpc.c
 +++ b/app/src/studio/rpc.c
 @@ -13,6 +13,7 @@
@@ -2489,17 +2571,37 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
  
  LOG_MODULE_REGISTER(zmk_studio, CONFIG_ZMK_STUDIO_LOG_LEVEL);
  
-@@ -82,6 +83,9 @@ struct ring_buf *zmk_rpc_get_rx_buf(void) { return &rpc_rx_buf; }
+@@ -82,6 +83,29 @@ struct ring_buf *zmk_rpc_get_rx_buf(void) { return &rpc_rx_buf; }
  
  void zmk_rpc_rx_notify(void) { k_sem_give(&rpc_rx_sem); }
  
++/* The RX ring has one reader (the RPC thread) and several writers (HID, GATT, serial). */
++static struct k_spinlock rx_put_lock;
++
++size_t zmk_rpc_rx_put(const uint8_t *data, size_t len) {
++    k_spinlock_key_t key = k_spin_lock(&rx_put_lock);
++    size_t n = ring_buf_put(&rpc_rx_buf, data, len);
++    k_spin_unlock(&rx_put_lock, key);
++    return n;
++}
++
++bool zmk_rpc_rx_put_all(const uint8_t *data, size_t len) {
++    k_spinlock_key_t key = k_spin_lock(&rx_put_lock);
++    bool ok = ring_buf_space_get(&rpc_rx_buf) >= len;
++    if (ok) {
++        ring_buf_put(&rpc_rx_buf, data, len);
++    }
++    k_spin_unlock(&rx_put_lock, key);
++    return ok;
++}
++
 +static void apply_pending_refresh(void);
 +static void send_queued_notifications(void);
 +
  static bool rpc_read_cb(pb_istream_t *stream, uint8_t *buf, size_t count) {
      uint32_t write_offset = 0;
  
-@@ -96,6 +100,8 @@ static bool rpc_read_cb(pb_istream_t *stream, uint8_t *buf, size_t count) {
+@@ -96,6 +120,8 @@ static bool rpc_read_cb(pb_istream_t *stream, uint8_t *buf, size_t count) {
                  }
              }
          } else {
@@ -2508,10 +2610,24 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
              k_sem_take(&rpc_rx_sem, K_FOREVER);
          }
  
-@@ -131,6 +137,13 @@ static bool rpc_tx_buffer_write(pb_ostream_t *stream, const uint8_t *buf, size_t
+@@ -124,6 +150,7 @@ static bool rpc_tx_buffer_write(pb_ostream_t *stream, const uint8_t *buf, size_t
+     size_t written = 0;
+ 
+     bool escape_byte_already_written = false;
++    int full_waits = 0;
+     do {
+         uint32_t write_idx = 0;
+ 
+@@ -131,6 +158,19 @@ static bool rpc_tx_buffer_write(pb_ostream_t *stream, const uint8_t *buf, size_t
          uint32_t claim_len = ring_buf_put_claim(&rpc_tx_buf, &write_buf, count - written);
  
          if (claim_len == 0) {
++            /* Ryong: bounded - a transport that stopped draining (link gone mid-answer) must not
++             * keep the RPC thread spinning forever. */
++            if (++full_waits > 3000) {
++                LOG_ERR("RPC TX buffer stayed full, abandoning the message");
++                return false;
++            }
 +            /* The TX ring buffer is full. Kick the transport to drain it and
 +             * free space before we sleep, otherwise we would just spin here
 +             * waiting for a flush that nothing else is going to trigger. The
@@ -2522,7 +2638,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
              continue;
          }
  
-@@ -176,7 +189,70 @@ static pb_ostream_t pb_ostream_for_tx_buf(void *user_data) {
+@@ -176,7 +216,70 @@ static pb_ostream_t pb_ostream_for_tx_buf(void *user_data) {
      return stream;
  }
  
@@ -2593,7 +2709,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
      k_mutex_lock(&rpc_transport_mutex, K_FOREVER);
  
      if (!selected_transport) {
-@@ -188,7 +264,19 @@ static int send_response(const zmk_studio_Response *resp) {
+@@ -188,7 +291,19 @@ static int send_response(const zmk_studio_Response *resp) {
      pb_ostream_t stream = pb_ostream_for_tx_buf(user_data);
  
      uint8_t framing_byte = FRAMING_SOF;
@@ -2614,7 +2730,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
  
      selected_transport->tx_notify(&rpc_tx_buf, 1, false, user_data);
  
-@@ -198,18 +286,54 @@ static int send_response(const zmk_studio_Response *resp) {
+@@ -198,18 +313,54 @@ static int send_response(const zmk_studio_Response *resp) {
      if (!status) {
  #if !IS_ENABLED(CONFIG_NANOPB_NO_ERRMSG)
          LOG_ERR("Failed to encode the message %s", stream.errmsg);
@@ -2671,7 +2787,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
  }
  
  static void rpc_main(void) {
-@@ -224,6 +348,8 @@ static void rpc_main(void) {
+@@ -224,6 +375,8 @@ static void rpc_main(void) {
          rpc_framing_state = FRAMING_STATE_IDLE;
  
          if (status) {
@@ -2680,7 +2796,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
              zmk_studio_Response resp = handle_request(&req);
  
              int err = send_response(&resp);
-@@ -233,6 +359,7 @@ static void rpc_main(void) {
+@@ -233,6 +386,7 @@ static void rpc_main(void) {
              if (err < 0) {
                  LOG_ERR("Failed to send the RPC response %d", err);
              }
@@ -2688,7 +2804,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
          } else {
              LOG_DBG("Decode failed");
          }
-@@ -242,6 +369,18 @@ static void rpc_main(void) {
+@@ -242,6 +396,18 @@ static void rpc_main(void) {
  K_THREAD_DEFINE(studio_rpc_thread, CONFIG_ZMK_STUDIO_RPC_THREAD_STACK_SIZE, rpc_main, NULL, NULL,
                  NULL, K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
  
@@ -2707,8 +2823,16 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
  static void refresh_selected_transport(void) {
      enum zmk_transport transport = zmk_endpoint_get_selected().transport;
  
-@@ -252,9 +391,6 @@ static void refresh_selected_transport(void) {
+@@ -250,11 +416,14 @@ static void refresh_selected_transport(void) {
+     if (selected_transport && selected_transport->transport == transport) {
+         goto exit_refresh;
      }
++    /* Ryong: a transport that isn't tied to an endpoint (HID: answers on the link the request came
++     * from) stays selected across endpoint and profile changes - switching it away locked Studio
++     * whenever the page switched a Bluetooth slot. */
++    if (selected_transport && selected_transport->transport == ZMK_TRANSPORT_NONE) {
++        goto exit_refresh;
++    }
  
      if (selected_transport) {
 -        if (selected_transport->rx_stop) {
@@ -2717,7 +2841,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
          selected_transport = NULL;
  #if IS_ENABLED(CONFIG_ZMK_STUDIO_LOCK_ON_DISCONNECT)
          zmk_studio_core_lock();
-@@ -264,9 +400,6 @@ static void refresh_selected_transport(void) {
+@@ -264,9 +433,6 @@ static void refresh_selected_transport(void) {
      STRUCT_SECTION_FOREACH(zmk_rpc_transport, t) {
          if (t->transport == transport) {
              selected_transport = t;
@@ -2727,7 +2851,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
              break;
          }
      }
-@@ -306,6 +439,12 @@ static int zmk_rpc_init(void) {
+@@ -306,6 +472,12 @@ static int zmk_rpc_init(void) {
          prev_sub->handlers_end_index = i - 1;
      }
  
@@ -2740,7 +2864,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
      refresh_selected_transport();
  
      return 0;
-@@ -316,7 +455,8 @@ SYS_INIT(zmk_rpc_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+@@ -316,7 +488,8 @@ SYS_INIT(zmk_rpc_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
  static int studio_rpc_listener_cb(const zmk_event_t *eh) {
      struct zmk_endpoint_changed *ep_changed = as_zmk_endpoint_changed(eh);
      if (ep_changed) {
@@ -2750,7 +2874,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
          return ZMK_EV_EVENT_BUBBLE;
      }
  
-@@ -325,7 +465,7 @@ static int studio_rpc_listener_cb(const zmk_event_t *eh) {
+@@ -325,7 +498,7 @@ static int studio_rpc_listener_cb(const zmk_event_t *eh) {
          zmk_studio_Response resp = zmk_studio_Response_init_zero;
          resp.which_type = zmk_studio_Response_notification_tag;
          resp.type.notification = rpc_notify->notification;
@@ -2760,7 +2884,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd2
      }
  
 diff --git a/app/src/studio/uart_rpc_transport.c b/app/src/studio/uart_rpc_transport.c
-index 6dcac6d1d09ca0238f625d9a7f030eb9a960c460..73a3142cf9ebea9bd2a190d5f718d42105a5e33d 100644
+index 6dcac6d1d09ca0238f625d9a7f030eb9a960c460..586014a0845f15b8bf250c531daa3243389aa1f6 100644
 --- a/app/src/studio/uart_rpc_transport.c
 +++ b/app/src/studio/uart_rpc_transport.c
 @@ -18,6 +18,8 @@ LOG_MODULE_DECLARE(zmk_studio, CONFIG_ZMK_STUDIO_LOG_LEVEL);
@@ -2772,24 +2896,69 @@ index 6dcac6d1d09ca0238f625d9a7f030eb9a960c460..73a3142cf9ebea9bd2a190d5f718d421
  static const struct device *const uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
  
  static void tx_notify(struct ring_buf *tx_ring_buf, size_t written, bool msg_done,
-@@ -59,6 +61,7 @@ static void uart_rx_main(void) {
+@@ -44,23 +46,16 @@ static void tx_notify(struct ring_buf *tx_ring_buf, size_t written, bool msg_don
+ 
+ static void uart_rx_main(void) {
+     for (;;) {
+-        uint8_t *buf;
+-        struct ring_buf *ring_buf = zmk_rpc_get_rx_buf();
+-        uint32_t claim_len = ring_buf_put_claim(ring_buf, &buf, 1);
+-
+-        if (claim_len < 1) {
+-            LOG_WRN("NO CLAIM ABLE TO BE HAD");
++        uint8_t c;
++        if (uart_poll_in(uart_dev, &c) < 0) {
              k_sleep(K_MSEC(1));
-         } else {
-             ring_buf_put_finish(ring_buf, 1);
-+            zmk_rpc_note_rx(&uart);
-             zmk_rpc_rx_notify();
+             continue;
          }
+-
+-        if (uart_poll_in(uart_dev, buf) < 0) {
+-            ring_buf_put_finish(ring_buf, 0);
++        while (zmk_rpc_rx_put(&c, 1) < 1) {
+             k_sleep(K_MSEC(1));
+-        } else {
+-            ring_buf_put_finish(ring_buf, 1);
+-            zmk_rpc_rx_notify();
+         }
++        zmk_rpc_note_rx(&uart);
++        zmk_rpc_rx_notify();
      }
-@@ -119,6 +122,7 @@ static void serial_cb(const struct device *dev, void *user_data) {
+ }
+ 
+@@ -102,23 +97,18 @@ static void serial_cb(const struct device *dev, void *user_data) {
+ 
+     if (uart_irq_rx_ready(uart_dev)) {
+         /* read until FIFO empty */
+-        uint32_t last_read = 0, len = 0;
+-        struct ring_buf *buf = zmk_rpc_get_rx_buf();
++        /* Ryong: through zmk_rpc_rx_put - other transports write the same RX buffer. */
++        uint8_t tmp[32];
++        int last_read;
+         do {
+-            uint8_t *buffer;
+-            len = ring_buf_put_claim(buf, &buffer, buf->size);
+-            if (len > 0) {
+-                last_read = uart_fifo_read(uart_dev, buffer, len);
+-
+-                ring_buf_put_finish(buf, last_read);
+-            } else {
+-                LOG_ERR("Dropping incoming RPC byte, insufficient room in the RX buffer. Bump "
++            last_read = uart_fifo_read(uart_dev, tmp, sizeof(tmp));
++            if (last_read > 0 && zmk_rpc_rx_put(tmp, last_read) < (size_t)last_read) {
++                LOG_ERR("Dropping incoming RPC bytes, insufficient room in the RX buffer. Bump "
+                         "CONFIG_ZMK_STUDIO_RPC_RX_BUF_SIZE.");
+-                uint8_t dummy;
+-                last_read = uart_fifo_read(uart_dev, &dummy, 1);
              }
-         } while (last_read && last_read == len);
+-        } while (last_read && last_read == len);
++        } while (last_read == sizeof(tmp));
  
 +        zmk_rpc_note_rx(&uart);
          zmk_rpc_rx_notify();
      }
  
 diff --git a/app/src/usb_hid.c b/app/src/usb_hid.c
-index 9adc7db809252d2f1dfa8f4d8ec8d1d4d97fc834..bb3af9d54885229904cfba59ccaa3f4e34342fc8 100644
+index 9adc7db809252d2f1dfa8f4d8ec8d1d4d97fc834..db1a3f0c119f9e253459fe7cca97d81c70c6ec22 100644
 --- a/app/src/usb_hid.c
 +++ b/app/src/usb_hid.c
 @@ -24,6 +24,10 @@
@@ -2819,13 +2988,25 @@ index 9adc7db809252d2f1dfa8f4d8ec8d1d4d97fc834..bb3af9d54885229904cfba59ccaa3f4e
          default:
              LOG_ERR("Invalid report ID %d requested", setup->wValue & HID_GET_REPORT_ID_MASK);
              return -EINVAL;
-@@ -205,6 +218,12 @@ static int zmk_usb_hid_send_report(const uint8_t *report, size_t len) {
+@@ -205,6 +218,24 @@ static int zmk_usb_hid_send_report(const uint8_t *report, size_t len) {
      }
  }
  
 +#if IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
++/* Studio shares the interrupt IN endpoint with key reports: it only sends when the endpoint is
++ * free (keys keep priority), and never wakes a suspended host. */
 +int zmk_usb_hid_send_studio_report(const uint8_t *report, size_t len) {
-+    return zmk_usb_hid_send_report(report, len);
++    if (zmk_usb_get_status() == USB_DC_SUSPEND) {
++        return -EAGAIN;
++    }
++    if (k_sem_take(&hid_sem, K_NO_WAIT) != 0) {
++        return -EAGAIN;
++    }
++    int err = hid_int_ep_write(hid_dev, report, len, NULL);
++    if (err) {
++        k_sem_give(&hid_sem);
++    }
++    return err;
 +}
 +#endif
 +
