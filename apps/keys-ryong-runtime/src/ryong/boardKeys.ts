@@ -110,8 +110,9 @@ export function useLiveBehaviors(enabled: boolean, names: Record<string, RegExp>
     (async () => {
       const list = (await call_rpc(conn, { behaviors: { listAllBehaviors: true } }))?.behaviors?.listAllBehaviors?.behaviors || [];
       const ids: Record<number, string> = {};
-      for (const id of list) {
-        const d = (await call_rpc(conn, { behaviors: { getBehaviorDetails: { behaviorId: id } } }))?.behaviors?.getBehaviorDetails;
+      const details = await Promise.all(list.map((id) => call_rpc(conn, { behaviors: { getBehaviorDetails: { behaviorId: id } } })));
+      for (const r of details) {
+        const d = r?.behaviors?.getBehaviorDetails;
         if (!d) continue;
         for (const [n, re] of Object.entries(names)) if (re.test(d.displayName)) ids[d.id] = n;
       }

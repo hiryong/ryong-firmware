@@ -1,5 +1,5 @@
 import {create_rpc_connection,RpcConnection} from "@zmkfirmware/zmk-studio-ts-client/index";
-import {call_rpc} from "@zmkfirmware/zmk-studio-ts-client/index";
+import { call_rpc } from "../../../rpc/pipeline";
 import {connectHostDevice} from "../hostDevice";
 import {createBackup} from "../../backup";
 import {exportProfile} from "../profileFile";

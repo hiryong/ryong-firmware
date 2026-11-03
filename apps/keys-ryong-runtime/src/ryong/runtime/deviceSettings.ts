@@ -1,6 +1,7 @@
 // Keyboard-side settings (lights, deep sleep) over the secured ryong__settings subsystem.
 // Replaces the old "firmware features" that needed a rebuild. Never auto-retries a change.
-import { call_rpc, RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
+import { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
+import { call_rpc } from "../../rpc/pipeline";
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core";
 import { callRuntimePayload, discoverRuntime } from "./customRpc";
 import * as S from "./proto/settings";

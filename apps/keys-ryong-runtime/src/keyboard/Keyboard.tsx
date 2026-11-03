@@ -69,19 +69,13 @@ function useBehaviors(): BehaviorMap {
       let behavior_list = await call_rpc(connection.conn, get_behaviors);
       if (!ignore) {
         let behavior_map: BehaviorMap = {};
-        for (let behaviorId of behavior_list.behaviors?.listAllBehaviors
-          ?.behaviors || []) {
-          if (ignore) {
-            break;
-          }
-          let details_req = {
-            behaviors: { getBehaviorDetails: { behaviorId } },
-            requestId: 0,
-          };
-          let behavior_details = await call_rpc(connection.conn, details_req);
+        // All at once: the connection keeps several requests in flight (rpc/pipeline.ts).
+        const conn = connection.conn;
+        const all = await Promise.all((behavior_list.behaviors?.listAllBehaviors?.behaviors || []).map((behaviorId) =>
+          call_rpc(conn, { behaviors: { getBehaviorDetails: { behaviorId } } })));
+        for (const behavior_details of all) {
           let dets: GetBehaviorDetailsResponse | undefined =
             behavior_details?.behaviors?.getBehaviorDetails;
-
           if (dets) {
             behavior_map[dets.id] = dets;
           }

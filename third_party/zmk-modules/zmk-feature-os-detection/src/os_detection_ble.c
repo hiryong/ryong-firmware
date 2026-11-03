@@ -128,6 +128,8 @@ static struct ble_fp_stats last_fp[ZMK_BLE_PROFILE_COUNT];
 static enum zmk_os last_classified[ZMK_BLE_PROFILE_COUNT];
 static bool last_kept[ZMK_BLE_PROFILE_COUNT];
 static bool last_valid[ZMK_BLE_PROFILE_COUNT];
+/* Ryong: set when a host pairs on a slot; its next fingerprint decides that slot's OS. */
+static bool fresh_pairing[ZMK_BLE_PROFILE_COUNT];
 
 bool zmk_os_detection_ble_last_fingerprint(uint8_t profile_index, struct ble_fp_stats *out,
                                            enum zmk_os *classified, bool *kept_cached) {
@@ -159,15 +161,25 @@ static void classify_and_report(int profile_index) {
             profile_index, stats->report_map_reads, stats->hids_info_reads, stats->report_ref_reads,
             stats->pnp_id_reads, stats->appearance_reads, stats->ancs_or_ams_present,
             stats->att_mtu, stats->initial_conn_interval, detected);
-    /* Ryong: a reconnect to a host that already knows the keyboard often reads nothing, which used to
-     * overwrite a good result with "unknown" (= Windows layout). Only that empty case keeps the slot's
-     * stored result; any real reads decide. (Requiring a HID map read was wrong: a Mac never reads it
-     * again, even after "forget device", so a wrong Windows guess stuck - bench 2026-11-03.) */
+    /* Ryong: the computer behind a slot only changes with a new pairing, and the first pairing is when
+     * a host does its full discovery. So a slot's result is decided by its pairing and kept on every
+     * reconnect: later read patterns are partial and misleading (bench 2026-11-03: a Mac reconnecting
+     * read HID map + info + PnP without Appearance - the Android pattern - and flipped the slot to the
+     * Windows layout). A slot with nothing stored yet (keyboards paired before this rule) still learns
+     * from its next real reads. */
     ARG_UNUSED(decisive);
     if (detected == ZMK_OS_UNKNOWN) {
         last_kept[profile_index] = true;
         return;
     }
+#if IS_ENABLED(CONFIG_ZMK_CUSTOM_SETTINGS)
+    enum zmk_os stored = zmk_os_detection_settings_get_detected_cache(profile_index);
+    if (!fresh_pairing[profile_index] && stored != ZMK_OS_UNKNOWN) {
+        last_kept[profile_index] = true;
+        return;
+    }
+#endif
+    fresh_pairing[profile_index] = false;
     zmk_os_detection_report_ble_detected(profile_index, detected);
 }
 
@@ -303,6 +315,28 @@ static struct bt_conn_cb os_detection_conn_cb = {
     .le_param_updated = os_detection_conn_param_updated,
 };
 
+/* Ryong: a brand-new pairing. Its address may not be stored on the slot yet; a new pairing always
+ * happens on the active (open) slot. */
+static void os_detection_pairing_complete(struct bt_conn *conn, bool bonded) {
+    ARG_UNUSED(bonded);
+    int profile_index = profile_index_for_conn(conn);
+    if (profile_index < 0) {
+        profile_index = zmk_ble_active_profile_index();
+    }
+    if (profile_index < 0 || profile_index >= ZMK_BLE_PROFILE_COUNT) {
+        return;
+    }
+    fresh_pairing[profile_index] = true;
+    /* A settle that already ran on this connection was before pairing: classify again. */
+    if (profile_settle[profile_index].settled) {
+        classify_and_report(profile_index);
+    }
+}
+
+static struct bt_conn_auth_info_cb os_detection_auth_info_cb = {
+    .pairing_complete = os_detection_pairing_complete,
+};
+
 static int os_detection_ble_init(void) {
     for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
         profile_settle[i].profile_index = (uint8_t)i;
@@ -311,6 +345,7 @@ static int os_detection_ble_init(void) {
     bt_gatt_authorization_cb_register(&os_detection_gatt_authorization_cb);
     bt_gatt_cb_register(&os_detection_gatt_cb);
     bt_conn_cb_register(&os_detection_conn_cb);
+    bt_conn_auth_info_cb_register(&os_detection_auth_info_cb);
     return 0;
 }
 

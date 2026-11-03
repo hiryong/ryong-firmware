@@ -1,9 +1,9 @@
 import {
-  call_rpc as inner_call_rpc,
   Request,
   RequestResponse,
   RpcConnection,
 } from "@zmkfirmware/zmk-studio-ts-client";
+import { call_rpc as inner_call_rpc } from "./pipeline";
 
 export async function call_rpc(
   conn: RpcConnection,

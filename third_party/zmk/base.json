@@ -6,8 +6,8 @@
       "file": "zmk-custom-studio.patch",
       "repo_path": "zmk",
       "applies_to": "ed56d81db79cf3a6e5dc02697277c0fad880ad34",
-      "sha256": "d40ef3394be5441c9be318fb30474e5d06d4325f75cf7ee7527b66c50e7a00d3",
-      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx); backlight.c: perceptual brightness for PWM LEDs (duty = brightness^2/100, ZMK_BACKLIGHT_PERCEPTUAL); hid_rpc_transport: no peripheral latency while Studio talks over BLE HID (restored after 20 s idle); hid_rpc_transport never keeps references to closed connections; Studio fast mode (HID and GATT) asks for Apple-accepted connection parameters (15-30 ms, latency 0)"
+      "sha256": "7259fb823ba5842ee3ce94951302256abddbbd53c5c0db234258ee8cd4d8723a",
+      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx); backlight.c: perceptual brightness for PWM LEDs (duty = brightness^2/100, ZMK_BACKLIGHT_PERCEPTUAL); hid_rpc_transport: no peripheral latency while Studio talks over BLE HID (restored after 20 s idle); hid_rpc_transport never keeps references to closed connections; Studio fast mode (HID and GATT) asks for Apple-accepted connection parameters (15-30 ms, latency 0); hog.c: Studio keeps at most 2 BLE reports in the controller (keystrokes always find a buffer) and keyboard/consumer reports wait briefly for a buffer instead of being dropped"
     },
     {
       "file": "zmk-studio-messages-custom.patch",
@@ -25,8 +25,8 @@
     "zmk-feature-os-detection": {
       "from": "cormoran/zmk-feature-os-detection@3052679",
       "from_revision": "3052679f645b8fc1997275c2eaa6b86bdd55ca01",
-      "tree_sha256": "c0db7bf90de462fd63b05e461d1774a092d09533266c81a6305c4f92aba08119",
-      "ryong_changes": "any real reads decide (only an empty fingerprint keeps the stored result); Windows needs Appearance together with a HID read; last fingerprint over Studio; optional host probe (off)"
+      "tree_sha256": "a0d40eeab9ac009105e9ea67077a7f1e9f225d9fb83e4ec0d79c5afaf82178a8",
+      "ryong_changes": "any real reads decide (only an empty fingerprint keeps the stored result); Windows needs Appearance together with a HID read; last fingerprint over Studio; optional host probe (off); a slot's OS is decided by its pairing and kept on reconnects"
     },
     "zmk-feature-runtime-combo": {
       "from": "cormoran/zmk-feature-runtime-combo@d9490e7",

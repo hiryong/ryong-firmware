@@ -1,4 +1,4 @@
-import { call_rpc } from "@zmkfirmware/zmk-studio-ts-client/index";
+import { call_rpc } from "../../rpc/pipeline";
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
 import type { BehaviorDoc, Binding, Mod, MacroStep as EditorStep } from "../behaviors/model";
 import { emptyDoc, textToKeys, BT_CMDS, OUT_CMDS, FLAVORS } from "../behaviors/model";
@@ -41,8 +41,9 @@ export async function loadRuntimeView(conn: RpcConnection): Promise<RuntimeView>
   if (!list) throw new Error("Device behavior catalog is missing.");
   const catalog: Catalog = {};
   const behaviorNames: string[] = [];
-  for (const id of list) {
-    const detail = (await call_rpc(conn, { behaviors: { getBehaviorDetails: { behaviorId: id } } })).behaviors?.getBehaviorDetails;
+  const details = await Promise.all(list.map((id) => call_rpc(conn, { behaviors: { getBehaviorDetails: { behaviorId: id } } })));
+  for (const [i, id] of list.entries()) {
+    const detail = details[i].behaviors?.getBehaviorDetails;
     if (!detail) throw new Error("Incomplete device behavior catalog.");
     behaviorNames.push(detail.displayName);
     const name = normalized(detail.displayName);

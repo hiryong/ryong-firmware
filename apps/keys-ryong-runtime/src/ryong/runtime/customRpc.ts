@@ -2,7 +2,8 @@
  * Custom RPC adapter for the isolated development app.
  * Uses the existing connection and call_rpc mutex; never opens another port.
  */
-import { Request, call_rpc } from "@zmkfirmware/zmk-studio-ts-client/index";
+import { Request } from "@zmkfirmware/zmk-studio-ts-client/index";
+import { call_rpc } from "../../rpc/pipeline";
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
 
 type Subsystem = { index: number; identifier: string };

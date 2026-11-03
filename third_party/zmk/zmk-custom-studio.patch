@@ -777,7 +777,7 @@ index c28da97f5944fff51fada51a146b8989a0245bfc..037c647e831c1c29905bfcb7b636e5f2
 +
 +#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
 diff --git a/app/src/hog.c b/app/src/hog.c
-index c7d9b861d4ae9df67e264126be033baf281c3124..7f3800546808bbb12035f192f262382e10bd9756 100644
+index c7d9b861d4ae9df67e264126be033baf281c3124..5ea1f1727e0c6164153352b266cb51db441489b6 100644
 --- a/app/src/hog.c
 +++ b/app/src/hog.c
 @@ -248,6 +248,44 @@ static ssize_t write_ctrl_point(struct bt_conn *conn, const struct bt_gatt_attr
@@ -825,7 +825,7 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..7f3800546808bbb12035f192f262382e
  /* HID Service Declaration */
  BT_GATT_SERVICE_DEFINE(
      hog_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
-@@ -298,7 +336,39 @@ BT_GATT_SERVICE_DEFINE(
+@@ -298,10 +336,81 @@ BT_GATT_SERVICE_DEFINE(
  #endif // IS_ENABLED(CONFIG_ZMK_HID_INDICATORS)
  
      BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT, BT_GATT_CHRC_WRITE_WITHOUT_RESP,
@@ -851,6 +851,15 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..7f3800546808bbb12035f192f262382e
 +#if IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
 +#define STUDIO_INPUT_ATTR (&hog_svc.attrs[hog_svc.attr_count - 6])
 +
++#define STUDIO_CREDITS 2
++K_SEM_DEFINE(studio_credits, STUDIO_CREDITS, STUDIO_CREDITS);
++
++static void studio_sent(struct bt_conn *conn, void *user_data) {
++    ARG_UNUSED(conn);
++    ARG_UNUSED(user_data);
++    k_sem_give(&studio_credits);
++}
++
 +int zmk_hog_send_studio_report(struct bt_conn *conn, const uint8_t *data, size_t len) {
 +    if (!conn) {
 +        return -ENOTCONN;
@@ -859,13 +868,64 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..7f3800546808bbb12035f192f262382e
 +        LOG_WRN("Studio HID report needs ATT MTU %d, have %d", (int)(len + 3), bt_gatt_get_mtu(conn));
 +        return -EMSGSIZE;
 +    }
-+    struct bt_gatt_notify_params params = {.attr = STUDIO_INPUT_ATTR, .data = data, .len = len};
-+    return bt_gatt_notify_cb(conn, &params);
++    /* Studio may have at most STUDIO_CREDITS reports in the controller at once, so a keymap load
++     * never takes every BLE buffer: keystrokes always find one (bench 2026-11-03: keys went dead
++     * while the keymap loaded over Bluetooth). */
++    if (k_sem_take(&studio_credits, K_MSEC(300)) != 0) {
++        /* A completion that never came (link torn down mid-send): start over with full credits. */
++        k_sem_reset(&studio_credits);
++        for (int i = 0; i < STUDIO_CREDITS; i++) {
++            k_sem_give(&studio_credits);
++        }
++        return -EAGAIN;
++    }
++    struct bt_gatt_notify_params params = {
++        .attr = STUDIO_INPUT_ATTR, .data = data, .len = len, .func = studio_sent, .user_data = NULL};
++    int err = bt_gatt_notify_cb(conn, &params);
++    if (err) {
++        k_sem_give(&studio_credits);
++    }
++    return err;
 +}
 +#endif // IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
  
  K_THREAD_STACK_DEFINE(hog_q_stack, CONFIG_ZMK_BLE_THREAD_STACK_SIZE);
  
++/* Ryong: a keystroke must not be lost because the BLE buffers are momentarily busy (another report,
++ * Studio traffic): wait briefly for one instead of dropping the report. */
++static int notify_patiently(struct bt_conn *conn, struct bt_gatt_notify_params *params) {
++    int err;
++    for (int tries = 0; tries < 50; tries++) {
++        err = bt_gatt_notify_cb(conn, params);
++        if (err != -ENOMEM && err != -EAGAIN && err != -ENOBUFS) {
++            break;
++        }
++        k_sleep(K_MSEC(2));
++    }
++    return err;
++}
++
+ struct k_work_q hog_work_q;
+ 
+ K_MSGQ_DEFINE(zmk_hog_keyboard_msgq, sizeof(struct zmk_hid_keyboard_report_body),
+@@ -322,7 +431,7 @@ void send_keyboard_report_callback(struct k_work *work) {
+             .len = sizeof(report),
+         };
+ 
+-        int err = bt_gatt_notify_cb(conn, &notify_params);
++        int err = notify_patiently(conn, &notify_params);
+         if (err == -EPERM) {
+             bt_conn_set_security(conn, BT_SECURITY_L2);
+         } else if (err) {
+@@ -374,7 +483,7 @@ void send_consumer_report_callback(struct k_work *work) {
+             .len = sizeof(report),
+         };
+ 
+-        int err = bt_gatt_notify_cb(conn, &notify_params);
++        int err = notify_patiently(conn, &notify_params);
+         if (err == -EPERM) {
+             bt_conn_set_security(conn, BT_SECURITY_L2);
+         } else if (err) {
 diff --git a/app/src/split/Kconfig b/app/src/split/Kconfig
 index 00ce08407796b7c2520ebf4ec2f79ecebf60e5a8..ab1af7158d4e554cc8f4666e59cb56c16feb4589 100644
 --- a/app/src/split/Kconfig

@@ -2,7 +2,7 @@ import { AdvancedPort, AdvancedState, AdvancedDesired, readAdvanced, validateAdv
 import * as T from "./proto/runtime_tapdance";
 import * as H from "./proto/holdtap";
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
-import { call_rpc } from "@zmkfirmware/zmk-studio-ts-client/index";
+import { call_rpc } from "../../rpc/pipeline";
 import type { Keymap, BehaviorBinding as KeymapBinding } from "@zmkfirmware/zmk-studio-ts-client/keymap";
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core";
 import * as C from "./proto/runtime_combo";

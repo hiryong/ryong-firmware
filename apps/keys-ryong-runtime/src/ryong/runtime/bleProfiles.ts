@@ -1,4 +1,5 @@
-import { call_rpc, RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
+import { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
+import { call_rpc } from "../../rpc/pipeline";
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core";
 import { callRuntimePayload, discoverRuntime } from "./customRpc";
 import * as B from "./proto/ble_profiles";
