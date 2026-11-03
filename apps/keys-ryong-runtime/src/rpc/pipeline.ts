@@ -36,7 +36,49 @@ type State = {
   dead?: unknown;
   cache: Map<string, Promise<RequestResponse>>;
   fail: (e: unknown) => void;
+  /* An UNLOCKED lock state answered a moment ago, reused until anything else is sent. */
+  recent: Map<string, { at: number; p: Promise<RequestResponse> }>;
+  catalog?: Promise<Catalog | null>;
 };
+
+/** Which requests a load spends its time on (shown with the Bluetooth timing). */
+export const requestCounts = new Map<string, number>();
+function countRequest(req: Omit<Request, "requestId">) {
+  const r = req as unknown as Record<string, Record<string, unknown> | undefined>;
+  const top = Object.keys(r).find((k) => k !== "requestId" && r[k] !== undefined);
+  const sub = top ? Object.keys(r[top]!).find((k) => r[top]![k] !== undefined) : undefined;
+  const custom = (req as { custom?: { call?: { subsystemIndex: number } } }).custom?.call;
+  const name = custom ? `custom#${custom.subsystemIndex}` : `${top}.${sub}`;
+  requestCounts.set(name, (requestCounts.get(name) ?? 0) + 1);
+}
+
+/* ---- Behavior catalog remembered across visits, per firmware build ----
+ * Each behavior's details cost one request; a keyboard has dozens. They only change with the
+ * firmware, so they are kept in the browser under the build ID the keyboard reports. */
+type Catalog = { key: string; data: Record<number, unknown> };
+const CATALOG_PREFIX = "ryong.behaviorCatalog.v1:";
+function loadCatalog(key: string): Catalog {
+  try { return { key, data: JSON.parse(localStorage.getItem(key) ?? "{}") }; } catch { return { key, data: {} }; }
+}
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+function saveCatalog(c: Catalog) {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(c.key, JSON.stringify(c.data));
+      const keys = Object.keys(localStorage).filter((k) => k.startsWith(CATALOG_PREFIX) && k !== c.key);
+      for (const k of keys.slice(0, Math.max(0, keys.length - 2))) localStorage.removeItem(k); // keep three builds
+    } catch { /* storage full or blocked: just ask the keyboard next time */ }
+  }, 500);
+}
+async function catalogFor(conn: RpcConnection, list: Promise<RequestResponse>): Promise<Catalog | null> {
+  const ids = (await list).behaviors?.listAllBehaviors?.behaviors;
+  if (!ids?.length) return null;
+  const { firmwareDevice } = await import("../ryong/runtime/updateDevice");
+  const id = await (await firmwareDevice(conn)).identity();
+  if (!id.buildId) return null;
+  return loadCatalog(`${CATALOG_PREFIX}${id.model}:${id.buildId}:${ids.join(",")}`);
+}
 
 /** Longest wait for one answer. Saves write flash and can take a while over Bluetooth. */
 function timeoutFor(req: Omit<Request, "requestId">): number {
@@ -62,7 +104,7 @@ const states = new WeakMap<RpcConnection, State>();
 function stateFor(conn: RpcConnection): State {
   let s = states.get(conn);
   if (s) return s;
-  const st: State = { fail: () => {}, pending: new Map(), inflight: 0, inflightBytes: 0, queue: [], cache: new Map(), shared: new Map() };
+  const st: State = { fail: () => {}, recent: new Map(), pending: new Map(), inflight: 0, inflightBytes: 0, queue: [], cache: new Map(), shared: new Map() };
   states.set(conn, st);
   st.fail = (e) => fail(e);
   const reader = conn.request_response_readable.getReader();
@@ -159,27 +201,58 @@ async function send(conn: RpcConnection, st: State, req: Omit<Request, "requestI
 }
 
 /** Same contract as the stock call_rpc: resolves with the answer, throws on errors. */
+const RECENT_MS = 2000;
+
 export function call_rpc(conn: RpcConnection, req: Omit<Request, "requestId">): Promise<RequestResponse> {
   const st = stateFor(conn);
   const key = cacheKey(req);
   if (key) {
     const hit = st.cache.get(key);
     if (hit) return hit;
-    const p = send(conn, st, req);
+    const detailsId = req.behaviors?.getBehaviorDetails?.behaviorId;
+    const p = detailsId !== undefined && st.catalog ? fromCatalog(conn, st, req, detailsId) : sendCounted(conn, st, req);
     st.cache.set(key, p);
     p.catch(() => st.cache.delete(key)); // never remember a failure
+    if (req.behaviors?.listAllBehaviors) st.catalog = catalogFor(conn, p).catch(() => null);
     return p;
   }
   const sk = sharedKey(req);
   if (sk) {
     const inFlight = st.shared.get(sk);
     if (inFlight) return inFlight;
-    const p = send(conn, st, req);
+    const recent = st.recent.get(sk);
+    if (recent && performance.now() - recent.at < RECENT_MS) return recent.p;
+    const p = sendCounted(conn, st, req);
     st.shared.set(sk, p);
     const done = () => { if (st.shared.get(sk) === p) st.shared.delete(sk); };
-    p.then(done, done);
+    p.then((r) => {
+      done();
+      // a lock state is only reused when UNLOCKED: an unlock must show at once
+      // Only an UNLOCKED lock state is reused for a moment (an unlock must show at once; the keymap
+      // can change behind the page's back, e.g. a keyboard restart discards unsaved edits).
+      if (sk === "lock" && r.core?.getLockState === 1) st.recent.set(sk, { at: performance.now(), p });
+    }, done);
     return p;
   }
-  st.shared.clear(); // may change what a read would answer: later reads ask again
-  return send(conn, st, req);
+  // may change what a read would answer: later reads ask again
+  st.shared.clear();
+  st.recent.clear();
+  return sendCounted(conn, st, req);
+}
+
+function sendCounted(conn: RpcConnection, st: State, req: Omit<Request, "requestId">) {
+  countRequest(req);
+  return send(conn, st, req).catch((e) => {
+    if (e instanceof MetaError) st.recent.delete("lock"); // e.g. locked meanwhile: ask again next time
+    throw e;
+  });
+}
+
+async function fromCatalog(conn: RpcConnection, st: State, req: Omit<Request, "requestId">, id: number): Promise<RequestResponse> {
+  const catalog = await st.catalog;
+  const known = catalog?.data[id];
+  if (known) return { requestId: 0, behaviors: { getBehaviorDetails: known } } as unknown as RequestResponse;
+  const r = await sendCounted(conn, st, req);
+  if (catalog && r.behaviors?.getBehaviorDetails) { catalog.data[id] = r.behaviors.getBehaviorDetails; saveCatalog(catalog); }
+  return r;
 }

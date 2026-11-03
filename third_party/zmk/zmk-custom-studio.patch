@@ -72,13 +72,14 @@ index 0000000000000000000000000000000000000000..39927f4a4d38e3913000795c47c4c266
 +
 +ITERABLE_SECTION_ROM(zmk_rpc_custom_subsystem, 4)
 diff --git a/app/include/zmk/ble.h b/app/include/zmk/ble.h
-index 92b2107d88b12d2779c02305053032372386391a..4293bb7f5d8ddc69c80ecc47c86c2b1b62a847de 100644
+index 92b2107d88b12d2779c02305053032372386391a..70af2bc6cfbd8ab1dafbab469546eb39c257b24f 100644
 --- a/app/include/zmk/ble.h
 +++ b/app/include/zmk/ble.h
-@@ -20,6 +20,17 @@
+@@ -20,6 +20,18 @@
  #endif
  
  void zmk_ble_clear_bonds(void);
++int zmk_ble_prof_clear(uint8_t index);
 +
 +/* Ryong: every change of a slot's registered host, for the keyboard's bond history. Weak no-op
 + * here; a module may record it. Called from the Bluetooth RX thread or the system work queue -
@@ -93,7 +94,7 @@ index 92b2107d88b12d2779c02305053032372386391a..4293bb7f5d8ddc69c80ecc47c86c2b1b
  int zmk_ble_prof_next(void);
  int zmk_ble_prof_prev(void);
  int zmk_ble_prof_select(uint8_t index);
-@@ -44,6 +55,8 @@ int zmk_ble_unpair_all(void);
+@@ -44,6 +56,8 @@ int zmk_ble_unpair_all(void);
  
  int zmk_ble_set_device_name(char *name);
  
@@ -778,7 +779,7 @@ index 22b730669ab6bffe6df2e2d95f8e866e9b809d86..d2103822e0acb99b226912ea0b28c5ea
  }
  
 diff --git a/app/src/ble.c b/app/src/ble.c
-index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..0644d1e867e29adf7537aebd1d5274a42638430b 100644
+index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..da7755f3e1f23a59e1a68d8dbc1c2be52e79f029 100644
 --- a/app/src/ble.c
 +++ b/app/src/ble.c
 @@ -61,6 +61,7 @@ enum advertising_type {
@@ -833,7 +834,43 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..0644d1e867e29adf7537aebd1d5274a4
      }
  
      // Automatically switch to profile 0
-@@ -375,6 +384,11 @@ int zmk_ble_set_device_name(char *name) {
+@@ -297,6 +306,16 @@ int zmk_ble_prof_select(uint8_t index) {
+     active_profile = index;
+     ble_save_profile();
+ 
++#if IS_ENABLED(CONFIG_ZMK_BLE_ONLY_ACTIVE_PROFILE)
++    /* Ryong: switching slots ends the other slots' links (a keymap no longer needs
++     * "select + disconnect the rest" macros); refuse_other_slot() keeps them from coming back. */
++    for (uint8_t i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
++        if (i != index) {
++            (void)zmk_ble_prof_disconnect(i);
++        }
++    }
++#endif
++
+     update_advertising();
+ 
+     raise_profile_changed_event();
+@@ -304,6 +323,18 @@ int zmk_ble_prof_select(uint8_t index) {
+     return 0;
+ };
+ 
++/* Ryong: clear one slot without selecting it (the web page removes a slot while another one's
++ * host stays connected). */
++int zmk_ble_prof_clear(uint8_t index) {
++    if (index >= ZMK_BLE_PROFILE_COUNT) {
++        return -ERANGE;
++    }
++    (void)zmk_ble_prof_disconnect(index);
++    clear_profile_bond(index, ZMK_BLE_BOND_CLEARED);
++    update_advertising();
++    return 0;
++}
++
+ int zmk_ble_prof_next(void) {
+     LOG_DBG("");
+     return zmk_ble_prof_select((active_profile + 1) % ZMK_BLE_PROFILE_COUNT);
+@@ -375,6 +406,11 @@ int zmk_ble_set_device_name(char *name) {
      return update_advertising();
  }
  
@@ -845,7 +882,7 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..0644d1e867e29adf7537aebd1d5274a4
  #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE) && IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
  
  int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr) {
-@@ -497,6 +511,25 @@ static bool is_conn_active_profile(const struct bt_conn *conn) {
+@@ -497,6 +533,25 @@ static bool is_conn_active_profile(const struct bt_conn *conn) {
      return bt_addr_le_cmp(bt_conn_get_dst(conn), &profiles[active_profile].peer) == 0;
  }
  
@@ -871,7 +908,7 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..0644d1e867e29adf7537aebd1d5274a4
  static void connected(struct bt_conn *conn, uint8_t err) {
      char addr[BT_ADDR_LE_STR_LEN];
      struct bt_conn_info info;
-@@ -520,6 +553,10 @@ static void connected(struct bt_conn *conn, uint8_t err) {
+@@ -520,6 +575,10 @@ static void connected(struct bt_conn *conn, uint8_t err) {
  
      LOG_DBG("Connected %s", addr);
  
@@ -882,7 +919,7 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..0644d1e867e29adf7537aebd1d5274a4
      update_advertising();
  
      if (is_conn_active_profile(conn)) {
-@@ -560,6 +597,10 @@ static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_
+@@ -560,6 +619,10 @@ static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_
  
      if (!err) {
          LOG_DBG("Security changed: %s level %u", addr, level);
@@ -893,7 +930,7 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..0644d1e867e29adf7537aebd1d5274a4
      } else {
          LOG_ERR("Security failed: %s level %u err %d", addr, level, err);
      }
-@@ -658,10 +699,12 @@ static void auth_pairing_complete(struct bt_conn *conn, bool bonded) {
+@@ -658,10 +721,12 @@ static void auth_pairing_complete(struct bt_conn *conn, bool bonded) {
      if (!pairing_allowed_for_current_profile(conn)) {
          LOG_ERR("Pairing completed but current profile is not open: %s", addr);
          bt_unpair(BT_ID_DEFAULT, dst);

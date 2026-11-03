@@ -1,4 +1,5 @@
 import { hidStats, hidStatsVersion, subscribeHidStats } from "./runtime/hidConnect";
+import { requestCounts } from "../rpc/pipeline";
 import { useSyncExternalStore, ReactNode, useContext, useEffect, useState } from "react";
 import { BehaviorsEditor, RuntimeSection } from "./behaviors/BehaviorsEditor";
 import { ConnectionContext } from "../rpc/ConnectionContext";
@@ -16,7 +17,8 @@ function HidSpeed() {
   useSyncExternalStore(subscribeHidStats, hidStatsVersion);
   if (!hidStats.active || !hidStats.waits) return null;
   const avg = Math.round(hidStats.waitMs / hidStats.waits), secs = ((hidStats.last - hidStats.start) / 1000).toFixed(1);
-  return <span className="ry-faint" title={`max ${Math.round(hidStats.maxWaitMs)} ms · out ${hidStats.bytesOut} B`}>
+  const top = [...requestCounts].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => `${k} ${n}`).join(" · ");
+  return <span className="ry-faint" title={`max ${Math.round(hidStats.maxWaitMs)} ms · out ${hidStats.bytesOut} B · ${top}`}>
     {t(" · Bluetooth: {n} requests, avg reply {avg} ms, {kb} KB in {s} s", " · 블루투스: 요청 {n}개, 평균 응답 {avg}ms, {kb}KB · {s}초",
       { n: hidStats.writes, avg, kb: (hidStats.bytesIn / 1024).toFixed(1), s: secs })}</span>;
 }

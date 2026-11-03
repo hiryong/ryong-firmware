@@ -37,10 +37,13 @@ await call_rpc(f.conn, { behaviors: { getBehaviorDetails: { behaviorId: 3 } } })
 assert.equal(f.seen.length, 20, "catalog answers remembered");
 await call_rpc(f.conn, { keymap: { getKeymap: true } });
 await call_rpc(f.conn, { keymap: { getKeymap: true } });
-assert.equal(f.seen.length, 22, "keymap asked again once the first answered");
+assert.equal(f.seen.length, 22, "the keymap is always read from the keyboard");
+await call_rpc(f.conn, { keymap: { setLayerBinding: { layerId: 0, keyPosition: 0, binding: { behaviorId: 1, param1: 4, param2: 0 } } } });
+await call_rpc(f.conn, { keymap: { getKeymap: true } });
+assert.equal(f.seen.length, 24, "after a change the keymap is asked again");
 await assert.rejects(call_rpc(f.conn, { behaviors: { getBehaviorDetails: { behaviorId: 99 } } }), MetaError);
 await assert.rejects(call_rpc(f.conn, { behaviors: { getBehaviorDetails: { behaviorId: 99 } } }), MetaError);
-assert.equal(f.seen.length, 24, "failures not remembered");
+assert.equal(f.seen.length, 26, "failures not remembered");
 // byte budget: big requests wait, order kept
 const g = fakeConn();
 const bigs = Array.from({ length: 6 }, (_, i) => call_rpc(g.conn, { custom: { call: { subsystemIndex: 1, payload: new Uint8Array(150).fill(i) } } }));

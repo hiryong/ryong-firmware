@@ -97,7 +97,7 @@ function parse(row: string): Binding[] {
       case "&trans": b(2); break;
       case "&mo": b(4, Number(next())); break;
       case "&tog": b(5, Number(next())); break;
-      case "&bt": b(11, codes["__bt_" + next()]); break;
+      case "&bt": { const c = next(); if (c === "BT_SEL" || c === "BT_DISC") b(11, codes["__bt_" + c], Number(next())); else b(11, codes["__bt_" + c]); break; }
       case "&out": b(12, codes["__out_" + next()]); break;
       case "&bootloader": b(15); break;
       case "&studio_unlock": b(17); break;
@@ -121,7 +121,7 @@ const DEFAULT_LAYERS: [string, string][] = [
     &kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL &mo 2`],
   ["os", `${T5(41)} ${T5(12)} &trans &ry_host LALT LGUI &ry_host LGUI LALT &trans &ry_host RGUI RALT &ry_host RALT C_MENU &trans &trans`],
   ["raise", `&kp GRAVE &kp F1 &kp F2 &kp F3 &kp F4 &kp F5 &kp F6 &kp F7 &kp F8 &kp F9 &kp F10 &kp F11 &kp F12 &kp DEL
-    &tog 1 &BT_Profile0 &BT_Profile1 &BT_Profile2 &BT_Profile3 &out OUT_TOG &trans &trans &kp INS &trans &kp PSCRN &trans &trans &studio_unlock
+    &tog 1 &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &out OUT_TOG &trans &trans &kp INS &trans &kp PSCRN &trans &trans &studio_unlock
     &kp CAPS ${T5(11)} &bootloader
     ${T5(10)} &kp UP &mo 3
     &soft_off &trans &trans &trans &kp LEFT &kp DOWN &kp RIGHT &trans`],

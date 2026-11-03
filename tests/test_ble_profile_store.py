@@ -47,6 +47,7 @@ bool zmk_ble_profile_is_open(uint8_t);
 int zmk_ble_active_profile_index(void);
 int zmk_ble_prof_select(uint8_t);
 void zmk_ble_clear_bonds(void);
+int zmk_ble_prof_clear(uint8_t i);
 int ryong_host_guard_profile(uint8_t);
 '''
 HARNESS = r'''
@@ -64,6 +65,7 @@ bool zmk_ble_profile_is_connected(uint8_t i){return conn[i];}
 int zmk_ble_active_profile_index(void){return active;}
 int zmk_ble_prof_select(uint8_t i){if(i>=5)return -ERANGE;assert(lock_depth==1);selects[nselect++]=i;active=i;return 0;}
 void zmk_ble_clear_bonds(void){memset(&peers[active],0,sizeof peers[0]);conn[active]=false;}
+int zmk_ble_prof_clear(uint8_t i){if(i>=5)return -ERANGE;memset(&peers[i],0,sizeof peers[0]);conn[i]=false;return 0;}
 int ryong_host_guard_profile(uint8_t i){guards[nguard++]=i;return 0;}
 static int site_flag;void ryong_bt_log_site_clear(bool on){site_flag=on;}
 int settings_name_steq(const char *name,const char *key,const char **next){
@@ -102,7 +104,7 @@ int main(void){
  assert(RENAME(0,t0,"stale")==-ESTALE);
  /* Clear a non-selected slot: active selection restored, name and OS records removed. */
  active=0;nselect=0;nguard=0;assert(ryong_bt_profile_clear(2,t2)==0);
- assert(!info(2).bonded&&active==0&&nselect==2&&selects[0]==2&&selects[1]==0);
+ assert(!info(2).bonded&&active==0&&nselect==0);
 #if CONFIG_RYONG_HOST_LAYOUT
  assert(nguard==1&&guards[0]==2);
 #else
