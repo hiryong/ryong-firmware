@@ -6,8 +6,8 @@
       "file": "zmk-custom-studio.patch",
       "repo_path": "zmk",
       "applies_to": "ed56d81db79cf3a6e5dc02697277c0fad880ad34",
-      "sha256": "7259fb823ba5842ee3ce94951302256abddbbd53c5c0db234258ee8cd4d8723a",
-      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx); backlight.c: perceptual brightness for PWM LEDs (duty = brightness^2/100, ZMK_BACKLIGHT_PERCEPTUAL); hid_rpc_transport: no peripheral latency while Studio talks over BLE HID (restored after 20 s idle); hid_rpc_transport never keeps references to closed connections; Studio fast mode (HID and GATT) asks for Apple-accepted connection parameters (15-30 ms, latency 0); hog.c: Studio keeps at most 2 BLE reports in the controller (keystrokes always find a buffer) and keyboard/consumer reports wait briefly for a buffer instead of being dropped"
+      "sha256": "0d5bf5e1a4e9d99e637a3240fd12a556ba59808f6ed750d6dfd5322b01dc795f",
+      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx); backlight.c: perceptual brightness for PWM LEDs (duty = brightness^2/100, ZMK_BACKLIGHT_PERCEPTUAL); hid_rpc_transport: no peripheral latency while Studio talks over BLE HID (restored after 20 s idle); hid_rpc_transport never keeps references to closed connections; Studio fast mode (HID and GATT) asks for Apple-accepted connection parameters (15-30 ms, latency 0); rpc.c: notifications are encoded when raised and sent by the RPC thread (raising threads - the system work queue - never wait for an answer to finish), endpoint changes applied by the RPC thread; hid_rpc_transport: 60-byte reports, full reports only until a message ends, peek-then-consume, no ring reset, bounded waits, Apple-compliant idle parameters"
     },
     {
       "file": "zmk-studio-messages-custom.patch",

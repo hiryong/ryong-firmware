@@ -353,10 +353,10 @@ index 0eb63ad73d56feb9d4e814f1cb0db3a87c3a24bf..f728555c4fd40fe681fe61179cbaf875
 +#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
 \ No newline at end of file
 diff --git a/app/include/zmk/hid.h b/app/include/zmk/hid.h
-index 962180e706d6952061e255551d89096faf5038c0..5197da25b60bc04a6d12e5e9e94f3bf8f830ef29 100644
+index 962180e706d6952061e255551d89096faf5038c0..6b65e05f0451a8d7efc917b3382e902e99c6343e 100644
 --- a/app/include/zmk/hid.h
 +++ b/app/include/zmk/hid.h
-@@ -77,6 +77,14 @@
+@@ -77,6 +77,16 @@
  #define ZMK_HID_REPORT_ID_CONSUMER 0x02
  #define ZMK_HID_REPORT_ID_MOUSE 0x03
  
@@ -364,14 +364,16 @@ index 962180e706d6952061e255551d89096faf5038c0..5197da25b60bc04a6d12e5e9e94f3bf8
 + * collection, so hosts leave it alone and WebHID can open it while the keyboard stays connected.
 + * Each report: byte 0 = number of valid bytes (0..31), then up to 31 bytes of the Studio stream. */
 +#define ZMK_HID_REPORT_ID_STUDIO 0x10
-+#define ZMK_HID_STUDIO_REPORT_SIZE 32
++/* 60: one report per BLE notification with ZMK's ATT MTU (65 - 3 - ID-less) and one USB full-speed
++ * packet with the ID. Hosts read the size from the report map, so a change needs a re-pair. */
++#define ZMK_HID_STUDIO_REPORT_SIZE 60
 +#define ZMK_HID_STUDIO_USAGE_PAGE_LO 0x5A
 +#define ZMK_HID_STUDIO_USAGE_PAGE_HI 0xFF
 +
  #ifndef HID_ITEM_TAG_PUSH
  #define HID_ITEM_TAG_PUSH 0xA
  #endif
-@@ -253,6 +261,22 @@ static const uint8_t zmk_hid_report_desc[] = {
+@@ -253,6 +263,22 @@ static const uint8_t zmk_hid_report_desc[] = {
      HID_END_COLLECTION,
      HID_END_COLLECTION,
  #endif // IS_ENABLED(CONFIG_ZMK_POINTING)
@@ -777,7 +779,7 @@ index c28da97f5944fff51fada51a146b8989a0245bfc..037c647e831c1c29905bfcb7b636e5f2
 +
 +#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
 diff --git a/app/src/hog.c b/app/src/hog.c
-index c7d9b861d4ae9df67e264126be033baf281c3124..5ea1f1727e0c6164153352b266cb51db441489b6 100644
+index c7d9b861d4ae9df67e264126be033baf281c3124..7f3800546808bbb12035f192f262382e10bd9756 100644
 --- a/app/src/hog.c
 +++ b/app/src/hog.c
 @@ -248,6 +248,44 @@ static ssize_t write_ctrl_point(struct bt_conn *conn, const struct bt_gatt_attr
@@ -825,7 +827,7 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..5ea1f1727e0c6164153352b266cb51db
  /* HID Service Declaration */
  BT_GATT_SERVICE_DEFINE(
      hog_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
-@@ -298,10 +336,81 @@ BT_GATT_SERVICE_DEFINE(
+@@ -298,7 +336,39 @@ BT_GATT_SERVICE_DEFINE(
  #endif // IS_ENABLED(CONFIG_ZMK_HID_INDICATORS)
  
      BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_CTRL_POINT, BT_GATT_CHRC_WRITE_WITHOUT_RESP,
@@ -851,15 +853,6 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..5ea1f1727e0c6164153352b266cb51db
 +#if IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
 +#define STUDIO_INPUT_ATTR (&hog_svc.attrs[hog_svc.attr_count - 6])
 +
-+#define STUDIO_CREDITS 2
-+K_SEM_DEFINE(studio_credits, STUDIO_CREDITS, STUDIO_CREDITS);
-+
-+static void studio_sent(struct bt_conn *conn, void *user_data) {
-+    ARG_UNUSED(conn);
-+    ARG_UNUSED(user_data);
-+    k_sem_give(&studio_credits);
-+}
-+
 +int zmk_hog_send_studio_report(struct bt_conn *conn, const uint8_t *data, size_t len) {
 +    if (!conn) {
 +        return -ENOTCONN;
@@ -868,64 +861,13 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..5ea1f1727e0c6164153352b266cb51db
 +        LOG_WRN("Studio HID report needs ATT MTU %d, have %d", (int)(len + 3), bt_gatt_get_mtu(conn));
 +        return -EMSGSIZE;
 +    }
-+    /* Studio may have at most STUDIO_CREDITS reports in the controller at once, so a keymap load
-+     * never takes every BLE buffer: keystrokes always find one (bench 2026-11-03: keys went dead
-+     * while the keymap loaded over Bluetooth). */
-+    if (k_sem_take(&studio_credits, K_MSEC(300)) != 0) {
-+        /* A completion that never came (link torn down mid-send): start over with full credits. */
-+        k_sem_reset(&studio_credits);
-+        for (int i = 0; i < STUDIO_CREDITS; i++) {
-+            k_sem_give(&studio_credits);
-+        }
-+        return -EAGAIN;
-+    }
-+    struct bt_gatt_notify_params params = {
-+        .attr = STUDIO_INPUT_ATTR, .data = data, .len = len, .func = studio_sent, .user_data = NULL};
-+    int err = bt_gatt_notify_cb(conn, &params);
-+    if (err) {
-+        k_sem_give(&studio_credits);
-+    }
-+    return err;
++    struct bt_gatt_notify_params params = {.attr = STUDIO_INPUT_ATTR, .data = data, .len = len};
++    return bt_gatt_notify_cb(conn, &params);
 +}
 +#endif // IS_ENABLED(CONFIG_ZMK_STUDIO_TRANSPORT_HID)
  
  K_THREAD_STACK_DEFINE(hog_q_stack, CONFIG_ZMK_BLE_THREAD_STACK_SIZE);
  
-+/* Ryong: a keystroke must not be lost because the BLE buffers are momentarily busy (another report,
-+ * Studio traffic): wait briefly for one instead of dropping the report. */
-+static int notify_patiently(struct bt_conn *conn, struct bt_gatt_notify_params *params) {
-+    int err;
-+    for (int tries = 0; tries < 50; tries++) {
-+        err = bt_gatt_notify_cb(conn, params);
-+        if (err != -ENOMEM && err != -EAGAIN && err != -ENOBUFS) {
-+            break;
-+        }
-+        k_sleep(K_MSEC(2));
-+    }
-+    return err;
-+}
-+
- struct k_work_q hog_work_q;
- 
- K_MSGQ_DEFINE(zmk_hog_keyboard_msgq, sizeof(struct zmk_hid_keyboard_report_body),
-@@ -322,7 +431,7 @@ void send_keyboard_report_callback(struct k_work *work) {
-             .len = sizeof(report),
-         };
- 
--        int err = bt_gatt_notify_cb(conn, &notify_params);
-+        int err = notify_patiently(conn, &notify_params);
-         if (err == -EPERM) {
-             bt_conn_set_security(conn, BT_SECURITY_L2);
-         } else if (err) {
-@@ -374,7 +483,7 @@ void send_consumer_report_callback(struct k_work *work) {
-             .len = sizeof(report),
-         };
- 
--        int err = bt_gatt_notify_cb(conn, &notify_params);
-+        int err = notify_patiently(conn, &notify_params);
-         if (err == -EPERM) {
-             bt_conn_set_security(conn, BT_SECURITY_L2);
-         } else if (err) {
 diff --git a/app/src/split/Kconfig b/app/src/split/Kconfig
 index 00ce08407796b7c2520ebf4ec2f79ecebf60e5a8..ab1af7158d4e554cc8f4666e59cb56c16feb4589 100644
 --- a/app/src/split/Kconfig
@@ -1901,7 +1843,7 @@ index a8417dd768885482a44cc8d8b0883ddb6903fd2a..491ea44fedb6f2b48b8ca860ed9cbf42
 +target_sources_ifdef(CONFIG_ZMK_STUDIO_TRANSPORT_HID app PRIVATE hid_rpc_transport.c)
 \ No newline at end of file
 diff --git a/app/src/studio/Kconfig b/app/src/studio/Kconfig
-index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..1991fa242bde23894908b0fcf093f164e7b98838 100644
+index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..92a1cb0a23038ce9c5859b69a8d8340df1ac1590 100644
 --- a/app/src/studio/Kconfig
 +++ b/app/src/studio/Kconfig
 @@ -29,6 +29,13 @@ config ZMK_STUDIO_LOCK_ON_DISCONNECT
@@ -1918,7 +1860,7 @@ index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..1991fa242bde23894908b0fcf093f164
  menuconfig ZMK_STUDIO_RPC
      bool "Remote Procedure Calls (RPC)"
      select NANOPB
-@@ -73,6 +80,15 @@ config ZMK_STUDIO_TRANSPORT_UART_RX_PRIORITY
+@@ -73,6 +80,25 @@ config ZMK_STUDIO_TRANSPORT_UART_RX_PRIORITY
  
  endif
  
@@ -1931,10 +1873,20 @@ index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..1991fa242bde23894908b0fcf093f164
 +config HID_INTERRUPT_EP_MPS
 +    default 64 if ZMK_STUDIO_TRANSPORT_HID && ZMK_USB
 +
++config ZMK_STUDIO_RPC_NOTIFICATION_MAX_BYTES
++    int "Largest encoded Studio notification (bytes)"
++    default 256
++    help
++      Ryong: notifications are encoded when raised and sent by the RPC thread later.
++
++config ZMK_STUDIO_RPC_NOTIFICATION_QUEUE_SIZE
++    int "Studio notifications waiting to be sent"
++    default 8
++
  config ZMK_STUDIO_TRANSPORT_BLE
      bool "BLE (GATT)"
      select RING_BUFFER
-@@ -109,6 +125,25 @@ config ZMK_STUDIO_RPC_TX_BUF_SIZE
+@@ -109,6 +135,25 @@ config ZMK_STUDIO_RPC_TX_BUF_SIZE
      int "TX Buffer Size"
      default 64
  
@@ -2225,10 +2177,10 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..c6aa9f8b032ab69a61b8ac2d4ff04538
  }
 diff --git a/app/src/studio/hid_rpc_transport.c b/app/src/studio/hid_rpc_transport.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..717bf66d4a2606199e0b023a59d84cea0c216f72
+index 0000000000000000000000000000000000000000..d0d019c5474a90a164921e86881265c614016ed0
 --- /dev/null
 +++ b/app/src/studio/hid_rpc_transport.c
-@@ -0,0 +1,270 @@
+@@ -0,0 +1,288 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -2276,7 +2228,7 @@ index 0000000000000000000000000000000000000000..717bf66d4a2606199e0b023a59d84cea
 +    uint8_t data[PAYLOAD];
 +};
 +
-+K_MSGQ_DEFINE(hid_rx_q, sizeof(struct rx_item), 16, 4);
++K_MSGQ_DEFINE(hid_rx_q, sizeof(struct rx_item), 32, 4);
 +
 +static K_THREAD_STACK_DEFINE(hid_rpc_stack, 1536);
 +static struct k_work_q hid_rpc_q;
@@ -2306,12 +2258,14 @@ index 0000000000000000000000000000000000000000..717bf66d4a2606199e0b023a59d84cea
 +#define STUDIO_INT_MIN 12 /* 15 ms */
 +#define STUDIO_INT_MAX 24 /* 30 ms */
 +#define STUDIO_TIMEOUT 400 /* 4 s */
++/* Back to battery saving afterwards, also within Apple's rules (ZMK's own 7.5 ms minimum is not, so
++ * a Mac refused the restore and stayed on latency 0): 30 ms x (1 + 30) = 0.93 s <= 2 s. */
++#define IDLE_LATENCY MIN(CONFIG_BT_PERIPHERAL_PREF_LATENCY, 30)
 +
 +static void set_latency(struct bt_conn *conn, uint16_t latency) {
 +    int err = latency == 0
 +                  ? bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(STUDIO_INT_MIN, STUDIO_INT_MAX, 0, STUDIO_TIMEOUT))
-+                  : bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(CONFIG_BT_PERIPHERAL_PREF_MIN_INT, CONFIG_BT_PERIPHERAL_PREF_MAX_INT,
-+                                                                   latency, CONFIG_BT_PERIPHERAL_PREF_TIMEOUT));
++                  : bt_conn_le_param_update(conn, BT_LE_CONN_PARAM(STUDIO_INT_MIN, STUDIO_INT_MAX, latency, STUDIO_TIMEOUT));
 +    if (err < 0 && err != -EALREADY) {
 +        LOG_WRN("Studio HID: connection parameter update failed (%d)", err);
 +    }
@@ -2323,7 +2277,7 @@ index 0000000000000000000000000000000000000000..717bf66d4a2606199e0b023a59d84cea
 +    ARG_UNUSED(work);
 +    k_mutex_lock(&fast_lock, K_FOREVER);
 +    if (fast_conn) {
-+        set_latency(fast_conn, CONFIG_BT_PERIPHERAL_PREF_LATENCY);
++        set_latency(fast_conn, IDLE_LATENCY);
 +        bt_conn_unref(fast_conn);
 +        fast_conn = NULL;
 +    }
@@ -2378,9 +2332,15 @@ index 0000000000000000000000000000000000000000..717bf66d4a2606199e0b023a59d84cea
 +    return 0;
 +}
 +
++/* Set when a message is complete: only then may a partly filled report go out. */
++static atomic_t tx_msg_done;
++
 +static void hid_tx_notify(struct ring_buf *tx_buf, size_t added, bool msg_done, void *user_data) {
 +    ARG_UNUSED(added);
 +    ARG_UNUSED(user_data);
++    if (msg_done) {
++        atomic_set(&tx_msg_done, 1);
++    }
 +    if (msg_done || ring_buf_size_get(tx_buf) >= PAYLOAD) {
 +        k_work_submit_to_queue(&hid_rpc_q, &tx_work);
 +    }
@@ -2469,26 +2429,36 @@ index 0000000000000000000000000000000000000000..717bf66d4a2606199e0b023a59d84cea
 +    return err;
 +}
 +
++/* Drains the Studio TX ring into full reports (a partial one only at the end of a message). Only
++ * consumes what was sent (peek, then get), and on a dead link discards from the consumer side -
++ * never ring_buf_reset(), which races with the RPC thread writing. Bounded waits only. */
 +static void tx_work_cb(struct k_work *work) {
 +    ARG_UNUSED(work);
 +    struct ring_buf *tx = zmk_rpc_get_tx_buf();
++    bool done = atomic_clear(&tx_msg_done);
 +    uint8_t body[ZMK_HID_STUDIO_REPORT_SIZE];
-+    while (ring_buf_size_get(tx) > 0) {
++    for (;;) {
++        uint32_t avail = ring_buf_size_get(tx);
++        if (avail == 0 || (avail < PAYLOAD && !done)) {
++            return;
++        }
 +        memset(body, 0, sizeof(body));
-+        body[0] = ring_buf_get(tx, body + 1, PAYLOAD);
++        uint32_t n = ring_buf_peek(tx, body + 1, PAYLOAD);
++        body[0] = n;
 +        int err = -EAGAIN;
-+        for (int tries = 0; tries < 200; tries++) {
++        for (int tries = 0; tries < 100; tries++) {
 +            err = send_one(body);
 +            if (err != -ENOMEM && err != -EAGAIN && err != -EBUSY) {
 +                break;
 +            }
-+            k_sleep(K_MSEC(2)); /* BLE TX buffers busy: wait for the controller */
++            k_sleep(K_MSEC(5)); /* buffers busy: let the controller send */
 +        }
 +        if (err < 0) {
-+            LOG_WRN("Studio HID report send failed (%d), dropping the rest", err);
-+            ring_buf_reset(tx);
++            LOG_WRN("Studio HID report send failed (%d), dropping the pending answer", err);
++            ring_buf_get(tx, NULL, ring_buf_size_get(tx));
 +            return;
 +        }
++        ring_buf_get(tx, NULL, n);
 +    }
 +}
 +
@@ -2500,7 +2470,7 @@ index 0000000000000000000000000000000000000000..717bf66d4a2606199e0b023a59d84cea
 +
 +SYS_INIT(hid_rpc_transport_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 diff --git a/app/src/studio/rpc.c b/app/src/studio/rpc.c
-index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..dad27219985fc4cb884243e7ec54a9d4b2efbff9 100644
+index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..5b186e379fd8128e71b0740d04e53cd29e38f952 100644
 --- a/app/src/studio/rpc.c
 +++ b/app/src/studio/rpc.c
 @@ -13,6 +13,7 @@
@@ -2511,7 +2481,26 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..dad27219985fc4cb884243e7ec54a9d4
  
  LOG_MODULE_REGISTER(zmk_studio, CONFIG_ZMK_STUDIO_LOG_LEVEL);
  
-@@ -131,6 +132,13 @@ static bool rpc_tx_buffer_write(pb_ostream_t *stream, const uint8_t *buf, size_t
+@@ -82,6 +83,9 @@ struct ring_buf *zmk_rpc_get_rx_buf(void) { return &rpc_rx_buf; }
+ 
+ void zmk_rpc_rx_notify(void) { k_sem_give(&rpc_rx_sem); }
+ 
++static void apply_pending_refresh(void);
++static void send_queued_notifications(void);
++
+ static bool rpc_read_cb(pb_istream_t *stream, uint8_t *buf, size_t count) {
+     uint32_t write_offset = 0;
+ 
+@@ -96,6 +100,8 @@ static bool rpc_read_cb(pb_istream_t *stream, uint8_t *buf, size_t count) {
+                 }
+             }
+         } else {
++            apply_pending_refresh();
++            send_queued_notifications();
+             k_sem_take(&rpc_rx_sem, K_FOREVER);
+         }
+ 
+@@ -131,6 +137,13 @@ static bool rpc_tx_buffer_write(pb_ostream_t *stream, const uint8_t *buf, size_t
          uint32_t claim_len = ring_buf_put_claim(&rpc_tx_buf, &write_buf, count - written);
  
          if (claim_len == 0) {
@@ -2525,15 +2514,78 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..dad27219985fc4cb884243e7ec54a9d4
              continue;
          }
  
-@@ -177,6 +185,7 @@ static pb_ostream_t pb_ostream_for_tx_buf(void *user_data) {
+@@ -176,7 +189,70 @@ static pb_ostream_t pb_ostream_for_tx_buf(void *user_data) {
+     return stream;
  }
  
++/* Ryong: notifications never wait for the transport. They are raised from whatever thread raised
++ * the event - often the system work queue, which also processes keys and frees Bluetooth buffers.
++ * Waiting there for the RPC thread to finish a long answer froze the keys, and could deadlock the
++ * Bluetooth stack. The notification is encoded at once (no transport needed) and queued; the RPC
++ * thread sends it between answers. A full queue drops the notification (logged). */
++struct rpc_notification_item {
++    uint16_t len;
++    uint8_t data[CONFIG_ZMK_STUDIO_RPC_NOTIFICATION_MAX_BYTES];
++};
++K_MSGQ_DEFINE(rpc_notification_q, sizeof(struct rpc_notification_item),
++              CONFIG_ZMK_STUDIO_RPC_NOTIFICATION_QUEUE_SIZE, 4);
++static K_MUTEX_DEFINE(rpc_notification_encode_lock);
++static struct rpc_notification_item rpc_notification_scratch;
++
++static void queue_notification(const zmk_studio_Response *resp) {
++    k_mutex_lock(&rpc_notification_encode_lock, K_FOREVER);
++    pb_ostream_t stream = pb_ostream_from_buffer(rpc_notification_scratch.data,
++                                                 sizeof(rpc_notification_scratch.data));
++    if (!pb_encode(&stream, &zmk_studio_Response_msg, resp)) {
++        LOG_WRN("Studio notification too large or not encodable, dropped");
++    } else {
++        rpc_notification_scratch.len = stream.bytes_written;
++        if (k_msgq_put(&rpc_notification_q, &rpc_notification_scratch, K_NO_WAIT) < 0) {
++            LOG_WRN("Studio notification queue full, dropped");
++        }
++    }
++    k_mutex_unlock(&rpc_notification_encode_lock);
++    k_sem_give(&rpc_rx_sem); /* wake the RPC thread */
++}
++
++static bool put_framing_byte(uint8_t framing_byte, void *user_data) {
++    for (int i = 0; i <= 1000; i++) {
++        if (ring_buf_put(&rpc_tx_buf, &framing_byte, 1) == 1) {
++            return true;
++        }
++        selected_transport->tx_notify(&rpc_tx_buf, 0, false, user_data);
++        k_sleep(K_MSEC(1));
++    }
++    LOG_ERR("RPC TX buffer full");
++    return false;
++}
++
++/* RPC thread only. */
++static void send_queued_notifications(void) {
++    static struct rpc_notification_item item;
++    while (k_msgq_get(&rpc_notification_q, &item, K_NO_WAIT) == 0) {
++        k_mutex_lock(&rpc_transport_mutex, K_FOREVER);
++        if (selected_transport) {
++            void *user_data = selected_transport->tx_user_data ? selected_transport->tx_user_data() : NULL;
++            pb_ostream_t stream = pb_ostream_for_tx_buf(user_data);
++            if (put_framing_byte(FRAMING_SOF, user_data)) {
++                selected_transport->tx_notify(&rpc_tx_buf, 1, false, user_data);
++                rpc_tx_buffer_write(&stream, item.data, item.len);
++                if (put_framing_byte(FRAMING_EOF, user_data)) {
++                    selected_transport->tx_notify(&rpc_tx_buf, 1, true, user_data);
++                }
++            }
++        }
++        k_mutex_unlock(&rpc_transport_mutex);
++    }
++}
++
  static int send_response(const zmk_studio_Response *resp) {
 +    int err = 0;
      k_mutex_lock(&rpc_transport_mutex, K_FOREVER);
  
      if (!selected_transport) {
-@@ -188,7 +197,19 @@ static int send_response(const zmk_studio_Response *resp) {
+@@ -188,7 +264,19 @@ static int send_response(const zmk_studio_Response *resp) {
      pb_ostream_t stream = pb_ostream_for_tx_buf(user_data);
  
      uint8_t framing_byte = FRAMING_SOF;
@@ -2554,7 +2606,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..dad27219985fc4cb884243e7ec54a9d4
  
      selected_transport->tx_notify(&rpc_tx_buf, 1, false, user_data);
  
-@@ -198,18 +219,54 @@ static int send_response(const zmk_studio_Response *resp) {
+@@ -198,18 +286,54 @@ static int send_response(const zmk_studio_Response *resp) {
      if (!status) {
  #if !IS_ENABLED(CONFIG_NANOPB_NO_ERRMSG)
          LOG_ERR("Failed to encode the message %s", stream.errmsg);
@@ -2611,15 +2663,43 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..dad27219985fc4cb884243e7ec54a9d4
  }
  
  static void rpc_main(void) {
-@@ -224,6 +281,7 @@ static void rpc_main(void) {
+@@ -224,6 +348,8 @@ static void rpc_main(void) {
          rpc_framing_state = FRAMING_STATE_IDLE;
  
          if (status) {
++            apply_pending_refresh();
 +            apply_pending_transport();
              zmk_studio_Response resp = handle_request(&req);
  
              int err = send_response(&resp);
-@@ -252,9 +310,6 @@ static void refresh_selected_transport(void) {
+@@ -233,6 +359,7 @@ static void rpc_main(void) {
+             if (err < 0) {
+                 LOG_ERR("Failed to send the RPC response %d", err);
+             }
++            send_queued_notifications();
+         } else {
+             LOG_DBG("Decode failed");
+         }
+@@ -242,6 +369,18 @@ static void rpc_main(void) {
+ K_THREAD_DEFINE(studio_rpc_thread, CONFIG_ZMK_STUDIO_RPC_THREAD_STACK_SIZE, rpc_main, NULL, NULL,
+                 NULL, K_LOWEST_APPLICATION_THREAD_PRIO, 0, 0);
+ 
++static void refresh_selected_transport(void);
++
++/* Ryong: endpoint changes arrive on the system work queue; switching the transport waits for any
++ * answer being sent, so the RPC thread does it. */
++static atomic_t refresh_pending;
++
++static void apply_pending_refresh(void) {
++    if (atomic_clear(&refresh_pending)) {
++        refresh_selected_transport();
++    }
++}
++
+ static void refresh_selected_transport(void) {
+     enum zmk_transport transport = zmk_endpoint_get_selected().transport;
+ 
+@@ -252,9 +391,6 @@ static void refresh_selected_transport(void) {
      }
  
      if (selected_transport) {
@@ -2629,7 +2709,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..dad27219985fc4cb884243e7ec54a9d4
          selected_transport = NULL;
  #if IS_ENABLED(CONFIG_ZMK_STUDIO_LOCK_ON_DISCONNECT)
          zmk_studio_core_lock();
-@@ -264,9 +319,6 @@ static void refresh_selected_transport(void) {
+@@ -264,9 +400,6 @@ static void refresh_selected_transport(void) {
      STRUCT_SECTION_FOREACH(zmk_rpc_transport, t) {
          if (t->transport == transport) {
              selected_transport = t;
@@ -2639,7 +2719,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..dad27219985fc4cb884243e7ec54a9d4
              break;
          }
      }
-@@ -306,6 +358,12 @@ static int zmk_rpc_init(void) {
+@@ -306,6 +439,12 @@ static int zmk_rpc_init(void) {
          prev_sub->handlers_end_index = i - 1;
      }
  
@@ -2652,6 +2732,25 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..dad27219985fc4cb884243e7ec54a9d4
      refresh_selected_transport();
  
      return 0;
+@@ -316,7 +455,8 @@ SYS_INIT(zmk_rpc_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+ static int studio_rpc_listener_cb(const zmk_event_t *eh) {
+     struct zmk_endpoint_changed *ep_changed = as_zmk_endpoint_changed(eh);
+     if (ep_changed) {
+-        refresh_selected_transport();
++        atomic_set(&refresh_pending, 1);
++        k_sem_give(&rpc_rx_sem);
+         return ZMK_EV_EVENT_BUBBLE;
+     }
+ 
+@@ -325,7 +465,7 @@ static int studio_rpc_listener_cb(const zmk_event_t *eh) {
+         zmk_studio_Response resp = zmk_studio_Response_init_zero;
+         resp.which_type = zmk_studio_Response_notification_tag;
+         resp.type.notification = rpc_notify->notification;
+-        send_response(&resp);
++        queue_notification(&resp);
+         return ZMK_EV_EVENT_BUBBLE;
+     }
+ 
 diff --git a/app/src/studio/uart_rpc_transport.c b/app/src/studio/uart_rpc_transport.c
 index 6dcac6d1d09ca0238f625d9a7f030eb9a960c460..73a3142cf9ebea9bd2a190d5f718d42105a5e33d 100644
 --- a/app/src/studio/uart_rpc_transport.c

@@ -16,7 +16,11 @@ const dev=Object.assign(new EventTarget(),{opened:false,productName:"Oreo",colle
       setTimeout(()=>dev.dispatchEvent(new Ev("inputreport",{reportId:0x10,data:new DataView(b.buffer)})),0);}}}});
 hid.getDevices=async()=>[dev];hid.requestDevice=async()=>{throw new Error("should use the allowed device");};
 vm.runInNewContext(js,{module,exports:module.exports,require:createRequire(import.meta.url),navigator:{hid,language:"en"},performance,process,console,Uint8Array,DataView,DOMException,EventTarget,Event,ReadableStream,WritableStream,AbortController,setTimeout,localStorage:{getItem:()=>"en",setItem(){}}});
-const {toReports,fromReport,connect}=module.exports;
+const {toReports,fromReport,connect,reportSizeOf}=module.exports;
+// report size from the descriptor (newer firmware 60, older/unknown 32)
+assert.equal(reportSizeOf({collections:[{usagePage:0xff5a,usage:1,outputReports:[{reportId:0x10,items:[{reportSize:8,reportCount:60}]}]}]}),60);
+assert.equal(reportSizeOf({collections:[{usagePage:0xff5a,usage:1}]}),32);
+const big=toReports(new Uint8Array(100),60);assert.equal(big.length,2);assert.equal(big[0].length,60);assert.deepEqual([big[0][0],big[1][0]],[59,41]);
 
 // framing
 const r=toReports(new Uint8Array(70).map((_,i)=>i));

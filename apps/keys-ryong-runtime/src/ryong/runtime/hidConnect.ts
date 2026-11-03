@@ -3,8 +3,9 @@
 // Windows/macOS; WebHID opens it like any other HID device.
 //
 // Firmware side: third_party/zmk patch, app/src/studio/hid_rpc_transport.c. One vendor collection
-// (usage page 0xFF5A, usage 1), report 0x10, 32 bytes both ways: byte 0 = valid length (0..31),
-// then the Studio byte stream (same framing as serial and GATT).
+// (usage page 0xFF5A, usage 1), report 0x10, N bytes both ways: byte 0 = valid length (0..N-1),
+// then the Studio byte stream (same framing as serial and GATT). N is read from the device's report
+// descriptor (60 since firmware da1af7b+1, 32 before).
 import { UserCancelledError } from "@zmkfirmware/zmk-studio-ts-client/transport/errors";
 import type { RpcTransport } from "@zmkfirmware/zmk-studio-ts-client/transport/index";
 import { t } from "../i18n";
@@ -12,11 +13,11 @@ import { t } from "../i18n";
 export const STUDIO_USAGE_PAGE = 0xff5a;
 export const STUDIO_USAGE = 0x01;
 export const STUDIO_REPORT_ID = 0x10;
-export const REPORT_SIZE = 32;
-const PAYLOAD = REPORT_SIZE - 1;
+export const REPORT_SIZE = 32; /* older firmware; newer ones say their size in the descriptor */
 
 /* Minimal WebHID typing (not in TypeScript's DOM lib). */
-type HidCollection = { usagePage: number; usage: number };
+type HidReportInfo = { reportId: number; items?: { reportSize: number; reportCount: number }[] };
+type HidCollection = { usagePage: number; usage: number; outputReports?: HidReportInfo[] };
 export type HidDevice = EventTarget & {
   opened: boolean; productName: string; collections: HidCollection[];
   open(): Promise<void>; close(): Promise<void>; sendReport(id: number, data: BufferSource): Promise<void>;
@@ -38,12 +39,24 @@ let pendingSince = 0;
 
 const isStudio = (d: HidDevice) => d.collections.some((c) => c.usagePage === STUDIO_USAGE_PAGE && c.usage === STUDIO_USAGE);
 
+/** Studio report size from the device's descriptor (bytes, without the report ID). */
+export function reportSizeOf(d: HidDevice): number {
+  for (const c of d.collections) {
+    if (c.usagePage !== STUDIO_USAGE_PAGE) continue;
+    const rep = c.outputReports?.find((r) => r.reportId === STUDIO_REPORT_ID);
+    const bits = rep?.items?.reduce((n, it) => n + it.reportSize * it.reportCount, 0) ?? 0;
+    if (bits >= 16 && bits % 8 === 0) return bits / 8;
+  }
+  return REPORT_SIZE;
+}
+
 /** Split a Studio byte stream into report bodies. */
-export function toReports(chunk: Uint8Array): Uint8Array[] {
+export function toReports(chunk: Uint8Array, size = REPORT_SIZE): Uint8Array[] {
   const out: Uint8Array[] = [];
+  const PAYLOAD = size - 1;
   for (let i = 0; i < chunk.length; i += PAYLOAD) {
     const part = chunk.subarray(i, i + PAYLOAD);
-    const body = new Uint8Array(REPORT_SIZE);
+    const body = new Uint8Array(size);
     body[0] = part.length;
     body.set(part, 1);
     out.push(body);
@@ -53,7 +66,7 @@ export function toReports(chunk: Uint8Array): Uint8Array[] {
 
 /** Bytes carried by one input report body. */
 export function fromReport(view: DataView): Uint8Array {
-  const n = Math.min(view.getUint8(0), PAYLOAD, view.byteLength - 1);
+  const n = Math.min(view.getUint8(0), view.byteLength - 1);
   return new Uint8Array(view.buffer, view.byteOffset + 1, n).slice();
 }
 
@@ -84,6 +97,7 @@ export async function connect(): Promise<RpcTransport> {
   Object.assign(hidStats, { active: true, writes: 0, bytesIn: 0, bytesOut: 0, waits: 0, waitMs: 0, maxWaitMs: 0, start: performance.now(), last: performance.now() });
   bump();
   const label = dev.productName || "Keyboard";
+  const size = reportSizeOf(dev);
   const abortController = new AbortController();
   let onReport: ((e: Event) => void) | undefined;
   let onGone: ((e: Event) => void) | undefined;
@@ -118,7 +132,7 @@ export async function connect(): Promise<RpcTransport> {
     write(chunk) {
       // Reports go out in order, one at a time.
       sending = sending.then(async () => {
-        for (const r of toReports(chunk)) await dev.sendReport(STUDIO_REPORT_ID, r);
+        for (const r of toReports(chunk, size)) await dev.sendReport(STUDIO_REPORT_ID, r);
         hidStats.writes++; hidStats.bytesOut += chunk.length; if (!pendingSince) pendingSince = performance.now(); bump();
       });
       return sending;
