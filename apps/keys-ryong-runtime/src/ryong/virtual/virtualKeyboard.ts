@@ -38,7 +38,7 @@ const deviceFactory = (): Device => ({
   settings: S.Settings.fromPartial({ sleepEnabled: true, sleepMinutes: 15,
     backlight: { use: false, onAtStart: false, brightness: 40, usbOnly: false },
     underglow: { use: false, onAtStart: false, brightness: 50, usbOnly: true },
-    btIndicator: { use: true, brightness: 1 } }),
+    btIndicator: { use: true, brightness: 1, hideConnected: false, hideWaiting: false, hidePairing: false, hideCleared: false } }),
   blOn: false, ugOn: false, blWanted: false, ugWanted: false,
 });
 

@@ -51,6 +51,10 @@ static void fill_state(ryong_settings_Response *response) {
     st->settings.has_bt_indicator = true;
     st->settings.bt_indicator.use = s.indicator.use;
     st->settings.bt_indicator.brightness = s.indicator.brightness;
+    st->settings.bt_indicator.hide_connected = s.indicator.hidden & RY_RS_IND_CONNECTED;
+    st->settings.bt_indicator.hide_waiting = s.indicator.hidden & RY_RS_IND_WAITING;
+    st->settings.bt_indicator.hide_pairing = s.indicator.hidden & RY_RS_IND_PAIRING;
+    st->settings.bt_indicator.hide_cleared = s.indicator.hidden & RY_RS_IND_CLEARED;
     st->has_caps = true;
     st->caps.backlight = live.has_backlight;
     st->caps.underglow = live.has_underglow;
@@ -93,6 +97,10 @@ static bool handle(const zmk_custom_CallRequest *raw, pb_callback_t *encoded) {
             if (p->bt_indicator.brightness < 1 || p->bt_indicator.brightness > 100) rc = rc ? rc : -EINVAL;
             s.indicator.use = p->bt_indicator.use;
             s.indicator.brightness = (uint8_t)MIN(p->bt_indicator.brightness, 100);
+            s.indicator.hidden = (uint8_t)((p->bt_indicator.hide_connected ? RY_RS_IND_CONNECTED : 0) |
+                                           (p->bt_indicator.hide_waiting ? RY_RS_IND_WAITING : 0) |
+                                           (p->bt_indicator.hide_pairing ? RY_RS_IND_PAIRING : 0) |
+                                           (p->bt_indicator.hide_cleared ? RY_RS_IND_CLEARED : 0));
         } else {
             struct ry_settings now; /* an older page: keep what is stored */
             ry_rs_get(&now);

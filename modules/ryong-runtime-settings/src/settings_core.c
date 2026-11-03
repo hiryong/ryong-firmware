@@ -17,7 +17,7 @@ static bool light_ok(const struct ry_light *l) { return l->brightness <= 100; }
 int ry_rs_validate(const struct ry_settings *s) {
     if (!s || s->sleep_minutes < 1 || s->sleep_minutes > RY_RS_SLEEP_MAX_MIN) return -EINVAL;
     if (!light_ok(&s->backlight) || !light_ok(&s->underglow)) return -EINVAL;
-    if (s->indicator.brightness < 1 || s->indicator.brightness > 100) return -EINVAL;
+    if (s->indicator.brightness < 1 || s->indicator.brightness > 100 || (s->indicator.hidden & ~RY_RS_IND_ALL)) return -EINVAL;
     return 0;
 }
 
@@ -36,8 +36,9 @@ static uint8_t sum(const uint8_t *b, size_t n) {
     return x;
 }
 
-/* [ver][sleep_on][min lo][min hi][bl flags][bl brt][ug flags][ug brt][ind off][ind brt][0][sum]
- * The indicator bytes were zero in older records: 0 = on, default brightness. */
+/* [ver][sleep_on][min lo][min hi][bl flags][bl brt][ug flags][ug brt][ind][ind brt][0][sum]
+ * ind: bit 0 = light off, bits 1-4 = signals switched off (RY_RS_IND_* << 1).
+ * The indicator bytes were zero in older records: 0 = everything on, default brightness. */
 size_t ry_rs_encode(const struct ry_settings *s, uint8_t out[RY_RS_RECORD_SIZE]) {
     memset(out, 0, RY_RS_RECORD_SIZE);
     out[0] = RY_RS_VERSION;
@@ -48,7 +49,7 @@ size_t ry_rs_encode(const struct ry_settings *s, uint8_t out[RY_RS_RECORD_SIZE])
     out[5] = s->backlight.brightness;
     out[6] = flags(&s->underglow);
     out[7] = s->underglow.brightness;
-    out[8] = s->indicator.use ? 0 : 1;
+    out[8] = (uint8_t)((s->indicator.use ? 0 : 1) | (s->indicator.hidden & RY_RS_IND_ALL) << 1);
     out[9] = s->indicator.brightness;
     out[RY_RS_RECORD_SIZE - 1] = sum(out, RY_RS_RECORD_SIZE - 1);
     return RY_RS_RECORD_SIZE;
@@ -57,7 +58,7 @@ size_t ry_rs_encode(const struct ry_settings *s, uint8_t out[RY_RS_RECORD_SIZE])
 int ry_rs_decode(const uint8_t *in, size_t len, struct ry_settings *s) {
     if (!in || len != RY_RS_RECORD_SIZE || in[0] != RY_RS_VERSION) return -EINVAL;
     if (sum(in, RY_RS_RECORD_SIZE - 1) != in[RY_RS_RECORD_SIZE - 1]) return -EINVAL;
-    if (in[1] > 1 || (in[4] & ~7) || (in[6] & ~7) || (in[8] & ~1)) return -EINVAL;
+    if (in[1] > 1 || (in[4] & ~7) || (in[6] & ~7) || (in[8] & ~0x1F)) return -EINVAL;
     struct ry_settings t;
     memset(&t, 0, sizeof(t));
     t.sleep_enabled = in[1];
@@ -65,6 +66,7 @@ int ry_rs_decode(const uint8_t *in, size_t len, struct ry_settings *s) {
     unflags(&t.backlight, in[4], in[5]);
     unflags(&t.underglow, in[6], in[7]);
     t.indicator.use = !(in[8] & 1);
+    t.indicator.hidden = (uint8_t)(in[8] >> 1 & RY_RS_IND_ALL);
     t.indicator.brightness = in[9] ? in[9] : RY_RS_INDICATOR_BRT_DEFAULT;
     if (ry_rs_validate(&t)) return -EINVAL;
     *s = t;

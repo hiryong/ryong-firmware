@@ -187,10 +187,10 @@ index af8fc76d03daa5304199e7746fd120416d3d2456..f35a5129caeff3f9f2ac92084bcda89d
  uint8_t zmk_backlight_calc_brt(int direction);
  uint8_t zmk_backlight_calc_brt_cycle(void);
 diff --git a/app/include/zmk/ble.h b/app/include/zmk/ble.h
-index 92b2107d88b12d2779c02305053032372386391a..75246bbc402655944a13727a1daa70298c1558ac 100644
+index 92b2107d88b12d2779c02305053032372386391a..6e2d4013434dcd58ea60d9b64d45aba604acef1d 100644
 --- a/app/include/zmk/ble.h
 +++ b/app/include/zmk/ble.h
-@@ -20,6 +20,40 @@
+@@ -20,6 +20,46 @@
  #endif
  
  void zmk_ble_clear_bonds(void);
@@ -225,13 +225,19 @@ index 92b2107d88b12d2779c02305053032372386391a..75246bbc402655944a13727a1daa7029
 +/* Bluetooth slot light (ble_indicator.c). The keyboard settings module overrides the first two
 + * (weak defaults: on, CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR_BRT). */
 +bool zmk_ble_indicator_enabled(void);
++/* Which signals show (each can be switched off on its own): */
++#define ZMK_BLE_INDICATOR_CONNECTED BIT(0) /* on for 1 s when the slot's computer connects */
++#define ZMK_BLE_INDICATOR_WAITING BIT(1)   /* slow blink while waiting for the slot's computer */
++#define ZMK_BLE_INDICATOR_PAIRING BIT(2)   /* fast blink while an empty slot waits for a new one */
++#define ZMK_BLE_INDICATOR_CLEARED BIT(3)   /* one short flash when a slot is cleared */
++bool zmk_ble_indicator_shows(uint8_t signal);
 +uint8_t zmk_ble_indicator_brightness(void);
 +void zmk_ble_indicator_cleared(void);
 +void zmk_ble_indicator_preview(void);
  int zmk_ble_prof_next(void);
  int zmk_ble_prof_prev(void);
  int zmk_ble_prof_select(uint8_t index);
-@@ -28,6 +62,8 @@ int zmk_ble_prof_disconnect(uint8_t index);
+@@ -28,6 +68,8 @@ int zmk_ble_prof_disconnect(uint8_t index);
  
  int zmk_ble_active_profile_index(void);
  int zmk_ble_profile_index(const bt_addr_le_t *addr);
@@ -240,7 +246,7 @@ index 92b2107d88b12d2779c02305053032372386391a..75246bbc402655944a13727a1daa7029
  bt_addr_le_t *zmk_ble_profile_address(uint8_t index);
  
  bt_addr_le_t *zmk_ble_active_profile_addr(void);
-@@ -44,6 +80,8 @@ int zmk_ble_unpair_all(void);
+@@ -44,6 +86,8 @@ int zmk_ble_unpair_all(void);
  
  int zmk_ble_set_device_name(char *name);
  
@@ -1054,10 +1060,10 @@ index 0000000000000000000000000000000000000000..1d1d3e8aa5decad98ab763d98a445ba1
 +#endif /* DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT) */
 diff --git a/app/src/ble_indicator.c b/app/src/ble_indicator.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..fe253b201675c169270d7e012376f0583f33769d
+index 0000000000000000000000000000000000000000..c5c213d0a5a5393581a8aaaf8995eb548b109962
 --- /dev/null
 +++ b/app/src/ble_indicator.c
-@@ -0,0 +1,161 @@
+@@ -0,0 +1,190 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -1087,10 +1093,15 @@ index 0000000000000000000000000000000000000000..fe253b201675c169270d7e012376f058
 +
 +__weak bool zmk_ble_indicator_enabled(void) { return true; }
 +__weak uint8_t zmk_ble_indicator_brightness(void) { return CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR_BRT; }
++__weak bool zmk_ble_indicator_shows(uint8_t signal) {
++    ARG_UNUSED(signal);
++    return true;
++}
 +
 +enum pattern { NONE, WAITING, PAIRING, CONNECTED, CLEARED };
 +
 +static enum pattern pattern = NONE;
++static bool awaiting; /* the slot was waiting for a computer (shown or not): connecting may flash */
 +static bool lit;
 +static int64_t until;
 +static atomic_t flash_pending; /* 1: slot cleared (then follow the slot), 2: brightness preview */
@@ -1110,8 +1121,23 @@ index 0000000000000000000000000000000000000000..fe253b201675c169270d7e012376f058
 +    zmk_backlight_indicate(-1);
 +}
 +
++static uint8_t signal_of(enum pattern p) {
++    switch (p) {
++    case WAITING:
++        return ZMK_BLE_INDICATOR_WAITING;
++    case PAIRING:
++        return ZMK_BLE_INDICATOR_PAIRING;
++    case CONNECTED:
++        return ZMK_BLE_INDICATOR_CONNECTED;
++    case CLEARED:
++        return ZMK_BLE_INDICATOR_CLEARED;
++    default:
++        return 0;
++    }
++}
++
 +static void start(enum pattern p, int ms) {
-+    if (!zmk_ble_indicator_enabled()) {
++    if (!zmk_ble_indicator_enabled() || !zmk_ble_indicator_shows(signal_of(p))) {
 +        if (pattern != NONE) {
 +            stop();
 +        }
@@ -1129,11 +1155,16 @@ index 0000000000000000000000000000000000000000..fe253b201675c169270d7e012376f058
 +/* What the selected slot shows now (after a clear flash, or on an event). */
 +static void follow_slot(void) {
 +    if (zmk_ble_active_profile_is_open()) {
++        awaiting = true;
 +        start(PAIRING, 60000);
 +    } else if (!zmk_ble_active_profile_is_connected()) {
++        awaiting = true;
 +        start(WAITING, 10000);
-+    } else if (pattern == WAITING || pattern == PAIRING) {
-+        pattern = NONE;
++    } else if (awaiting) {
++        awaiting = false;
++        if (pattern != NONE) {
++            stop();
++        }
 +        start(CONNECTED, 1000);
 +    } else if (pattern == CLEARED) {
 +        stop();
@@ -1186,6 +1217,10 @@ index 0000000000000000000000000000000000000000..fe253b201675c169270d7e012376f058
 +    if (!kind || !zmk_ble_indicator_enabled()) {
 +        return;
 +    }
++    if (kind == 1 && !zmk_ble_indicator_shows(ZMK_BLE_INDICATOR_CLEARED)) {
++        follow_slot(); /* no flash: straight to what the slot shows */
++        return;
++    }
 +    flash_follows = kind == 1;
 +    pattern = CLEARED;
 +    lit = false;
@@ -1221,10 +1256,10 @@ index 0000000000000000000000000000000000000000..fe253b201675c169270d7e012376f058
 +ZMK_SUBSCRIPTION(ble_indicator, zmk_ble_active_profile_changed);
 diff --git a/app/src/ble_slots.c b/app/src/ble_slots.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..d733e7bd5da04719102f6e84ba42249f74c43e08
+index 0000000000000000000000000000000000000000..98b10bfe928d9d942d5fb99bab36a12619e86ecb
 --- /dev/null
 +++ b/app/src/ble_slots.c
-@@ -0,0 +1,1008 @@
+@@ -0,0 +1,1005 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -1296,10 +1331,12 @@ index 0000000000000000000000000000000000000000..d733e7bd5da04719102f6e84ba42249f
 +#define ZMK_ADV_CONN                                                                               \
 +    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
 +
-+/* For the first seconds after a slot is selected, cleared or loses its computer, advertise every
-+ * 20-30 ms (Apple's recommendation for reconnecting accessories) so the computer comes back
-+ * quickly; then the usual 100-150 ms to save battery. */
-+#define FAST_ADV_MS 10000
++/* For the first seconds after a slot is selected (and after power-up), advertise every 20-30 ms
++ * (Apple's recommendation for reconnecting accessories) so its computer comes back quickly; then
++ * the usual 100-150 ms to save battery. Not after a clear (a new pairing is started by hand) or a
++ * lost link (the computer comes back on its own schedule). */
++#define FAST_ADV_MS 10000      /* after selecting a slot */
++#define FAST_ADV_BOOT_MS 3000  /* after power-up (also waking from deep sleep) */
 +#define FAST_ADV_INT_MIN 32 /* x 0.625 ms = 20 ms */
 +#define FAST_ADV_INT_MAX 48 /* 30 ms */
 +static int64_t fast_until;
@@ -1621,9 +1658,9 @@ index 0000000000000000000000000000000000000000..d733e7bd5da04719102f6e84ba42249f
 +}
 +static K_TIMER_DEFINE(slow_timer, slow_timer_fn, NULL);
 +
-+static void fast_adv(void) {
-+    fast_until = k_uptime_get() + FAST_ADV_MS;
-+    k_timer_start(&slow_timer, K_MSEC(FAST_ADV_MS), K_NO_WAIT);
++static void fast_adv(int ms) {
++    fast_until = k_uptime_get() + ms;
++    k_timer_start(&slow_timer, K_MSEC(ms), K_NO_WAIT);
 +}
 +
 +/* ---- worker helpers ---- */
@@ -1957,7 +1994,7 @@ index 0000000000000000000000000000000000000000..d733e7bd5da04719102f6e84ba42249f
 +    bt_conn_auth_cb_register(&auth_cb);
 +    bt_conn_auth_info_cb_register(&auth_info_cb);
 +    started = true;
-+    fast_adv();
++    fast_adv(FAST_ADV_BOOT_MS);
 +    LOG_INF("Bluetooth slots ready, slot %d selected", active_profile);
 +    adv_update(false);
 +    raise_profile_changed();
@@ -2022,7 +2059,7 @@ index 0000000000000000000000000000000000000000..d733e7bd5da04719102f6e84ba42249f
 +        }
 +        save_active();
 +        drop_other_links();
-+        fast_adv();
++        fast_adv(FAST_ADV_MS);
 +        adv_update(false);
 +        raise_profile_changed();
 +        break;
@@ -2031,7 +2068,6 @@ index 0000000000000000000000000000000000000000..d733e7bd5da04719102f6e84ba42249f
 +            reset_slot(c->arg, c->cause ? c->cause : ZMK_BLE_BOND_CLEARED);
 +            if (c->arg == active_profile) {
 +                indicate_cleared();
-+                fast_adv();
 +            }
 +            adv_update(false);
 +            raise_profile_changed();
@@ -2046,7 +2082,6 @@ index 0000000000000000000000000000000000000000..d733e7bd5da04719102f6e84ba42249f
 +            active_profile = 0;
 +            save_active();
 +            indicate_cleared();
-+            fast_adv();
 +            adv_update(false);
 +            raise_profile_changed();
 +        }
@@ -2064,9 +2099,6 @@ index 0000000000000000000000000000000000000000..d733e7bd5da04719102f6e84ba42249f
 +        on_connected(c->conn);
 +        break;
 +    case CMD_DISCONNECTED:
-+        if (c->arg == active_profile) {
-+            fast_adv();
-+        }
 +        adv_update(false);
 +        if (c->arg == active_profile) {
 +            raise_profile_changed();

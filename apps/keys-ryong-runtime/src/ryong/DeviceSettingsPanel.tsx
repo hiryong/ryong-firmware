@@ -18,6 +18,14 @@ const Row = ({ title, hint, children }: { title: string; hint?: string; children
 
 const SLEEP_PRESETS = [5, 10, 15, 30, 60];
 
+/* The slot light's signals, each switchable (stored as "hide_*": absent = shown). */
+const SIGNALS: [ "hideConnected" | "hideWaiting" | "hidePairing" | "hideCleared", () => string, () => string][] = [
+  ["hideConnected", () => t("When connected", "연결되면"), () => t("On for 1 s when the slot's device connects. Switching often? Off saves battery.", "슬롯의 기기가 연결되면 1초 켜져요. 자주 전환한다면 꺼 두면 배터리가 아껴져요.")],
+  ["hideWaiting", () => t("Waiting for its device", "등록된 기기 기다릴 때"), () => t("Slow blink up to 10 s after selecting a slot until its device connects.", "슬롯을 고른 뒤 그 기기가 연결될 때까지(최대 10초) 천천히 깜빡여요.")],
+  ["hidePairing", () => t("Waiting for a new device", "새 기기 기다릴 때"), () => t("Fast blink up to 60 s while an empty slot waits to pair.", "빈 슬롯이 페어링을 기다리는 동안(최대 60초) 빠르게 깜빡여요.")],
+  ["hideCleared", () => t("When a slot is cleared", "슬롯을 지우면"), () => t("One short flash (slot key held 3 s, Fn+D, or this page).", "한 번 짧게 깜빡여요 (슬롯 키 3초, Fn+D, 또는 이 페이지에서 삭제).")],
+];
+
 export function DeviceSettingsPanel() {
   const { conn } = useContext(ConnectionContext), lock = useContext(LockStateContext);
   const ready = !!conn && lock === LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED;
@@ -89,10 +97,13 @@ export function DeviceSettingsPanel() {
       brtTimer.current = setTimeout(() => void applyIndicatorBrightness(v), 400);
     };
     return <section className="ry-card ry-setcard" aria-label={name}>
-      <Row title={name} hint={t("On the backlight: fast blink while a slot waits for a new device, slow blink while it waits for its own, one short flash when a slot is cleared.",
-        "백라이트로 알려요: 새 기기를 기다리면 빠르게, 등록된 기기를 기다리면 천천히 깜빡이고, 슬롯을 지우면 한 번 짧게 깜빡여요.")}>
+      <Row title={name} hint={t("Bluetooth slot status on the backlight. Choose which signals show below.", "Bluetooth 슬롯 상태를 백라이트로 알려요. 어떤 알림을 쓸지 아래에서 골라요.")}>
         <Switch on={l.use} label={t("Use {n}", "{n} 사용", { n: name })} onChange={(use) => setDraft((d) => d && { ...d, btIndicator: { ...d.btIndicator!, use } })} />
       </Row>
+      {l.use && SIGNALS.map(([key, title, hint]) =>
+        <Row key={key} title={title()} hint={hint()}>
+          <Switch on={!l[key]} label={title()} onChange={(on) => setDraft((d) => d && { ...d, btIndicator: { ...d.btIndicator!, [key]: !on } })} />
+        </Row>)}
       {l.use && <Row title={t("Light brightness", "알림 밝기")} hint={t("Applied when you let go, with one flash to show it. Low is easy on the eyes and the battery.", "슬라이더를 놓으면 바로 바뀌고 한 번 깜빡여 보여줘요. 낮을수록 눈과 배터리에 편해요.")}>
         <span className="ry-range"><input type="range" min={1} max={100} step={1} value={l.brightness} disabled={!savedUse}
           aria-label={t("Light brightness", "알림 밝기")} title={!savedUse ? t("Save first", "먼저 저장하세요") : undefined}

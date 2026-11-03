@@ -32,6 +32,14 @@ export interface Indicator {
   use: boolean;
   /** 1-100 */
   brightness: number;
+  /** Each signal can be switched off on its own (false = shown, so older pages keep them). */
+  hideConnected: boolean;
+  /** slow blink while waiting for the slot's computer */
+  hideWaiting: boolean;
+  /** fast blink while an empty slot waits for a new computer */
+  hidePairing: boolean;
+  /** one short flash when a slot is cleared */
+  hideCleared: boolean;
 }
 
 export interface Settings {
@@ -240,7 +248,14 @@ export const Light = {
 };
 
 function createBaseIndicator(): Indicator {
-  return { use: false, brightness: 0 };
+  return {
+    use: false,
+    brightness: 0,
+    hideConnected: false,
+    hideWaiting: false,
+    hidePairing: false,
+    hideCleared: false,
+  };
 }
 
 export const Indicator = {
@@ -250,6 +265,18 @@ export const Indicator = {
     }
     if (message.brightness !== 0) {
       writer.uint32(16).uint32(message.brightness);
+    }
+    if (message.hideConnected !== false) {
+      writer.uint32(24).bool(message.hideConnected);
+    }
+    if (message.hideWaiting !== false) {
+      writer.uint32(32).bool(message.hideWaiting);
+    }
+    if (message.hidePairing !== false) {
+      writer.uint32(40).bool(message.hidePairing);
+    }
+    if (message.hideCleared !== false) {
+      writer.uint32(48).bool(message.hideCleared);
     }
     return writer;
   },
@@ -275,6 +302,34 @@ export const Indicator = {
 
           message.brightness = reader.uint32();
           continue;
+        case 3:
+          if (tag !== 24) {
+            break;
+          }
+
+          message.hideConnected = reader.bool();
+          continue;
+        case 4:
+          if (tag !== 32) {
+            break;
+          }
+
+          message.hideWaiting = reader.bool();
+          continue;
+        case 5:
+          if (tag !== 40) {
+            break;
+          }
+
+          message.hidePairing = reader.bool();
+          continue;
+        case 6:
+          if (tag !== 48) {
+            break;
+          }
+
+          message.hideCleared = reader.bool();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -288,6 +343,10 @@ export const Indicator = {
     return {
       use: isSet(object.use) ? globalThis.Boolean(object.use) : false,
       brightness: isSet(object.brightness) ? globalThis.Number(object.brightness) : 0,
+      hideConnected: isSet(object.hideConnected) ? globalThis.Boolean(object.hideConnected) : false,
+      hideWaiting: isSet(object.hideWaiting) ? globalThis.Boolean(object.hideWaiting) : false,
+      hidePairing: isSet(object.hidePairing) ? globalThis.Boolean(object.hidePairing) : false,
+      hideCleared: isSet(object.hideCleared) ? globalThis.Boolean(object.hideCleared) : false,
     };
   },
 
@@ -299,6 +358,18 @@ export const Indicator = {
     if (message.brightness !== 0) {
       obj.brightness = Math.round(message.brightness);
     }
+    if (message.hideConnected !== false) {
+      obj.hideConnected = message.hideConnected;
+    }
+    if (message.hideWaiting !== false) {
+      obj.hideWaiting = message.hideWaiting;
+    }
+    if (message.hidePairing !== false) {
+      obj.hidePairing = message.hidePairing;
+    }
+    if (message.hideCleared !== false) {
+      obj.hideCleared = message.hideCleared;
+    }
     return obj;
   },
 
@@ -309,6 +380,10 @@ export const Indicator = {
     const message = createBaseIndicator();
     message.use = object.use ?? false;
     message.brightness = object.brightness ?? 0;
+    message.hideConnected = object.hideConnected ?? false;
+    message.hideWaiting = object.hideWaiting ?? false;
+    message.hidePairing = object.hidePairing ?? false;
+    message.hideCleared = object.hideCleared ?? false;
     return message;
   },
 };

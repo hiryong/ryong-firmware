@@ -404,6 +404,8 @@ await step("keyboard settings: backlight use switch, brightness applies at once,
   await page.waitForFunction(() => window.__ryongVirtual.flash.device.blOn === true, null, { timeout: 5000 });
   await pane.getByRole("button", { name: "키보드에서 다시 읽기" }).click();
   const slider = bl.getByRole("slider", { name: "백라이트 밝기" });
+  await slider.waitFor();
+  await page.waitForTimeout(500); // the re-read finishes (it re-renders the pane and would take the focus)
   await slider.focus();
   for (let i = 0; i < 6; i++) await page.keyboard.press("ArrowRight"); // 40 → 70 in 5% steps
   // no Save press: the slider writes by itself once let go
@@ -444,6 +446,10 @@ await step("keyboard settings: Bluetooth slot light on/off and brightness", asyn
   await slider.focus();
   for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowRight"); // 1 → 5
   await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.btIndicator?.brightness === 5, null, { timeout: 5000 });
+  await pane.getByRole("switch", { name: "연결되면" }).click(); // off
+  await pane.getByRole("button", { name: "키보드에 저장" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.btIndicator?.hideConnected === true
+    && window.__ryongVirtual.flash.device.settings.btIndicator?.hidePairing === false, null, { timeout: 5000 });
   await pane.getByRole("switch", { name: "Bluetooth 슬롯 알림 사용" }).click();
   await pane.getByRole("button", { name: "키보드에 저장" }).click();
   await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.btIndicator?.use === false, null, { timeout: 5000 });

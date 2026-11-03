@@ -258,6 +258,14 @@ bool zmk_ble_indicator_enabled(void) {
     k_mutex_unlock(&lock);
     return use;
 }
+bool zmk_ble_indicator_shows(uint8_t signal) {
+    BUILD_ASSERT(RY_RS_IND_CONNECTED == ZMK_BLE_INDICATOR_CONNECTED && RY_RS_IND_WAITING == ZMK_BLE_INDICATOR_WAITING &&
+                 RY_RS_IND_PAIRING == ZMK_BLE_INDICATOR_PAIRING && RY_RS_IND_CLEARED == ZMK_BLE_INDICATOR_CLEARED);
+    k_mutex_lock(&lock, K_FOREVER);
+    bool shows = !(cur.indicator.hidden & signal);
+    k_mutex_unlock(&lock);
+    return shows;
+}
 uint8_t zmk_ble_indicator_brightness(void) {
     k_mutex_lock(&lock, K_FOREVER);
     uint8_t brt = cur.indicator.brightness;

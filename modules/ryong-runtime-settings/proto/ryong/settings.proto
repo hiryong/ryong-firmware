@@ -16,6 +16,11 @@ message Light {
 message Indicator {
     bool use = 1;
     uint32 brightness = 2;  // 1-100
+    // Each signal can be switched off on its own (false = shown, so older pages keep them).
+    bool hide_connected = 3;  // on for 1 s when the slot's computer connects
+    bool hide_waiting = 4;    // slow blink while waiting for the slot's computer
+    bool hide_pairing = 5;    // fast blink while an empty slot waits for a new computer
+    bool hide_cleared = 6;    // one short flash when a slot is cleared
 }
 
 message Settings {

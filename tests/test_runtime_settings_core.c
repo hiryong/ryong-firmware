@@ -82,9 +82,11 @@ static void test_indicator(void) {
     uint8_t rec[RY_RS_RECORD_SIZE];
     ry_rs_defaults(&s, 15, true);
     assert(s.indicator.use && s.indicator.brightness == RY_RS_INDICATOR_BRT_DEFAULT);
-    s.indicator.use = false; s.indicator.brightness = 30;
+    s.indicator.use = false; s.indicator.brightness = 30; s.indicator.hidden = RY_RS_IND_CONNECTED | RY_RS_IND_CLEARED;
     ry_rs_encode(&s, rec);
-    assert(ry_rs_decode(rec, sizeof(rec), &t) == 0 && !t.indicator.use && t.indicator.brightness == 30);
+    assert(ry_rs_decode(rec, sizeof(rec), &t) == 0 && !t.indicator.use && t.indicator.brightness == 30
+           && t.indicator.hidden == (RY_RS_IND_CONNECTED | RY_RS_IND_CLEARED));
+    s.indicator.hidden = 0;
     /* a record written before the indicator existed: bytes 8-9 zero -> on, default brightness */
     s.indicator.use = true; s.indicator.brightness = RY_RS_INDICATOR_BRT_DEFAULT;
     ry_rs_encode(&s, rec);
@@ -92,7 +94,7 @@ static void test_indicator(void) {
     uint8_t x = 0xA5;
     for (size_t i = 0; i < RY_RS_RECORD_SIZE - 1; i++) x = (uint8_t)((x << 1 | x >> 7) ^ rec[i]);
     rec[RY_RS_RECORD_SIZE - 1] = x;
-    assert(ry_rs_decode(rec, sizeof(rec), &t) == 0 && t.indicator.use && t.indicator.brightness == RY_RS_INDICATOR_BRT_DEFAULT);
+    assert(ry_rs_decode(rec, sizeof(rec), &t) == 0 && t.indicator.use && t.indicator.brightness == RY_RS_INDICATOR_BRT_DEFAULT && t.indicator.hidden == 0);
     s.indicator.brightness = 0;
     assert(ry_rs_validate(&s) == -EINVAL);
 }

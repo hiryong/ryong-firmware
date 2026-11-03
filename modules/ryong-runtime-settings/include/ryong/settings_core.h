@@ -21,7 +21,13 @@ struct ry_light {
 struct ry_indicator {
     bool use;
     uint8_t brightness; /* 1-100 */
+    uint8_t hidden;     /* signals switched off: RY_RS_IND_* bits */
 };
+#define RY_RS_IND_CONNECTED 1 /* same bits as ZMK_BLE_INDICATOR_* */
+#define RY_RS_IND_WAITING 2
+#define RY_RS_IND_PAIRING 4
+#define RY_RS_IND_CLEARED 8
+#define RY_RS_IND_ALL 15
 
 struct ry_settings {
     bool sleep_enabled;
