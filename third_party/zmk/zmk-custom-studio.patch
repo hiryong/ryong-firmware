@@ -1,8 +1,16 @@
 diff --git a/app/CMakeLists.txt b/app/CMakeLists.txt
-index c41153cb17c97f790b3c7dac2262c7ee04a65cd2..916c78494092c8386f823ce3ba1eeea5a7b9932f 100644
+index c41153cb17c97f790b3c7dac2262c7ee04a65cd2..40e8c067e7cf66975c7d18d92e6357a3cd33e7aa 100644
 --- a/app/CMakeLists.txt
 +++ b/app/CMakeLists.txt
-@@ -116,8 +116,10 @@ if (CONFIG_ZMK_STUDIO_RPC)
+@@ -83,6 +83,7 @@ if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+   if (CONFIG_ZMK_BLE)
+     target_sources(app PRIVATE src/events/ble_active_profile_changed.c)
+     target_sources(app PRIVATE src/behaviors/behavior_bt.c)
++    target_sources(app PRIVATE src/behaviors/behavior_bt_slot.c)
+     target_sources(app PRIVATE src/ble.c)
+     target_sources(app PRIVATE src/hog.c)
+   endif()
+@@ -116,8 +117,10 @@ if (CONFIG_ZMK_STUDIO_RPC)
  
    include(nanopb)
  
@@ -14,7 +22,7 @@ index c41153cb17c97f790b3c7dac2262c7ee04a65cd2..916c78494092c8386f823ce3ba1eeea5
  
    nanopb_generate_cpp(proto_srcs proto_hdrs RELPATH ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}
                          ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/studio.proto
-@@ -125,6 +127,7 @@ if (CONFIG_ZMK_STUDIO_RPC)
+@@ -125,6 +128,7 @@ if (CONFIG_ZMK_STUDIO_RPC)
                          ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/core.proto
                          ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/behaviors.proto
                          ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/keymap.proto
@@ -64,6 +72,63 @@ index 8c0675e0d686fd3951ba23d51b37700720285cb3..cfd6e613407c2612fac58164369244bd
  config ZMK_BACKLIGHT_BRT_STEP
      int "Brightness step in percent"
      range 1 100
+diff --git a/app/dts/behaviors.dtsi b/app/dts/behaviors.dtsi
+index 653b085d5c5df3b43935739bb18d10e5c4e533b9..aab0e3cb732b6f3927953fa4fa11963188228165 100644
+--- a/app/dts/behaviors.dtsi
++++ b/app/dts/behaviors.dtsi
+@@ -19,6 +19,7 @@
+ #include <behaviors/sensor_rotate_key_press.dtsi>
+ #include <behaviors/rgb_underglow.dtsi>
+ #include <behaviors/bluetooth.dtsi>
++#include <behaviors/bt_slot.dtsi>
+ #include <behaviors/ext_power.dtsi>
+ #include <behaviors/outputs.dtsi>
+ #include <behaviors/caps_word.dtsi>
+diff --git a/app/dts/behaviors/bt_slot.dtsi b/app/dts/behaviors/bt_slot.dtsi
+new file mode 100644
+index 0000000000000000000000000000000000000000..0eecca21386aac69f74bb2496257349610dae55e
+--- /dev/null
++++ b/app/dts/behaviors/bt_slot.dtsi
+@@ -0,0 +1,18 @@
++/*
++ * Copyright (c) 2026 The ZMK Contributors
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#include <dt-bindings/zmk/behaviors.h>
++
++/ {
++    behaviors {
++        /omit-if-no-ref/
++        bt_slot: bt_slot {
++            compatible = "zmk,behavior-bt-slot";
++            #binding-cells = <1>;
++            display-name = "Bluetooth Slot";
++        };
++    };
++};
+diff --git a/app/dts/bindings/behaviors/zmk,behavior-bt-slot.yaml b/app/dts/bindings/behaviors/zmk,behavior-bt-slot.yaml
+new file mode 100644
+index 0000000000000000000000000000000000000000..3863f1f5115a6e722d60149e5e3a56c84719aa18
+--- /dev/null
++++ b/app/dts/bindings/behaviors/zmk,behavior-bt-slot.yaml
+@@ -0,0 +1,15 @@
++# Copyright (c) 2026 The ZMK Contributors
++# SPDX-License-Identifier: MIT
++
++description: |
++  Ryong: Bluetooth slot key, like a multi-device keyboard's channel key. Tap selects the slot;
++  holding it for hold-ms clears that slot so it waits for a new device to pair.
++
++compatible: "zmk,behavior-bt-slot"
++
++include: one_param.yaml
++
++properties:
++  hold-ms:
++    type: int
++    default: 3000
 diff --git a/app/include/linker/zmk-rpc-custom-subsystems.ld b/app/include/linker/zmk-rpc-custom-subsystems.ld
 new file mode 100644
 index 0000000000000000000000000000000000000000..39927f4a4d38e3913000795c47c4c26673c5aded
@@ -796,6 +861,117 @@ index 22b730669ab6bffe6df2e2d95f8e866e9b809d86..d2103822e0acb99b226912ea0b28c5ea
      return 0;
  }
  
+diff --git a/app/src/behaviors/behavior_bt_slot.c b/app/src/behaviors/behavior_bt_slot.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..1d1d3e8aa5decad98ab763d98a445ba19a417775
+--- /dev/null
++++ b/app/src/behaviors/behavior_bt_slot.c
+@@ -0,0 +1,105 @@
++/*
++ * Copyright (c) 2026 The ZMK Contributors
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++/*
++ * Ryong: Bluetooth slot key (&bt_slot N), like a multi-device keyboard's channel key.
++ *  - press: select slot N at once (the other slots' links end; each slot has its own address)
++ *  - keep holding for hold-ms (3 s): clear slot N, so it waits for a new device to pair
++ */
++
++#define DT_DRV_COMPAT zmk_behavior_bt_slot
++
++#include <zephyr/device.h>
++#include <zephyr/kernel.h>
++#include <zephyr/logging/log.h>
++LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
++
++#include <drivers/behavior.h>
++#include <zmk/behavior.h>
++#include <zmk/ble.h>
++
++#if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
++
++struct bt_slot_config {
++    uint32_t hold_ms;
++};
++
++static struct {
++    struct k_work_delayable work;
++    int32_t position;
++    uint8_t slot;
++    bool armed;
++} hold;
++
++static void hold_work_cb(struct k_work *work) {
++    ARG_UNUSED(work);
++    if (!hold.armed) {
++        return;
++    }
++    hold.armed = false;
++    LOG_INF("Slot key held: clearing profile %d for a new pairing", hold.slot);
++    (void)zmk_ble_prof_select(hold.slot);
++    (void)zmk_ble_prof_clear(hold.slot);
++}
++
++#if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
++static const struct behavior_parameter_value_metadata slot_values[] = {{
++    .display_name = "Slot",
++    .type = BEHAVIOR_PARAMETER_VALUE_TYPE_RANGE,
++    .range = {.min = 0, .max = ZMK_BLE_PROFILE_COUNT - 1},
++}};
++static const struct behavior_parameter_metadata_set slot_set = {
++    .param1_values = slot_values,
++    .param1_values_len = ARRAY_SIZE(slot_values),
++};
++static const struct behavior_parameter_metadata metadata = {.sets_len = 1, .sets = &slot_set};
++#endif
++
++static int pressed(struct zmk_behavior_binding *binding, struct zmk_behavior_binding_event event) {
++    const struct device *dev = zmk_behavior_get_binding(binding->behavior_dev);
++    const struct bt_slot_config *cfg = dev->config;
++    if (binding->param1 >= ZMK_BLE_PROFILE_COUNT) {
++        return -EINVAL;
++    }
++    hold.slot = binding->param1;
++    hold.position = event.position;
++    hold.armed = true;
++    k_work_reschedule(&hold.work, K_MSEC(cfg->hold_ms));
++    int rc = zmk_ble_prof_select(binding->param1);
++    return rc < 0 ? rc : ZMK_BEHAVIOR_OPAQUE;
++}
++
++static int released(struct zmk_behavior_binding *binding, struct zmk_behavior_binding_event event) {
++    ARG_UNUSED(binding);
++    if (hold.armed && hold.position == event.position) {
++        hold.armed = false;
++        k_work_cancel_delayable(&hold.work);
++    }
++    return ZMK_BEHAVIOR_OPAQUE;
++}
++
++static int bt_slot_init(const struct device *dev) {
++    ARG_UNUSED(dev);
++    k_work_init_delayable(&hold.work, hold_work_cb);
++    return 0;
++}
++
++static const struct behavior_driver_api api = {
++    .binding_pressed = pressed,
++    .binding_released = released,
++#if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
++    .parameter_metadata = &metadata,
++#endif
++};
++
++#define BT_SLOT_INST(n)                                                                            \
++    static const struct bt_slot_config bt_slot_config_##n = {.hold_ms = DT_INST_PROP(n, hold_ms)}; \
++    BEHAVIOR_DT_INST_DEFINE(n, bt_slot_init, NULL, NULL, &bt_slot_config_##n, POST_KERNEL,           \
++                            CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, &api);
++
++DT_INST_FOREACH_STATUS_OKAY(BT_SLOT_INST)
++
++#endif /* DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT) */
 diff --git a/app/src/ble.c b/app/src/ble.c
 index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..11f8a369b0d4612c0d234a22e83c21625f4b4faf 100644
 --- a/app/src/ble.c
