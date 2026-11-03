@@ -1,4 +1,4 @@
-// keysbeta.ryong.com/admin — firmware builds, bench-test records, releases and status for the owner.
+// keys.ryong.com/admin — firmware builds, bench-test records, releases and status for the owner.
 // Talks only to /api/admin (Cloudflare Functions). GitHub is used behind the server; no GitHub sign-in here.
 // English or Korean with the main app's switch (ryong/i18n, same "ryong.lang" choice); the API answers in the language sent as X-Ryong-Lang.
 // data-ry-i18n-skip: the main app's swapping of official ZMK Studio texts never touches this page.
@@ -117,7 +117,7 @@ function Login({ me, onDone }: { me: Me; onDone: () => Promise<Me | null> }) {
       <form className="ry-card kc-login-card" onSubmit={submit}>
         <div className="kc-login-top"><div className="kc-brand"><RyongMark size={24} /> Keys <span className="ry-faint">{t("Admin", "관리자")}</span></div><LangToggle /></div>
         {blocked ? <p className="ry-note">{me.setup.password === "no-password" ? t("No admin password is set yet.", "관리자 비밀번호가 아직 설정되지 않았어요.") : t("The configured password is too short. Change it to 10 or more characters.", "설정된 비밀번호가 너무 짧아요. 10자 이상으로 바꿔 주세요.")}{" "}
-          {t("Set ADMIN_PASSWORD in the GitHub repository secrets and redeploy keysbeta to open it.", "GitHub 저장소 Secrets의 ADMIN_PASSWORD를 설정하고 keysbeta를 다시 배포하면 열려요.")}</p>
+          {t("Set ADMIN_PASSWORD in the GitHub repository secrets and redeploy the site to open it.", "GitHub 저장소 Secrets의 ADMIN_PASSWORD를 설정하고 사이트를 다시 배포하면 열려요.")}</p>
           : <>
             <label className="ry-field"><span className="ry-label">{t("Password", "비밀번호")}</span>
               <input type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus required /></label>
@@ -288,7 +288,7 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (to: "test"
               <option value="default">{t("Default (0 dBm)", "기본 (0 dBm)")}</option><option value="plus4">{t("Strong (+4 dBm)", "강하게 (+4 dBm)")}</option><option value="plus8">{t("Strongest (+8 dBm)", "가장 강하게 (+8 dBm)")}</option>
             </select><span className="ry-faint">{t("Reaches farther but uses more battery", "멀리 닿지만 배터리를 더 써요")}</span></label>
         </div>
-        <p className="ry-faint">{t("Settings the keyboard can change on its own, like lights and sleep, aren't here. Users change them in keysbeta's settings screen.", "조명·절전처럼 키보드에서 바로 바꿀 수 있는 설정은 여기 없어요. 사용자가 keysbeta 설정 화면에서 바꿔요.")}</p>
+        <p className="ry-faint">{t("Settings the keyboard can change on its own, like lights and sleep, aren't here. Users change them in the site's keyboard settings.", "조명·절전처럼 키보드에서 바로 바꿀 수 있는 설정은 여기 없어요. 사용자가 사이트의 키보드 설정에서 바꿔요.")}</p>
         <div className="kc-actions"><button className="ry-primary" disabled={busy}>{busy ? t("Starting…", "시작하는 중…") : t("Start build", "빌드 시작")}</button></div>
         {started && <p className="ry-note" role="status">{started}</p>}
       </form>

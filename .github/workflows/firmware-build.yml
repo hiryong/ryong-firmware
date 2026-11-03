@@ -1,4 +1,4 @@
-# Firmware build started from keysbeta.ryong.com/admin (or by hand). Builds ONE board with the
+# Firmware build started from keys.ryong.com/admin (or by hand). Builds ONE board with the
 # chosen basic settings and keeps the UF2 as a private, short-lived Actions artifact for the
 # owner's bench test. It is NOT a release: nothing is published until the release workflow
 # finds a passing bench-test record for exactly this file (see firmware-release.yml).
@@ -102,7 +102,7 @@ jobs:
         run: |
           set -euo pipefail
           W="$GITHUB_WORKSPACE"
-          # Firmware-built combos/macros become editable runtime defaults (listed in keysbeta).
+          # Firmware-built combos/macros become editable runtime defaults (listed on keys.ryong.com).
           if [[ "${{ inputs.target }}" == bt60* ]]; then python3 "$W/scripts/runtime_defaults.py" /tmp/fw/config/ryong-behaviors.dtsi /tmp/fw/runtime-defaults.overlay /tmp/fw/config/ryong-behaviors.json
           else python3 "$W/scripts/runtime_defaults.py" "$W/hardware/ryong60/boards/ryong/ryong60/ryong-behaviors.dtsi" /tmp/fw/runtime-defaults.overlay "$W/hardware/ryong60/boards/ryong/ryong60/ryong-behaviors.json"; fi
           if [[ "${{ inputs.target }}" == bt60* ]]; then
@@ -170,7 +170,7 @@ jobs:
             echo "- File: \`$uf2\`"
             echo "- SHA-256: \`$sha\`"
             [ -n "$dfu" ] && echo "- Bluetooth update package: \`$dfu\` (nRF Device Firmware Update app; unsigned, development only)"
-            echo "- Not a release. Bench-test it and record the result in keysbeta.ryong.com/admin."
+            echo "- Not a release. Bench-test it and record the result in keys.ryong.com/admin."
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:

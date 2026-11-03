@@ -8,7 +8,7 @@ const CHECKS: [file: string, en: string, ko: string][] = [
   ["zmk-validation.yml", "Ryong60 firmware compile", "Ryong60 펌웨어 컴파일"],
   ["host-tests.yml", "Firmware module unit tests", "펌웨어 모듈 단위 테스트"],
   ["updater-validation.yml", "Updater tests", "업데이트 검증 테스트"],
-  ["keysbeta-deploy.yml", "keysbeta deploy", "keysbeta 배포"],
+  ["keys-deploy.yml", "keys deploy", "keys.ryong.com 배포"],
 ];
 
 export const onRequestGet: PagesFunction<AdminEnv> = async ({ request, env }) => {

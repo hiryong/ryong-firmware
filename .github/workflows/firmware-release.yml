@@ -1,5 +1,5 @@
 # Publishes ONE bench-tested firmware build to the beta or stable channel, started from
-# keysbeta.ryong.com/admin. Refuses unless scripts/firmware_release_gate.py passes:
+# keys.ryong.com/admin. Refuses unless scripts/firmware_release_gate.py passes:
 # same file (SHA-256) as was bench-tested, on its own board, every required check passed.
 # Output: a GitHub Release in this (private) repository + channels.json on the firmware-registry branch.
 # Customer web updates additionally need signed packages; this workflow does not sign anything.
