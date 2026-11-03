@@ -4,6 +4,7 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { ConnectionContext } from "../rpc/ConnectionContext";
 import { LockStateContext } from "../rpc/LockStateContext";
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core";
+import { firmwareDevice } from "./runtime/updateDevice";
 import { BACKLIGHT, connectDeviceSettings, DeviceSettings, DeviceSettingsClient, DeviceState, UNDERGLOW } from "./runtime/deviceSettings";
 import type { Light } from "./runtime/proto/settings";
 import { t } from "./i18n";
@@ -29,6 +30,7 @@ export function DeviceSettingsPanel() {
   const [saved, setSaved] = useState(false);
   const [reload, setReload] = useState(0);
   const [confirmDfu, setConfirmDfu] = useState(false), [dfuSent, setDfuSent] = useState(false);
+  const [build, setBuild] = useState<string | null>(null);
   const at = useRef(conn); at.current = conn;
 
   useEffect(() => {
@@ -40,6 +42,9 @@ export function DeviceSettingsPanel() {
       const d = await connectDeviceSettings(conn);
       const s = d ? await d.read() : null;
       if (!cancelled) { setDev(d); setState(s); setDraft(s?.settings ?? null); setLoaded(true); }
+      // Which firmware build is on the keyboard (the code version shown in /admin), if it says.
+      const fw = await firmwareDevice(conn).then((f) => f.identity()).catch(() => null);
+      if (!cancelled) setBuild(fw?.buildId ?? null);
     })().catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); })
       .finally(() => { if (!cancelled) setBusy(false); });
     return () => { cancelled = true; };
@@ -90,6 +95,7 @@ export function DeviceSettingsPanel() {
   return <div className="ry-beh">
     <div><h1 className="ry-h1">{t("Keyboard settings", "키보드 설정")}</h1>
       <p className="ry-lead">{t("Saved on the keyboard itself and applied right away — no firmware update.", "키보드에 바로 저장되고 곧바로 적용돼요. 펌웨어를 다시 올릴 필요가 없어요.")}</p>
+      {build && <p className="ry-faint">{t("Firmware build {b}", "펌웨어 빌드 {b}", { b: build.slice(0, 7) })}</p>}
       {loaded && dev && <button className="ry-text" disabled={busy} onClick={() => setReload((x) => x + 1)}>{t("Reload from keyboard", "키보드에서 다시 읽기")}</button>}</div>
     {!ready && <p>{t("Connect and unlock the keyboard to change its settings.", "키보드를 연결하고 잠금을 풀면 설정을 바꿀 수 있어요.")}</p>}
     {error && <p role="alert" className="ry-note ry-danger">{error} <button className="ry-text" onClick={() => setReload((x) => x + 1)}>{t("Reload", "다시 읽기")}</button></p>}
