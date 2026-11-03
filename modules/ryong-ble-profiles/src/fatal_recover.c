@@ -14,6 +14,7 @@
 #include <zephyr/fatal.h>
 #include <zephyr/sys/reboot.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/logging/log_ctrl.h>
 #include <nrf.h>
 
 LOG_MODULE_REGISTER(ryong_fatal, CONFIG_LOG_DEFAULT_LEVEL);
