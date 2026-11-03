@@ -70,6 +70,21 @@ jobs:
           echo "### Upstream profile scenarios (our patch, one identity)" >> "$GITHUB_STEP_SUMMARY"
           sed 's/^/    /' build/tests/upstream-pass-fail.log >> "$GITHUB_STEP_SUMMARY" || true
           python3 "$GITHUB_WORKSPACE/ryong/tests/ble-sim/check_identity_runs.py" build/tests/ble/ryong-identities tests/ble/ryong-identities tests/ble/profiles | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upgrade with paired slots (old shared address -> per-slot addresses, same flash)
+        working-directory: zmk/app
+        shell: bash
+        env:
+          BSIM_COMPONENTS_PATH: ${{ github.workspace }}/zmk/tools/bsim/components
+          BSIM_OUT_PATH: ${{ github.workspace }}/zmk/tools/bsim
+        run: |
+          set -o pipefail
+          R="$GITHUB_WORKSPACE/ryong"
+          # the start-up as it was before the fix (for comparison; may hang - that is the point)
+          git -C "$R" show 76a1944:third_party/zmk/zmk-custom-studio.patch > /tmp/before.patch
+          git -C .. worktree add -q --detach ../zmk-before HEAD   # the pinned commit, without our patch
+          git -C ../../zmk-before apply --whitespace=nowarn /tmp/before.patch
+          "$R/tests/ble-sim/run_migration.sh" "$R/tests/ble-sim/migration" before ../../zmk-before/app | tee -a "$GITHUB_STEP_SUMMARY" || true
+          "$R/tests/ble-sim/run_migration.sh" "$R/tests/ble-sim/migration" fixed | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

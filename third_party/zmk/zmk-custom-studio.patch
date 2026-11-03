@@ -174,14 +174,17 @@ index af8fc76d03daa5304199e7746fd120416d3d2456..f35a5129caeff3f9f2ac92084bcda89d
  uint8_t zmk_backlight_calc_brt(int direction);
  uint8_t zmk_backlight_calc_brt_cycle(void);
 diff --git a/app/include/zmk/ble.h b/app/include/zmk/ble.h
-index 92b2107d88b12d2779c02305053032372386391a..a16fe28f44bd0a06d526b1b1edbb08f377a046fd 100644
+index 92b2107d88b12d2779c02305053032372386391a..9b27335903f5268ac5e6d820bb5fd3e69636cb78 100644
 --- a/app/include/zmk/ble.h
 +++ b/app/include/zmk/ble.h
-@@ -20,6 +20,22 @@
+@@ -20,6 +20,25 @@
  #endif
  
  void zmk_ble_clear_bonds(void);
 +int zmk_ble_prof_clear(uint8_t index);
++
++/* Called by main() once settings_load() has returned: finishes Bluetooth start-up. */
++void zmk_ble_settings_loaded(void);
 +
 +/* Ryong: every change of a slot's registered host, for the keyboard's bond history. Weak no-op
 + * here; a module may record it. Called from the Bluetooth RX thread or the system work queue -
@@ -200,7 +203,7 @@ index 92b2107d88b12d2779c02305053032372386391a..a16fe28f44bd0a06d526b1b1edbb08f3
  int zmk_ble_prof_next(void);
  int zmk_ble_prof_prev(void);
  int zmk_ble_prof_select(uint8_t index);
-@@ -28,6 +44,8 @@ int zmk_ble_prof_disconnect(uint8_t index);
+@@ -28,6 +47,8 @@ int zmk_ble_prof_disconnect(uint8_t index);
  
  int zmk_ble_active_profile_index(void);
  int zmk_ble_profile_index(const bt_addr_le_t *addr);
@@ -209,7 +212,7 @@ index 92b2107d88b12d2779c02305053032372386391a..a16fe28f44bd0a06d526b1b1edbb08f3
  bt_addr_le_t *zmk_ble_profile_address(uint8_t index);
  
  bt_addr_le_t *zmk_ble_active_profile_addr(void);
-@@ -44,6 +62,8 @@ int zmk_ble_unpair_all(void);
+@@ -44,6 +65,8 @@ int zmk_ble_unpair_all(void);
  
  int zmk_ble_set_device_name(char *name);
  
@@ -1022,7 +1025,7 @@ index 0000000000000000000000000000000000000000..1d1d3e8aa5decad98ab763d98a445ba1
 +
 +#endif /* DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT) */
 diff --git a/app/src/ble.c b/app/src/ble.c
-index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..a8efe8907824f589311c401ac85e7abaa6198132 100644
+index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..dd7419f9a04f998312f1c4a2f5de3d1d8c0aa21e 100644
 --- a/app/src/ble.c
 +++ b/app/src/ble.c
 @@ -61,6 +61,22 @@ enum advertising_type {
@@ -1256,7 +1259,29 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..a8efe8907824f589311c401ac85e7aba
          if (len != sizeof(active_profile)) {
              return -EINVAL;
          }
-@@ -494,7 +581,31 @@ static struct settings_handler profiles_handler = {
+@@ -488,13 +575,51 @@ static int ble_profiles_handle_set(const char *name, size_t len, settings_read_c
+ 
+ static int zmk_ble_complete_startup(void);
+ 
+-static struct settings_handler profiles_handler = {
+-    .name = "ble", .h_set = ble_profiles_handle_set, .h_commit = zmk_ble_complete_startup};
++/* Ryong: the rest of the start-up (identities, the one-time move of old bonds, callbacks,
++ * advertising) used to run in this commit, i.e. inside settings_load() with the settings lock
++ * held. It sends HCI commands, which Zephyr 4.1 processes in the system work queue, and it
++ * raises events that run there: a work item waiting for the settings lock then blocked the
++ * HCI command main was waiting for, and a keyboard with paired slots froze at power-up (no USB
++ * keys, no lights). Now main() calls zmk_ble_settings_loaded() after settings_load() returns. */
++static bool startup_done;
++
++static struct settings_handler profiles_handler = {.name = "ble", .h_set = ble_profiles_handle_set};
++
++void zmk_ble_settings_loaded(void) {
++    if (!startup_done) {
++        startup_done = true;
++        zmk_ble_complete_startup();
++    }
++}
+ 
  #endif /* IS_ENABLED(CONFIG_SETTINGS) */
  
  static bool is_conn_active_profile(const struct bt_conn *conn) {
@@ -1289,7 +1314,7 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..a8efe8907824f589311c401ac85e7aba
  }
  
  static void connected(struct bt_conn *conn, uint8_t err) {
-@@ -520,6 +631,26 @@ static void connected(struct bt_conn *conn, uint8_t err) {
+@@ -520,6 +645,26 @@ static void connected(struct bt_conn *conn, uint8_t err) {
  
      LOG_DBG("Connected %s", addr);
  
@@ -1316,7 +1341,7 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..a8efe8907824f589311c401ac85e7aba
      update_advertising();
  
      if (is_conn_active_profile(conn)) {
-@@ -560,6 +691,10 @@ static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_
+@@ -560,6 +705,10 @@ static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_
  
      if (!err) {
          LOG_DBG("Security changed: %s level %u", addr, level);
@@ -1327,7 +1352,7 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..a8efe8907824f589311c401ac85e7aba
      } else {
          LOG_ERR("Security failed: %s level %u err %d", addr, level, err);
      }
-@@ -657,14 +792,40 @@ static void auth_pairing_complete(struct bt_conn *conn, bool bonded) {
+@@ -657,14 +806,40 @@ static void auth_pairing_complete(struct bt_conn *conn, bool bonded) {
  
      if (!pairing_allowed_for_current_profile(conn)) {
          LOG_ERR("Pairing completed but current profile is not open: %s", addr);
@@ -1369,7 +1394,7 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..a8efe8907824f589311c401ac85e7aba
  static struct bt_conn_auth_cb zmk_ble_auth_cb_display = {
      .pairing_accept = auth_pairing_accept,
  // .passkey_display = auth_passkey_display,
-@@ -677,6 +838,7 @@ static struct bt_conn_auth_cb zmk_ble_auth_cb_display = {
+@@ -677,6 +852,7 @@ static struct bt_conn_auth_cb zmk_ble_auth_cb_display = {
  
  static struct bt_conn_auth_info_cb zmk_ble_auth_info_cb_display = {
      .pairing_complete = auth_pairing_complete,
@@ -1377,7 +1402,7 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..a8efe8907824f589311c401ac85e7aba
  };
  
  static void zmk_ble_ready(int err) {
-@@ -689,12 +851,95 @@ static void zmk_ble_ready(int err) {
+@@ -689,12 +865,95 @@ static void zmk_ble_ready(int err) {
      update_advertising();
  }
  
@@ -1474,7 +1499,7 @@ index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..a8efe8907824f589311c401ac85e7aba
  
      for (int i = 0; i < 8; i++) {
          char setting_name[15];
-@@ -720,6 +965,8 @@ static int zmk_ble_complete_startup(void) {
+@@ -720,6 +979,8 @@ static int zmk_ble_complete_startup(void) {
  
  #endif // IS_ENABLED(CONFIG_ZMK_BLE_CLEAR_BONDS_ON_START)
  
@@ -1736,6 +1761,28 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..eca58c97b7af02b5153622490548d8d1
  
  K_THREAD_STACK_DEFINE(hog_q_stack, CONFIG_ZMK_BLE_THREAD_STACK_SIZE);
  
+diff --git a/app/src/main.c b/app/src/main.c
+index 0f77382addb243d2fc878e0497366e202e000f55..92fba27a34895d30dfba003171be0cb7ab8ad2aa 100644
+--- a/app/src/main.c
++++ b/app/src/main.c
+@@ -8,6 +8,7 @@
+ #include <zephyr/device.h>
+ #include <zephyr/devicetree.h>
+ #include <zephyr/settings/settings.h>
++#include <zmk/ble.h>
+ 
+ #include <zephyr/logging/log.h>
+ LOG_MODULE_REGISTER(zmk, CONFIG_ZMK_LOG_LEVEL);
+@@ -25,6 +26,9 @@ int main(void) {
+ #if IS_ENABLED(CONFIG_SETTINGS)
+     settings_subsys_init();
+     settings_load();
++#if IS_ENABLED(CONFIG_ZMK_BLE)
++    zmk_ble_settings_loaded();
++#endif
+ #endif
+ 
+ #ifdef CONFIG_ZMK_DISPLAY
 diff --git a/app/src/split/Kconfig b/app/src/split/Kconfig
 index 00ce08407796b7c2520ebf4ec2f79ecebf60e5a8..ab1af7158d4e554cc8f4666e59cb56c16feb4589 100644
 --- a/app/src/split/Kconfig
