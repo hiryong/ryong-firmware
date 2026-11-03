@@ -41,6 +41,8 @@ message BleFingerprint {
     string host_model = 12;
     string host_name = 13;
     bool host_continuity = 14;     // Apple Continuity service present
+    uint32 ll_company = 15;        // host Bluetooth controller's company ID (0 = unknown)
+    uint32 ll_version = 16;        // host controller's Bluetooth version number (0 = unknown)
 }
 
 message BleProfileState {

@@ -109,6 +109,10 @@ export interface BleFingerprint {
   hostName: string;
   /** Apple Continuity service present */
   hostContinuity: boolean;
+  /** host Bluetooth controller's company ID (0 = unknown) */
+  llCompany: number;
+  /** host controller's Bluetooth version number (0 = unknown) */
+  llVersion: number;
 }
 
 export interface BleProfileState {
@@ -354,6 +358,8 @@ function createBaseBleFingerprint(): BleFingerprint {
     hostModel: "",
     hostName: "",
     hostContinuity: false,
+    llCompany: 0,
+    llVersion: 0,
   };
 }
 
@@ -400,6 +406,12 @@ export const BleFingerprint = {
     }
     if (message.hostContinuity !== false) {
       writer.uint32(112).bool(message.hostContinuity);
+    }
+    if (message.llCompany !== 0) {
+      writer.uint32(120).uint32(message.llCompany);
+    }
+    if (message.llVersion !== 0) {
+      writer.uint32(128).uint32(message.llVersion);
     }
     return writer;
   },
@@ -509,6 +521,20 @@ export const BleFingerprint = {
 
           message.hostContinuity = reader.bool();
           continue;
+        case 15:
+          if (tag !== 120) {
+            break;
+          }
+
+          message.llCompany = reader.uint32();
+          continue;
+        case 16:
+          if (tag !== 128) {
+            break;
+          }
+
+          message.llVersion = reader.uint32();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -534,6 +560,8 @@ export const BleFingerprint = {
       hostModel: isSet(object.hostModel) ? globalThis.String(object.hostModel) : "",
       hostName: isSet(object.hostName) ? globalThis.String(object.hostName) : "",
       hostContinuity: isSet(object.hostContinuity) ? globalThis.Boolean(object.hostContinuity) : false,
+      llCompany: isSet(object.llCompany) ? globalThis.Number(object.llCompany) : 0,
+      llVersion: isSet(object.llVersion) ? globalThis.Number(object.llVersion) : 0,
     };
   },
 
@@ -581,6 +609,12 @@ export const BleFingerprint = {
     if (message.hostContinuity !== false) {
       obj.hostContinuity = message.hostContinuity;
     }
+    if (message.llCompany !== 0) {
+      obj.llCompany = Math.round(message.llCompany);
+    }
+    if (message.llVersion !== 0) {
+      obj.llVersion = Math.round(message.llVersion);
+    }
     return obj;
   },
 
@@ -603,6 +637,8 @@ export const BleFingerprint = {
     message.hostModel = object.hostModel ?? "";
     message.hostName = object.hostName ?? "";
     message.hostContinuity = object.hostContinuity ?? false;
+    message.llCompany = object.llCompany ?? 0;
+    message.llVersion = object.llVersion ?? 0;
     return message;
   },
 };

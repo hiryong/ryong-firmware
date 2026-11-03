@@ -13,13 +13,14 @@ const layout = (os: Os) => apple(os) ? t("Apple · Command / Option", "Apple · 
 /** How the keyboard decided (firmware's last connection since power-up). */
 const basisLabel = (f: NonNullable<O_BleProfileState["fingerprint"]>) =>
   f.appleProbe === 2 ? t("the Mac said so", "Mac이 직접 알려줌") : f.appleProbe === 3 ? t("the iPhone/iPad said so", "iPhone·iPad가 직접 알려줌")
-  : f.appleProbe === 1 ? t("host says it is not Apple", "Apple 기기가 아니라고 알려줌") : t("guessed from how it connected", "연결 방식으로 추정");
+  : f.appleProbe === 1 ? t("host says it is not Apple", "Apple 기기가 아니라고 알려줌")
+  : f.keptCached ? t("decided when it paired", "페어링할 때 정한 값") : t("guessed from how it connected", "연결 방식으로 추정");
 const hostSaid = (f: NonNullable<O_BleProfileState["fingerprint"]>) =>
   [f.hostManufacturer, f.hostModel, f.hostName].some(Boolean) || f.hostContinuity
     ? t("The computer says: {m}", "컴퓨터가 알려준 정보: {m}", { m: [f.hostManufacturer, f.hostModel, f.hostName].filter(Boolean).join(" · ") + (f.hostContinuity ? " · Continuity" : "") })
     : t("The computer did not answer.", "컴퓨터가 정보를 주지 않았어요.");
 const fingerprintText = (f: NonNullable<O_BleProfileState["fingerprint"]>) =>
-  `HID map ${f.reportMap} · HID info ${f.hidsInfo} · report ${f.report} · PnP ${f.pnpId} · appearance ${f.appearance} · MTU ${f.attMtu} · interval ${f.connInterval} · probe ${f.appleProbe}${f.keptCached ? " · kept" : ""}`;
+  `HID map ${f.reportMap} · HID info ${f.hidsInfo} · report ${f.report} · PnP ${f.pnpId} · appearance ${f.appearance} · MTU ${f.attMtu} · interval ${f.connInterval} · probe ${f.appleProbe} · LL 0x${(f.llCompany ?? 0).toString(16).padStart(4, "0")} v${f.llVersion ?? 0}${f.keptCached ? " · kept" : ""}`;
 const detectedLabel = (os: Os) => os === Os.OS_UNKNOWN || os === Os.OS_UNSPECIFIED
   ? t("Not detected yet", "아직 감지 안 됨") : apple(os) ? t("Apple (macOS / iOS)", "Apple 계열 (macOS / iOS)") : t("Windows or other", "Windows 또는 기타");
 

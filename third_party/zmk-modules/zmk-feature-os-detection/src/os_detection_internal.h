@@ -44,6 +44,8 @@ struct ble_fp_stats {
     uint8_t appearance_reads;
     bool ancs_or_ams_present; /* only meaningful when the GATT client probe ran */
     uint8_t apple_probe;      /* Ryong: ZMK_OS_PROBE_* from os_detection_ble_probe.c */
+    uint16_t ll_company_id;   /* Ryong: host controller's company ID (LL version exchange), 0 = unknown */
+    uint8_t ll_version;       /* Ryong: host controller's Bluetooth version (LL), 0 = unknown */
 };
 
 enum zmk_os zmk_os_classify_ble(const struct ble_fp_stats *stats);
@@ -62,6 +64,8 @@ struct zmk_os_probe_info {
 };
 bool zmk_os_detection_probe_info(uint8_t profile_index, struct zmk_os_probe_info *out);
 void zmk_os_detection_ble_reclassify(uint8_t profile_index);
+/* Ryong: ask the host (once the connection's read burst settled). fresh = new pairing. */
+void zmk_os_detection_probe_start(struct bt_conn *conn, uint8_t profile_index, bool fresh);
 
 /* Ryong: last settled BLE fingerprint of a profile since power-up (false if none). */
 bool zmk_os_detection_ble_last_fingerprint(uint8_t profile_index, struct ble_fp_stats *out,
