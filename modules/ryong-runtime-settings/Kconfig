@@ -18,10 +18,11 @@ config RYONG_RUNTIME_SETTINGS_SLEEP_DEFAULT_MIN
     default 15
 
 config RYONG_RUNTIME_SETTINGS_LIGHTS_DEFAULT_USE
-    bool "Lights are in use until the user changes it"
+    bool "Backlight is in use until the user changes it"
     default n
     help
-      Off by default so the same image is safe on boards without LEDs.
+      Backlight only. Off by default so the same image is safe on boards without LEDs.
+      Underglow always starts unused (most cases are opaque); the user turns it on.
 
 endif
 
