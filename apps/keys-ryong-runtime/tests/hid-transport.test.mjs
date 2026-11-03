@@ -15,7 +15,7 @@ const dev=Object.assign(new EventTarget(),{opened:false,productName:"Oreo",colle
     if(received.length===40){const back=[...received].reverse();for(let i=0;i<back.length;i+=31){const b=new Uint8Array(32);const part=back.slice(i,i+31);b[0]=part.length;b.set(part,1);
       setTimeout(()=>dev.dispatchEvent(new Ev("inputreport",{reportId:0x10,data:new DataView(b.buffer)})),0);}}}});
 hid.getDevices=async()=>[dev];hid.requestDevice=async()=>{throw new Error("should use the allowed device");};
-vm.runInNewContext(js,{module,exports:module.exports,require:createRequire(import.meta.url),navigator:{hid,language:"en"},process,console,Uint8Array,DataView,DOMException,EventTarget,Event,ReadableStream,WritableStream,AbortController,setTimeout,localStorage:{getItem:()=>"en",setItem(){}}});
+vm.runInNewContext(js,{module,exports:module.exports,require:createRequire(import.meta.url),navigator:{hid,language:"en"},performance,process,console,Uint8Array,DataView,DOMException,EventTarget,Event,ReadableStream,WritableStream,AbortController,setTimeout,localStorage:{getItem:()=>"en",setItem(){}}});
 const {toReports,fromReport,connect}=module.exports;
 
 // framing

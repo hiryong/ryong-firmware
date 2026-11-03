@@ -63,7 +63,10 @@ enum zmk_os zmk_os_classify_ble(const struct ble_fp_stats *stats) {
      * same pattern too (see module comment) - Windows has the larger
      * install base, so this genuinely ambiguous case deliberately resolves
      * to Windows rather than Linux (per module owner, 2026-07-05). */
-    if (stats->pnp_id_reads > 0 && stats->appearance_reads > 0) {
+    /* Ryong: Windows reads Appearance together with the HID service; a Mac may read Appearance with
+     * Device Information alone, which must not count as Windows. */
+    if (stats->pnp_id_reads > 0 && stats->appearance_reads > 0 &&
+        (stats->report_map_reads > 0 || stats->hids_info_reads > 0)) {
         return ZMK_OS_WINDOWS;
     }
 
@@ -156,24 +159,15 @@ static void classify_and_report(int profile_index) {
             profile_index, stats->report_map_reads, stats->hids_info_reads, stats->report_ref_reads,
             stats->pnp_id_reads, stats->appearance_reads, stats->ancs_or_ams_present,
             stats->att_mtu, stats->initial_conn_interval, detected);
-    /* Ryong: a reconnect to a host that already knows the keyboard often reads nothing (or only a few
-     * cached characteristics), which used to overwrite a good result from pairing - e.g. a Mac turned
-     * into "unknown" and then the Windows layout. Keep the cached result unless this connection did a
-     * full HID discovery (Report Map read), which only happens on pairing or when the host lost its
-     * cache. A wrong result is fixed by the manual per-slot choice. */
+    /* Ryong: a reconnect to a host that already knows the keyboard often reads nothing, which used to
+     * overwrite a good result with "unknown" (= Windows layout). Only that empty case keeps the slot's
+     * stored result; any real reads decide. (Requiring a HID map read was wrong: a Mac never reads it
+     * again, even after "forget device", so a wrong Windows guess stuck - bench 2026-11-03.) */
+    ARG_UNUSED(decisive);
     if (detected == ZMK_OS_UNKNOWN) {
         last_kept[profile_index] = true;
         return;
     }
-#if IS_ENABLED(CONFIG_ZMK_CUSTOM_SETTINGS)
-    enum zmk_os cached = zmk_os_detection_settings_get_detected_cache(profile_index);
-    if (!decisive && cached != ZMK_OS_UNKNOWN && cached != detected && stats->report_map_reads == 0) {
-        LOG_INF("os detection: profile %d keeps %d (reconnect without full discovery suggested %d)",
-                profile_index, cached, detected);
-        last_kept[profile_index] = true;
-        return;
-    }
-#endif
     zmk_os_detection_report_ble_detected(profile_index, detected);
 }
 

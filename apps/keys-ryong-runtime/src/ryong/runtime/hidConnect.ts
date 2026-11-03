@@ -27,6 +27,15 @@ type Hid = EventTarget & {
 };
 export const webHid = (): Hid | undefined => (navigator as unknown as { hid?: Hid }).hid;
 
+/** Live numbers for the current WebHID connection, shown on the workspace header (diagnosis of speed). */
+export const hidStats = { active: false, writes: 0, bytesIn: 0, bytesOut: 0, waits: 0, waitMs: 0, maxWaitMs: 0, start: 0, last: 0 };
+const statListeners = new Set<() => void>();
+let statVersion = 0;
+const bump = () => { statVersion++; statListeners.forEach((f) => f()); };
+export const subscribeHidStats = (f: () => void) => { statListeners.add(f); return () => statListeners.delete(f); };
+export const hidStatsVersion = () => statVersion;
+let pendingSince = 0;
+
 const isStudio = (d: HidDevice) => d.collections.some((c) => c.usagePage === STUDIO_USAGE_PAGE && c.usage === STUDIO_USAGE);
 
 /** Split a Studio byte stream into report bodies. */
@@ -72,6 +81,8 @@ export async function connect(): Promise<RpcTransport> {
   if (!hid) throw new Error(t("This browser has no WebHID. Use Chrome or Edge.", "이 브라우저는 WebHID를 지원하지 않아요. Chrome이나 Edge를 쓰세요."));
   const dev = await pick(hid);
   if (!dev.opened) await dev.open();
+  Object.assign(hidStats, { active: true, writes: 0, bytesIn: 0, bytesOut: 0, waits: 0, waitMs: 0, maxWaitMs: 0, start: performance.now(), last: performance.now() });
+  bump();
   const label = dev.productName || "Keyboard";
   const abortController = new AbortController();
   let onReport: ((e: Event) => void) | undefined;
@@ -82,7 +93,12 @@ export async function connect(): Promise<RpcTransport> {
         const ev = e as Event & { reportId: number; data: DataView };
         if (ev.reportId !== STUDIO_REPORT_ID) return;
         const bytes = fromReport(ev.data);
-        if (bytes.length) controller.enqueue(bytes);
+        if (bytes.length) {
+          const now = performance.now();
+          if (pendingSince) { const w = now - pendingSince; hidStats.waits++; hidStats.waitMs += w; hidStats.maxWaitMs = Math.max(hidStats.maxWaitMs, w); pendingSince = 0; }
+          hidStats.bytesIn += bytes.length; hidStats.last = now; bump();
+          controller.enqueue(bytes);
+        }
       };
       onGone = (e: Event) => {
         if ((e as Event & { device: HidDevice }).device !== dev) return;
@@ -101,12 +117,15 @@ export async function connect(): Promise<RpcTransport> {
   const writable = new WritableStream<Uint8Array>({
     write(chunk) {
       // Reports go out in order, one at a time.
-      sending = sending.then(async () => { for (const r of toReports(chunk)) await dev.sendReport(STUDIO_REPORT_ID, r); });
+      sending = sending.then(async () => {
+        for (const r of toReports(chunk)) await dev.sendReport(STUDIO_REPORT_ID, r);
+        hidStats.writes++; hidStats.bytesOut += chunk.length; if (!pendingSince) pendingSince = performance.now(); bump();
+      });
       return sending;
     },
   });
   const sig = abortController.signal;
-  const abort = () => { sig.removeEventListener("abort", abort); cleanup(); dev.close().catch(() => {}); };
+  const abort = () => { sig.removeEventListener("abort", abort); cleanup(); hidStats.active = false; bump(); dev.close().catch(() => {}); };
   sig.addEventListener("abort", abort);
   return { label, abortController, readable, writable };
 }

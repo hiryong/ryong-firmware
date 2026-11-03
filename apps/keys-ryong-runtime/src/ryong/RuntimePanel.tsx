@@ -1,4 +1,5 @@
-import { ReactNode, useContext, useEffect, useState } from "react";
+import { hidStats, hidStatsVersion, subscribeHidStats } from "./runtime/hidConnect";
+import { useSyncExternalStore, ReactNode, useContext, useEffect, useState } from "react";
 import { BehaviorsEditor, RuntimeSection } from "./behaviors/BehaviorsEditor";
 import { ConnectionContext } from "../rpc/ConnectionContext";
 import { LAYOUTS } from "./behaviors/layouts";
@@ -9,6 +10,16 @@ import { DeviceSettingsPanel } from "./DeviceSettingsPanel";
 import { t } from "./i18n";
 
 type Section = "keymap" | "host" | "device" | RuntimeSection;
+
+/** Bluetooth (WebHID) speed while connected: how long each request waited for the keyboard. */
+function HidSpeed() {
+  useSyncExternalStore(subscribeHidStats, hidStatsVersion);
+  if (!hidStats.active || !hidStats.waits) return null;
+  const avg = Math.round(hidStats.waitMs / hidStats.waits), secs = ((hidStats.last - hidStats.start) / 1000).toFixed(1);
+  return <span className="ry-faint" title={`max ${Math.round(hidStats.maxWaitMs)} ms · out ${hidStats.bytesOut} B`}>
+    {t(" · Bluetooth: {n} requests, avg reply {avg} ms, {kb} KB in {s} s", " · 블루투스: 요청 {n}개, 평균 응답 {avg}ms, {kb}KB · {s}초",
+      { n: hidStats.writes, avg, kb: (hidStats.bytesIn / 1024).toFixed(1), s: secs })}</span>;
+}
 
 /** One workspace and connection. Switching sections never unmounts either editor. */
 export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSectionChange, onVirtual }: {
@@ -34,7 +45,8 @@ export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSec
     <div className="ry-workspace-top">
       <div><strong>{deviceName || t("Keyboard preview", "키보드 미리보기")}</strong>
         <span className="ry-faint">{conn ? t(" · One connection · no rebuild", " · 연결됨 · 재빌드 없이 설정")
-          : t(" · Preview only · no device changes", " · 미리보기 · 실제 기기는 변경하지 않음")}</span></div>
+          : t(" · Preview only · no device changes", " · 미리보기 · 실제 기기는 변경하지 않음")}</span>
+        {conn && <HidSpeed />}</div>
       {!conn && import.meta.env.VITE_RYONG_PREVIEW_ONLY !== "1" && <button className="ry-text" onClick={() => {
         if (!dirty || confirm(t("Discard unsaved preview edits and connect?", "저장하지 않은 미리보기 변경을 버리고 연결할까요?"))) onClose();
       }}>{t("Connect keyboard", "키보드 연결")}</button>}
