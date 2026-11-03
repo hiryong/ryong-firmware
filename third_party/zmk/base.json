@@ -6,8 +6,8 @@
       "file": "zmk-custom-studio.patch",
       "repo_path": "zmk",
       "applies_to": "ed56d81db79cf3a6e5dc02697277c0fad880ad34",
-      "sha256": "508702549542f4c22b276a999d2cdc3ee1b16aae12e7905ffc51abf6a8b6aee5",
-      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx); backlight.c: perceptual brightness for PWM LEDs (duty = brightness^2/100, ZMK_BACKLIGHT_PERCEPTUAL); hid_rpc_transport: no peripheral latency while Studio talks over BLE HID (restored after 20 s idle)"
+      "sha256": "99736b28781e419935f45369935f21a06b46566e597a2d2cb4f616221f1b94da",
+      "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c; rpc.c: all transports always receive and the one a request arrived on answers (zmk_rpc_note_rx); backlight.c: perceptual brightness for PWM LEDs (duty = brightness^2/100, ZMK_BACKLIGHT_PERCEPTUAL); hid_rpc_transport: no peripheral latency while Studio talks over BLE HID (restored after 20 s idle); hid_rpc_transport never keeps references to closed connections"
     },
     {
       "file": "zmk-studio-messages-custom.patch",

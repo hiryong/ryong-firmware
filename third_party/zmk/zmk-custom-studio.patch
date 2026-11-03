@@ -2147,10 +2147,10 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..24ba011d963c5a819f307eb767f72aa8
  }
 diff --git a/app/src/studio/hid_rpc_transport.c b/app/src/studio/hid_rpc_transport.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..c5a80affe70f5b10efd7a72dfcb4bfbe644d90de
+index 0000000000000000000000000000000000000000..36ea29ae8781f89691e4d4278c27484c9d30376a
 --- /dev/null
 +++ b/app/src/studio/hid_rpc_transport.c
-@@ -0,0 +1,231 @@
+@@ -0,0 +1,261 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -2230,16 +2230,21 @@ index 0000000000000000000000000000000000000000..c5a80affe70f5b10efd7a72dfcb4bfbe
 +    }
 +}
 +
++static K_MUTEX_DEFINE(fast_lock);
++
 +static void slow_work_cb(struct k_work *work) {
 +    ARG_UNUSED(work);
++    k_mutex_lock(&fast_lock, K_FOREVER);
 +    if (fast_conn) {
 +        set_latency(fast_conn, CONFIG_BT_PERIPHERAL_PREF_LATENCY);
 +        bt_conn_unref(fast_conn);
 +        fast_conn = NULL;
 +    }
++    k_mutex_unlock(&fast_lock);
 +}
 +
 +static void keep_fast(struct bt_conn *conn) {
++    k_mutex_lock(&fast_lock, K_FOREVER);
 +    if (conn != fast_conn) {
 +        if (fast_conn) {
 +            bt_conn_unref(fast_conn);
@@ -2247,8 +2252,33 @@ index 0000000000000000000000000000000000000000..c5a80affe70f5b10efd7a72dfcb4bfbe
 +        fast_conn = bt_conn_ref(conn);
 +        set_latency(conn, 0);
 +    }
++    k_mutex_unlock(&fast_lock);
 +    k_work_reschedule_for_queue(&hid_rpc_q, &slow_work, FAST_IDLE);
 +}
++
++/* Never keep a reference to a closed connection: ZMK finds a profile's connection by address, and a
++ * still-referenced dead connection object can be returned instead of the live one after the host
++ * reconnects - keystrokes would then go nowhere until a restart. */
++static void studio_hid_disconnected(struct bt_conn *conn, uint8_t reason) {
++    ARG_UNUSED(reason);
++    k_mutex_lock(&fast_lock, K_FOREVER);
++    if (fast_conn == conn) {
++        bt_conn_unref(fast_conn);
++        fast_conn = NULL;
++    }
++    k_mutex_unlock(&fast_lock);
++    k_mutex_lock(&peer_lock, K_FOREVER);
++    if (peer_conn == conn) {
++        bt_conn_unref(peer_conn);
++        peer_conn = NULL;
++        peer_usb = false;
++    }
++    k_mutex_unlock(&peer_lock);
++}
++
++BT_CONN_CB_DEFINE(studio_hid_conn_cb) = {
++    .disconnected = studio_hid_disconnected,
++};
 +#endif
 +
 +static int hid_start_rx(void) {
