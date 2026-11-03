@@ -49,12 +49,8 @@ jobs:
               print(f"- `{p['name']}` ({p.get('subdomain')}): domains {', '.join(p.get('domains') or []) or '-'}; source {((p.get('source') or {}).get('config') or {}).get('repo_name', '-')}")
           PY
           zone=$(api "https://api.cloudflare.com/client/v4/zones?name=$ZONE" | python3 -c 'import json,sys; r=json.load(sys.stdin).get("result") or []; print(r[0]["id"] if r else "")')
-          [ -n "$zone" ] || { echo "::error::token cannot read the $ZONE zone"; exit 1; }
+          [ -n "$zone" ] || echo "- The token cannot read the $ZONE DNS zone: DNS records are changed by hand (see the end)." | tee -a "$GITHUB_STEP_SUMMARY"
           Z="https://api.cloudflare.com/client/v4/zones/$zone/dns_records"
-          echo "### DNS" | tee -a "$GITHUB_STEP_SUMMARY"
-          for n in keys.ryong.com keysbeta.ryong.com; do
-            api "$Z?name=$n" | python3 -c 'import json,sys; [print(f"- {r[\"name\"]} {r[\"type\"]} → {r[\"content\"]} (proxied {r[\"proxied\"]})") for r in json.load(sys.stdin).get("result") or []] or print("- '"$n"': no record")' | tee -a "$GITHUB_STEP_SUMMARY"
-          done
           [ "$MODE" = cutover ] || { echo "Plan only: nothing changed."; exit 0; }
 
           [ "$CONFIRM" = keys.ryong.com ] || { echo "::error::confirm must be keys.ryong.com"; exit 1; }
@@ -66,14 +62,18 @@ jobs:
           echo "### Cutover" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "- detach keys.ryong.com from $OLD: $(api -X DELETE "$A/$OLD/domains/keys.ryong.com" | ok)" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "- attach keys.ryong.com to $NEW: $(api -X POST "$A/$NEW/domains" -d '{"name":"keys.ryong.com"}' | ok)" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ -n "$zone" ]; then
           rid=$(api "$Z?name=keys.ryong.com" | python3 -c 'import json,sys; r=json.load(sys.stdin).get("result") or []; print(r[0]["id"] if r else "")')
           if [ -n "$rid" ]; then
             echo "- DNS keys → $sub: $(api -X PATCH "$Z/$rid" -d "{\"type\":\"CNAME\",\"name\":\"keys\",\"content\":\"$sub\",\"proxied\":true,\"comment\":\"ryong-firmware Keys\"}" | ok)" | tee -a "$GITHUB_STEP_SUMMARY"
           else
             echo "- DNS keys → $sub (new): $(api -X POST "$Z" -d "{\"type\":\"CNAME\",\"name\":\"keys\",\"content\":\"$sub\",\"proxied\":true,\"comment\":\"ryong-firmware Keys\"}" | ok)" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
-          echo "- detach keysbeta.ryong.com: $(api -X DELETE "$A/$BETA/domains/keysbeta.ryong.com" | ok)" | tee -a "$GITHUB_STEP_SUMMARY"
           bid=$(api "$Z?name=keysbeta.ryong.com" | python3 -c 'import json,sys; r=json.load(sys.stdin).get("result") or []; print(r[0]["id"] if r else "")')
           [ -z "$bid" ] || echo "- DNS keysbeta removed: $(api -X DELETE "$Z/$bid" | ok)" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- **DNS by hand** (Cloudflare → ryong.com → DNS): set the \`keys\` CNAME target to \`$sub\` (proxied), and delete the \`keysbeta\` record." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "- detach keysbeta.ryong.com: $(api -X DELETE "$A/$BETA/domains/keysbeta.ryong.com" | ok)" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "- delete project $BETA: $(api -X DELETE "$A/$BETA" | ok)" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "- delete project $OLD (the original Keys site): $(api -X DELETE "$A/$OLD" | ok)" | tee -a "$GITHUB_STEP_SUMMARY"
