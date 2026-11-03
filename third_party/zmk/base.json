@@ -6,7 +6,7 @@
       "file": "zmk-custom-studio.patch",
       "repo_path": "zmk",
       "applies_to": "ed56d81db79cf3a6e5dc02697277c0fad880ad34",
-      "sha256": "2d738480e2589227d0e8bae1613984e87f1e65d058d1833089f792dc91fa73f1",
+      "sha256": "105eb38325f0fab37634ad449fe0176ac7b41a864c29ee39837fe1981c689127",
       "ryong_changes": "Studio RPC over a vendor HID collection (WebHID): hid.h report, hog.c characteristics, usb_hid.c SET_REPORT, studio/hid_rpc_transport.c, rpc.c zmk_rpc_use_transport"
     },
     {

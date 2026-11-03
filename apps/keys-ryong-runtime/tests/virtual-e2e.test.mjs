@@ -412,9 +412,10 @@ await step("keyboard settings: backlight use switch, turn on now, USB-only follo
 await step("keyboard settings: underglow on at start survives a power cycle", async () => {
   const pane = page.locator("#ry-device-pane");
   await pane.getByRole("switch", { name: "RGB 언더글로우 사용" }).click();
+  await pane.getByRole("switch", { name: "켤 때 켜기" }).last().click(); // lights start dark by default
   await pane.getByRole("switch", { name: "USB 연결 때만 켜기" }).last().click(); // off: also on battery
   await pane.getByRole("button", { name: "키보드에 저장" }).click();
-  await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.underglow.use && !window.__ryongVirtual.flash.device.settings.underglow.usbOnly, null, { timeout: 5000 });
+  await page.waitForFunction(() => { const u = window.__ryongVirtual.flash.device.settings.underglow; return u.use && u.onAtStart && !u.usbOnly; }, null, { timeout: 5000 });
   await power();
   assert.equal(await page.evaluate(() => window.__ryongVirtual.flash.device.ugOn), true, "on at start");
   await pane.getByRole("button", { name: "키보드에서 다시 읽기" }).click();
