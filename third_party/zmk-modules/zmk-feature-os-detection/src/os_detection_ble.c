@@ -144,7 +144,7 @@ static void settle_work_handler(struct k_work *work) {
     if (!s->conn) {
         return;
     }
-    int profile = zmk_ble_profile_index(bt_conn_get_dst(s->conn));
+    int profile = zmk_ble_conn_profile_index(s->conn);
     if (profile < 0 && s->fresh) {
         profile = zmk_ble_active_profile_index(); /* a new pairing is always on the active slot */
     }
@@ -253,7 +253,7 @@ static void connected(struct bt_conn *conn, uint8_t err) {
 
 #if IS_ENABLED(CONFIG_ZMK_CUSTOM_SETTINGS)
     /* Known host: adopt its stored result at once. */
-    int profile = zmk_ble_profile_index(bt_conn_get_dst(conn));
+    int profile = zmk_ble_conn_profile_index(conn);
     if (profile >= 0 && profile < ZMK_BLE_PROFILE_COUNT) {
         enum zmk_os cached = zmk_os_detection_settings_get_detected_cache(profile);
         if (cached != ZMK_OS_UNKNOWN) {
