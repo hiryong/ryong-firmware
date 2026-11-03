@@ -20,7 +20,7 @@ class RuntimeDefaults(unittest.TestCase):
         self.assertIn("bindings = <&studio_unlock>;", out)
         for n in range(4):
             self.assertIn(f'&BT_Profile{n} {{\n    compatible = "ryong,behavior-named-runtime-macro";\n    macro-name = "BT_PROFILE{n}";', out)
-        self.assertIn("bindings = <&macro_tap &bt BT_SEL 0 &bt BT_DISC 1 &bt BT_DISC 2 &bt BT_DISC 3>;", out)
+        self.assertIn("bindings = <&macro_tap &bt BT_SEL 0>;", out)
         self.assertEqual(out.count('compatible = "cormoran,runtime-macro-default";'), 4)
 
     def test_refusals(self):

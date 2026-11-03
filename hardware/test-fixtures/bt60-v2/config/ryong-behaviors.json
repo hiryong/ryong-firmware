@@ -29,27 +29,6 @@
             "b": "bt",
             "cmd": "BT_SEL 0"
           }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 1"
-          }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 2"
-          }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 3"
-          }
         }
       ]
     },
@@ -64,27 +43,6 @@
           "binding": {
             "b": "bt",
             "cmd": "BT_SEL 1"
-          }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 0"
-          }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 2"
-          }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 3"
           }
         }
       ]
@@ -101,27 +59,6 @@
             "b": "bt",
             "cmd": "BT_SEL 2"
           }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 0"
-          }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 1"
-          }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 3"
-          }
         }
       ]
     },
@@ -136,27 +73,6 @@
           "binding": {
             "b": "bt",
             "cmd": "BT_SEL 3"
-          }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 0"
-          }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 1"
-          }
-        },
-        {
-          "t": "tap",
-          "binding": {
-            "b": "bt",
-            "cmd": "BT_DISC 2"
           }
         }
       ]
