@@ -187,10 +187,10 @@ index af8fc76d03daa5304199e7746fd120416d3d2456..f35a5129caeff3f9f2ac92084bcda89d
  uint8_t zmk_backlight_calc_brt(int direction);
  uint8_t zmk_backlight_calc_brt_cycle(void);
 diff --git a/app/include/zmk/ble.h b/app/include/zmk/ble.h
-index 92b2107d88b12d2779c02305053032372386391a..8204eaa5ec135da1667f30e1050c72ec4b3b0e2b 100644
+index 92b2107d88b12d2779c02305053032372386391a..75246bbc402655944a13727a1daa70298c1558ac 100644
 --- a/app/include/zmk/ble.h
 +++ b/app/include/zmk/ble.h
-@@ -20,6 +20,33 @@
+@@ -20,6 +20,40 @@
  #endif
  
  void zmk_ble_clear_bonds(void);
@@ -221,10 +221,17 @@ index 92b2107d88b12d2779c02305053032372386391a..8204eaa5ec135da1667f30e1050c72ec
 + * only) until everything requested before it is done. */
 +int zmk_ble_prof_clear_cause(uint8_t index, enum zmk_ble_bond_cause cause);
 +void zmk_ble_wait_idle(void);
++
++/* Bluetooth slot light (ble_indicator.c). The keyboard settings module overrides the first two
++ * (weak defaults: on, CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR_BRT). */
++bool zmk_ble_indicator_enabled(void);
++uint8_t zmk_ble_indicator_brightness(void);
++void zmk_ble_indicator_cleared(void);
++void zmk_ble_indicator_preview(void);
  int zmk_ble_prof_next(void);
  int zmk_ble_prof_prev(void);
  int zmk_ble_prof_select(uint8_t index);
-@@ -28,6 +55,8 @@ int zmk_ble_prof_disconnect(uint8_t index);
+@@ -28,6 +62,8 @@ int zmk_ble_prof_disconnect(uint8_t index);
  
  int zmk_ble_active_profile_index(void);
  int zmk_ble_profile_index(const bt_addr_le_t *addr);
@@ -233,7 +240,7 @@ index 92b2107d88b12d2779c02305053032372386391a..8204eaa5ec135da1667f30e1050c72ec
  bt_addr_le_t *zmk_ble_profile_address(uint8_t index);
  
  bt_addr_le_t *zmk_ble_active_profile_addr(void);
-@@ -44,6 +73,8 @@ int zmk_ble_unpair_all(void);
+@@ -44,6 +80,8 @@ int zmk_ble_unpair_all(void);
  
  int zmk_ble_set_device_name(char *name);
  
@@ -1047,10 +1054,10 @@ index 0000000000000000000000000000000000000000..1d1d3e8aa5decad98ab763d98a445ba1
 +#endif /* DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT) */
 diff --git a/app/src/ble_indicator.c b/app/src/ble_indicator.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..cdbbb05b27c7f5a3ef48d2556a0ebe3b696d3e24
+index 0000000000000000000000000000000000000000..fe253b201675c169270d7e012376f0583f33769d
 --- /dev/null
 +++ b/app/src/ble_indicator.c
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,161 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -1059,11 +1066,12 @@ index 0000000000000000000000000000000000000000..cdbbb05b27c7f5a3ef48d2556a0ebe3b
 +
 +/*
 + * Ryong: Bluetooth slot status on the backlight, like a multi-device keyboard's channel light.
-+ * The whole backlight is used (these boards cannot light one key alone), at the lowest
-+ * brightness so it is easy on the eyes and the battery.
++ * The whole backlight is used (these boards cannot light one key alone), dimly by default so it
++ * is easy on the eyes and the battery. On/off and brightness come from the keyboard settings
++ * (weak defaults below; modules/ryong-runtime-settings provides the stored values).
++ *  - slot cleared (slot key held 3 s, Fn+D, or the web page): one short flash
++ *  - slot empty, waiting for a new device: fast blink until a device pairs (or 60 s)
 + *  - slot selected, its device not connected yet: slow blink until it connects (or 10 s)
-+ *  - slot empty, waiting for a new device (e.g. after holding the slot key 3 s): fast blink
-+ *    until a device pairs (or 60 s)
 + *  - device connected: on for 1 s
 + * Afterwards the backlight returns to exactly what it was.
 + */
@@ -1074,18 +1082,27 @@ index 0000000000000000000000000000000000000000..cdbbb05b27c7f5a3ef48d2556a0ebe3b
 +
 +#include <zmk/backlight.h>
 +#include <zmk/ble.h>
-+#include <zmk/endpoints.h>
 +#include <zmk/event_manager.h>
 +#include <zmk/events/ble_active_profile_changed.h>
 +
-+enum pattern { NONE, WAITING, PAIRING, CONNECTED };
++__weak bool zmk_ble_indicator_enabled(void) { return true; }
++__weak uint8_t zmk_ble_indicator_brightness(void) { return CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR_BRT; }
++
++enum pattern { NONE, WAITING, PAIRING, CONNECTED, CLEARED };
 +
 +static enum pattern pattern = NONE;
 +static bool lit;
 +static int64_t until;
++static atomic_t flash_pending; /* 1: slot cleared (then follow the slot), 2: brightness preview */
++static bool flash_follows;
 +
 +static void step(struct k_work *work);
 +static K_WORK_DELAYABLE_DEFINE(step_work, step);
++
++static void show(bool on) {
++    uint8_t brt = zmk_ble_indicator_brightness();
++    zmk_backlight_indicate(on ? MAX(brt, 1) : 0);
++}
 +
 +static void stop(void) {
 +    pattern = NONE;
@@ -1093,23 +1110,13 @@ index 0000000000000000000000000000000000000000..cdbbb05b27c7f5a3ef48d2556a0ebe3b
 +    zmk_backlight_indicate(-1);
 +}
 +
-+static void step(struct k_work *work) {
-+    ARG_UNUSED(work);
-+    if (pattern == NONE || k_uptime_get() >= until) {
-+        stop();
-+        return;
-+    }
-+    if (pattern == CONNECTED) {
-+        zmk_backlight_indicate(CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR_BRT);
-+        k_work_reschedule(&step_work, K_MSEC(until - k_uptime_get()));
-+        return;
-+    }
-+    lit = !lit;
-+    zmk_backlight_indicate(lit ? CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR_BRT : 0);
-+    k_work_reschedule(&step_work, K_MSEC(pattern == PAIRING ? 150 : 500));
-+}
-+
 +static void start(enum pattern p, int ms) {
++    if (!zmk_ble_indicator_enabled()) {
++        if (pattern != NONE) {
++            stop();
++        }
++        return;
++    }
 +    if (pattern == p) {
 +        return;
 +    }
@@ -1119,17 +1126,8 @@ index 0000000000000000000000000000000000000000..cdbbb05b27c7f5a3ef48d2556a0ebe3b
 +    k_work_reschedule(&step_work, K_NO_WAIT);
 +}
 +
-+static int listener(const zmk_event_t *eh) {
-+    if (!as_zmk_ble_active_profile_changed(eh)) {
-+        return ZMK_EV_EVENT_BUBBLE;
-+    }
-+    /* Only while Bluetooth is the output: on USB the slot does not matter right now. */
-+    if (zmk_endpoint_get_selected().transport != ZMK_TRANSPORT_BLE) {
-+        if (pattern != NONE) {
-+            stop();
-+        }
-+        return ZMK_EV_EVENT_BUBBLE;
-+    }
++/* What the selected slot shows now (after a clear flash, or on an event). */
++static void follow_slot(void) {
 +    if (zmk_ble_active_profile_is_open()) {
 +        start(PAIRING, 60000);
 +    } else if (!zmk_ble_active_profile_is_connected()) {
@@ -1137,7 +1135,85 @@ index 0000000000000000000000000000000000000000..cdbbb05b27c7f5a3ef48d2556a0ebe3b
 +    } else if (pattern == WAITING || pattern == PAIRING) {
 +        pattern = NONE;
 +        start(CONNECTED, 1000);
++    } else if (pattern == CLEARED) {
++        stop();
 +    }
++}
++
++static void step(struct k_work *work) {
++    ARG_UNUSED(work);
++    if (!zmk_ble_indicator_enabled()) {
++        stop();
++        return;
++    }
++    if (pattern == CLEARED) {
++        /* on 250 ms, off 350 ms, then whatever the slot shows */
++        if (!lit) {
++            lit = true;
++            show(true);
++            k_work_reschedule(&step_work, K_MSEC(250));
++        } else if (k_uptime_get() < until) {
++            show(false);
++            k_work_reschedule(&step_work, K_MSEC(until - k_uptime_get()));
++        } else {
++            pattern = NONE;
++            if (flash_follows) {
++                follow_slot();
++            }
++            if (pattern == NONE) {
++                stop();
++            }
++        }
++        return;
++    }
++    if (pattern == NONE || k_uptime_get() >= until) {
++        stop();
++        return;
++    }
++    if (pattern == CONNECTED) {
++        show(true);
++        k_work_reschedule(&step_work, K_MSEC(until - k_uptime_get()));
++        return;
++    }
++    lit = !lit;
++    show(lit);
++    k_work_reschedule(&step_work, K_MSEC(pattern == PAIRING ? 150 : 500));
++}
++
++static void cleared_work_cb(struct k_work *work) {
++    ARG_UNUSED(work);
++    atomic_val_t kind = atomic_set(&flash_pending, 0);
++    if (!kind || !zmk_ble_indicator_enabled()) {
++        return;
++    }
++    flash_follows = kind == 1;
++    pattern = CLEARED;
++    lit = false;
++    until = k_uptime_get() + 600;
++    k_work_reschedule(&step_work, K_NO_WAIT);
++}
++static K_WORK_DEFINE(cleared_work, cleared_work_cb);
++
++/* From the Bluetooth slot worker when a slot was cleared. */
++void zmk_ble_indicator_cleared(void) {
++    atomic_set(&flash_pending, 1);
++    k_work_submit(&cleared_work);
++}
++
++/* From the keyboard settings when the light's brightness was changed: one flash to show it. */
++void zmk_ble_indicator_preview(void) {
++    atomic_cas(&flash_pending, 0, 2);
++    k_work_submit(&cleared_work);
++}
++
++static int listener(const zmk_event_t *eh) {
++    if (!as_zmk_ble_active_profile_changed(eh)) {
++        return ZMK_EV_EVENT_BUBBLE;
++    }
++    if (pattern == CLEARED) {
++        return ZMK_EV_EVENT_BUBBLE; /* the flash first; it follows the slot afterwards */
++    }
++    follow_slot();
 +    return ZMK_EV_EVENT_BUBBLE;
 +}
 +
@@ -1145,10 +1221,10 @@ index 0000000000000000000000000000000000000000..cdbbb05b27c7f5a3ef48d2556a0ebe3b
 +ZMK_SUBSCRIPTION(ble_indicator, zmk_ble_active_profile_changed);
 diff --git a/app/src/ble_slots.c b/app/src/ble_slots.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a2127845e
+index 0000000000000000000000000000000000000000..d733e7bd5da04719102f6e84ba42249f74c43e08
 --- /dev/null
 +++ b/app/src/ble_slots.c
-@@ -0,0 +1,957 @@
+@@ -0,0 +1,1008 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -1220,6 +1296,15 @@ index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a
 +#define ZMK_ADV_CONN                                                                               \
 +    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
 +
++/* For the first seconds after a slot is selected, cleared or loses its computer, advertise every
++ * 20-30 ms (Apple's recommendation for reconnecting accessories) so the computer comes back
++ * quickly; then the usual 100-150 ms to save battery. */
++#define FAST_ADV_MS 10000
++#define FAST_ADV_INT_MIN 32 /* x 0.625 ms = 20 ms */
++#define FAST_ADV_INT_MAX 48 /* 30 ms */
++static int64_t fast_until;
++static bool adv_is_fast;
++
 +/* Each slot advertises its own name, "<keyboard name> <slot number>" (e.g. "Oreo 2"), so a
 + * computer's list of nearby devices says which slot it is about to pair with. (A computer may
 + * still list addresses it saw a moment ago; the number tells them apart.) The name stays the
@@ -1279,6 +1364,7 @@ index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a
 +    CMD_PAIR_FAILED,
 +    CMD_UNAUTH_CHECK,
 +    CMD_NOP,        /* barrier: everything posted before it is done */
++    CMD_SLOW_ADV,   /* the fast advertising period is over */
 +};
 +struct cmd {
 +    uint8_t type;
@@ -1332,6 +1418,14 @@ index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a
 +}
 +static K_WORK_DEFINE(raise_profile_changed_work, raise_profile_changed_cb);
 +static void raise_profile_changed(void) { k_work_submit(&raise_profile_changed_work); }
++
++/* One short backlight flash when the selected slot was cleared (ble_indicator.c). Queued before
++ * the profile event, so the flash comes first and the pairing blink follows. */
++static void indicate_cleared(void) {
++#if IS_ENABLED(CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR)
++    zmk_ble_indicator_cleared();
++#endif
++}
 +
 +__weak void zmk_ble_bond_event(uint8_t profile, enum zmk_ble_bond_cause cause) {
 +    ARG_UNUSED(profile);
@@ -1521,6 +1615,17 @@ index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a
 +    return 0;
 +}
 +
++static void slow_timer_fn(struct k_timer *t) {
++    ARG_UNUSED(t);
++    post((struct cmd){.type = CMD_SLOW_ADV});
++}
++static K_TIMER_DEFINE(slow_timer, slow_timer_fn, NULL);
++
++static void fast_adv(void) {
++    fast_until = k_uptime_get() + FAST_ADV_MS;
++    k_timer_start(&slow_timer, K_MSEC(FAST_ADV_MS), K_NO_WAIT);
++}
++
 +/* ---- worker helpers ---- */
 +static void adv_stop(void) {
 +    if (adv_id >= 0) {
@@ -1547,6 +1652,11 @@ index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a
 +    }
 +    struct bt_le_adv_param param = *ZMK_ADV_CONN;
 +    param.id = id;
++    bool fast = k_uptime_get() < fast_until;
++    if (fast) {
++        param.interval_min = FAST_ADV_INT_MIN;
++        param.interval_max = FAST_ADV_INT_MAX;
++    }
 +    size_t ad_len, sd_len;
 +    prepare_adv_name(slot, &ad_len, &sd_len);
 +    const struct bt_data *sd = sd_len ? zmk_ble_sd : NULL;
@@ -1565,6 +1675,7 @@ index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a
 +        return;
 +    }
 +    adv_id = id;
++    adv_is_fast = fast;
 +    LOG_DBG("Advertising for slot %d (%s)", slot, slot_is_open(slot) ? "open" : "its computer");
 +}
 +
@@ -1846,6 +1957,7 @@ index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a
 +    bt_conn_auth_cb_register(&auth_cb);
 +    bt_conn_auth_info_cb_register(&auth_info_cb);
 +    started = true;
++    fast_adv();
 +    LOG_INF("Bluetooth slots ready, slot %d selected", active_profile);
 +    adv_update(false);
 +    raise_profile_changed();
@@ -1910,12 +2022,17 @@ index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a
 +        }
 +        save_active();
 +        drop_other_links();
++        fast_adv();
 +        adv_update(false);
 +        raise_profile_changed();
 +        break;
 +    case CMD_CLEAR:
 +        if (started && c->arg < SLOTS) {
 +            reset_slot(c->arg, c->cause ? c->cause : ZMK_BLE_BOND_CLEARED);
++            if (c->arg == active_profile) {
++                indicate_cleared();
++                fast_adv();
++            }
 +            adv_update(false);
 +            raise_profile_changed();
 +        }
@@ -1928,6 +2045,8 @@ index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a
 +            bt_unpair(BT_ID_DEFAULT, NULL);
 +            active_profile = 0;
 +            save_active();
++            indicate_cleared();
++            fast_adv();
 +            adv_update(false);
 +            raise_profile_changed();
 +        }
@@ -1945,6 +2064,9 @@ index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a
 +        on_connected(c->conn);
 +        break;
 +    case CMD_DISCONNECTED:
++        if (c->arg == active_profile) {
++            fast_adv();
++        }
 +        adv_update(false);
 +        if (c->arg == active_profile) {
 +            raise_profile_changed();
@@ -1970,6 +2092,11 @@ index 0000000000000000000000000000000000000000..ab8574dc1ac3362c38bb8bc8327a265a
 +        bt_conn_foreach(BT_CONN_TYPE_LE, unauth_cb, NULL);
 +        break;
 +    case CMD_NOP:
++        break;
++    case CMD_SLOW_ADV:
++        if (adv_id >= 0 && adv_is_fast) {
++            adv_update(true);
++        }
 +        break;
 +    }
 +}

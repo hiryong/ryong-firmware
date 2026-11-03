@@ -22,6 +22,7 @@
 #if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW)
 #include <zmk/rgb_underglow.h>
 #endif
+#include <zmk/ble.h>
 #include <ryong/settings_runtime.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
@@ -249,16 +250,38 @@ static void run_tick_now(void) {
     k_work_flush(&tick_work, &sync);
 }
 
+#if IS_ENABLED(CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR)
+/* The Bluetooth slot light (ZMK's ble_indicator.c) follows the stored settings. */
+bool zmk_ble_indicator_enabled(void) {
+    k_mutex_lock(&lock, K_FOREVER);
+    bool use = cur.indicator.use;
+    k_mutex_unlock(&lock);
+    return use;
+}
+uint8_t zmk_ble_indicator_brightness(void) {
+    k_mutex_lock(&lock, K_FOREVER);
+    uint8_t brt = cur.indicator.brightness;
+    k_mutex_unlock(&lock);
+    return brt;
+}
+#endif
+
 int ry_rs_set(const struct ry_settings *s) {
     if (ry_rs_validate(s)) return -EINVAL;
     k_mutex_lock(&lock, K_FOREVER);
     bl_brightness_dirty = s->backlight.brightness != cur.backlight.brightness;
     ug_brightness_dirty = s->underglow.brightness != cur.underglow.brightness;
+#if IS_ENABLED(CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR)
+    bool indicator_preview = s->indicator.use && (s->indicator.brightness != cur.indicator.brightness || !cur.indicator.use);
+#endif
     cur = *s;
     k_mutex_unlock(&lock);
     k_work_reschedule(&save_work, K_SECONDS(1));
     last_activity = k_uptime_get_32();
     run_tick_now();
+#if IS_ENABLED(CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR)
+    if (indicator_preview) zmk_ble_indicator_preview(); /* show the new brightness once */
+#endif
     return 0;
 }
 

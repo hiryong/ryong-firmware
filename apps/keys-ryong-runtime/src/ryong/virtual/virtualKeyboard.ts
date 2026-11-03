@@ -37,7 +37,8 @@ type State = Saved & { slots: Slot[]; active: number; usb: boolean; nextLayerId:
 const deviceFactory = (): Device => ({
   settings: S.Settings.fromPartial({ sleepEnabled: true, sleepMinutes: 15,
     backlight: { use: false, onAtStart: false, brightness: 40, usbOnly: false },
-    underglow: { use: false, onAtStart: false, brightness: 50, usbOnly: true } }),
+    underglow: { use: false, onAtStart: false, brightness: 50, usbOnly: true },
+    btIndicator: { use: true, brightness: 1 } }),
   blOn: false, ugOn: false, blWanted: false, ugWanted: false,
 });
 
@@ -461,13 +462,15 @@ class VirtualDevice {
   /* -- Keyboard-side settings (mirrors modules/ryong-runtime-settings) -- */
   private settings(q: S.Request): S.Response {
     const d = this.device, status = (error: number) => S.Response.fromPartial({ status: { ok: false, error } });
-    const state = () => S.Response.fromPartial({ state: { settings: d.settings, caps: { backlight: true, underglow: true, sleepMaxMinutes: 1440, bleUpdate: true },
+    const state = () => S.Response.fromPartial({ state: { settings: d.settings, caps: { backlight: true, underglow: true, sleepMaxMinutes: 1440, bleUpdate: true, btIndicator: true },
       backlightOn: d.blOn, underglowOn: d.ugOn, usbPowered: this.flash.usb, protocolVersion: 1 } });
     if (q.getState) return state();
     if (q.bleUpdate) return state(); // a real keyboard restarts into the bootloader right after replying
     if (q.set) {
       const n = S.Settings.fromPartial(q.set), ok = (v: number, lo: number, hi: number) => Number.isInteger(v) && v >= lo && v <= hi;
       if (!n.backlight || !n.underglow || !ok(n.sleepMinutes, 1, 1440) || !ok(n.backlight.brightness, 0, 100) || !ok(n.underglow.brightness, 0, 100)) return status(22);
+      if (n.btIndicator && !ok(n.btIndicator.brightness, 1, 100)) return status(22);
+      if (!n.btIndicator) n.btIndicator = d.settings.btIndicator; // an older page: kept
       d.settings = n; this.lightRules(); this.persist(); return state();
     }
     if (q.power) {

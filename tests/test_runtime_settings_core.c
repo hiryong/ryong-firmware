@@ -77,7 +77,28 @@ static void test_sleep(void) {
     assert(!ry_should_sleep(&s, 1439u * 60000u, false) && ry_should_sleep(&s, 1440u * 60000u, false));
 }
 
+static void test_indicator(void) {
+    struct ry_settings s, t;
+    uint8_t rec[RY_RS_RECORD_SIZE];
+    ry_rs_defaults(&s, 15, true);
+    assert(s.indicator.use && s.indicator.brightness == RY_RS_INDICATOR_BRT_DEFAULT);
+    s.indicator.use = false; s.indicator.brightness = 30;
+    ry_rs_encode(&s, rec);
+    assert(ry_rs_decode(rec, sizeof(rec), &t) == 0 && !t.indicator.use && t.indicator.brightness == 30);
+    /* a record written before the indicator existed: bytes 8-9 zero -> on, default brightness */
+    s.indicator.use = true; s.indicator.brightness = RY_RS_INDICATOR_BRT_DEFAULT;
+    ry_rs_encode(&s, rec);
+    rec[8] = 0; rec[9] = 0;
+    uint8_t x = 0xA5;
+    for (size_t i = 0; i < RY_RS_RECORD_SIZE - 1; i++) x = (uint8_t)((x << 1 | x >> 7) ^ rec[i]);
+    rec[RY_RS_RECORD_SIZE - 1] = x;
+    assert(ry_rs_decode(rec, sizeof(rec), &t) == 0 && t.indicator.use && t.indicator.brightness == RY_RS_INDICATOR_BRT_DEFAULT);
+    s.indicator.brightness = 0;
+    assert(ry_rs_validate(&s) == -EINVAL);
+}
+
 int main(void) {
+    test_indicator();
     test_defaults_and_roundtrip();
     test_reject_bad_records();
     test_light_rules();

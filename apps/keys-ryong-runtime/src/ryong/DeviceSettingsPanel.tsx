@@ -73,6 +73,35 @@ export function DeviceSettingsPanel() {
     if (s?.settings) setDraft((d) => d && { ...d, [k]: { ...d[k]!, brightness: s.settings![k]!.brightness } });
   }
 
+  // Bluetooth slot light: blinks on the backlight while a slot waits, flashes once when cleared.
+  async function applyIndicatorBrightness(brightness: number) {
+    const base = state?.settings;
+    if (!dev || !base?.btIndicator || base.btIndicator.brightness === brightness) return;
+    const s = await act(() => dev.save({ ...base, btIndicator: { ...base.btIndicator!, brightness } }));
+    if (s?.settings?.btIndicator) setDraft((d) => d && { ...d, btIndicator: { ...d.btIndicator!, brightness: s.settings!.btIndicator!.brightness } });
+  }
+  const indicator = () => {
+    const l = draft!.btIndicator!, savedUse = state!.settings!.btIndicator?.use;
+    const name = t("Bluetooth slot light", "Bluetooth 슬롯 알림");
+    const commit = (e: React.SyntheticEvent<HTMLInputElement>) => {
+      const v = Number(e.currentTarget.value);
+      clearTimeout(brtTimer.current);
+      brtTimer.current = setTimeout(() => void applyIndicatorBrightness(v), 400);
+    };
+    return <section className="ry-card ry-setcard" aria-label={name}>
+      <Row title={name} hint={t("On the backlight: fast blink while a slot waits for a new device, slow blink while it waits for its own, one short flash when a slot is cleared.",
+        "백라이트로 알려요: 새 기기를 기다리면 빠르게, 등록된 기기를 기다리면 천천히 깜빡이고, 슬롯을 지우면 한 번 짧게 깜빡여요.")}>
+        <Switch on={l.use} label={t("Use {n}", "{n} 사용", { n: name })} onChange={(use) => setDraft((d) => d && { ...d, btIndicator: { ...d.btIndicator!, use } })} />
+      </Row>
+      {l.use && <Row title={t("Light brightness", "알림 밝기")} hint={t("Applied when you let go, with one flash to show it. Low is easy on the eyes and the battery.", "슬라이더를 놓으면 바로 바뀌고 한 번 깜빡여 보여줘요. 낮을수록 눈과 배터리에 편해요.")}>
+        <span className="ry-range"><input type="range" min={1} max={100} step={1} value={l.brightness} disabled={!savedUse}
+          aria-label={t("Light brightness", "알림 밝기")} title={!savedUse ? t("Save first", "먼저 저장하세요") : undefined}
+          onChange={(e) => setDraft((d) => d && { ...d, btIndicator: { ...d.btIndicator!, brightness: Number(e.target.value) } })}
+          onPointerUp={commit} onKeyUp={commit} onBlur={commit} /><output>{l.brightness}%</output></span>
+      </Row>}
+    </section>;
+  };
+
   const light = (k: "backlight" | "underglow") => {
     const l = draft![k]!, live = state!;
     const isOn = k === "backlight" ? live.backlightOn : live.underglowOn;
@@ -135,6 +164,7 @@ export function DeviceSettingsPanel() {
       </section>
       {state.caps!.backlight && light("backlight")}
       {state.caps!.underglow && light("underglow")}
+      {state.caps!.btIndicator && draft.btIndicator && indicator()}
       {!state.caps!.backlight && !state.caps!.underglow && <p className="ry-faint">{t("This firmware has no lights built in.", "이 펌웨어에는 조명 기능이 없어요.")}</p>}
       {state.caps!.bleUpdate && <section className="ry-card ry-setcard" aria-label={t("Bluetooth update (development)", "Bluetooth 업데이트 (개발용)")}>
         <Row title={t("Bluetooth update mode (development)", "Bluetooth 업데이트 모드 (개발용)")}

@@ -11,11 +11,19 @@ message Light {
     bool usb_only = 4;       // dark on battery, lit again when USB power returns
 }
 
+// Bluetooth slot light on the backlight: blinks while a slot waits for a device, flashes once
+// when a slot is cleared.
+message Indicator {
+    bool use = 1;
+    uint32 brightness = 2;  // 1-100
+}
+
 message Settings {
     bool sleep_enabled = 1;
     uint32 sleep_minutes = 2;  // 1-1440
     Light backlight = 3;
     Light underglow = 4;
+    Indicator bt_indicator = 5;  // absent from older pages: kept unchanged
 }
 
 message Capabilities {
@@ -23,6 +31,7 @@ message Capabilities {
     bool underglow = 2;
     uint32 sleep_max_minutes = 3;
     bool ble_update = 4;       // can restart into the bootloader's Bluetooth update mode (development)
+    bool bt_indicator = 5;     // Bluetooth slot light built in
 }
 
 message State {

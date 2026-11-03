@@ -24,12 +24,26 @@ export interface Light {
   usbOnly: boolean;
 }
 
+/**
+ * Bluetooth slot light on the backlight: blinks while a slot waits for a device, flashes once
+ * when a slot is cleared.
+ */
+export interface Indicator {
+  use: boolean;
+  /** 1-100 */
+  brightness: number;
+}
+
 export interface Settings {
   sleepEnabled: boolean;
   /** 1-1440 */
   sleepMinutes: number;
   backlight: Light | undefined;
-  underglow: Light | undefined;
+  underglow:
+    | Light
+    | undefined;
+  /** absent from older pages: kept unchanged */
+  btIndicator: Indicator | undefined;
 }
 
 export interface Capabilities {
@@ -39,6 +53,8 @@ export interface Capabilities {
   sleepMaxMinutes: number;
   /** can restart into the bootloader's Bluetooth update mode (development) */
   bleUpdate: boolean;
+  /** Bluetooth slot light built in */
+  btIndicator: boolean;
 }
 
 export interface State {
@@ -223,8 +239,82 @@ export const Light = {
   },
 };
 
+function createBaseIndicator(): Indicator {
+  return { use: false, brightness: 0 };
+}
+
+export const Indicator = {
+  encode(message: Indicator, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.use !== false) {
+      writer.uint32(8).bool(message.use);
+    }
+    if (message.brightness !== 0) {
+      writer.uint32(16).uint32(message.brightness);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): Indicator {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseIndicator();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.use = reader.bool();
+          continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.brightness = reader.uint32();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Indicator {
+    return {
+      use: isSet(object.use) ? globalThis.Boolean(object.use) : false,
+      brightness: isSet(object.brightness) ? globalThis.Number(object.brightness) : 0,
+    };
+  },
+
+  toJSON(message: Indicator): unknown {
+    const obj: any = {};
+    if (message.use !== false) {
+      obj.use = message.use;
+    }
+    if (message.brightness !== 0) {
+      obj.brightness = Math.round(message.brightness);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Indicator>, I>>(base?: I): Indicator {
+    return Indicator.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Indicator>, I>>(object: I): Indicator {
+    const message = createBaseIndicator();
+    message.use = object.use ?? false;
+    message.brightness = object.brightness ?? 0;
+    return message;
+  },
+};
+
 function createBaseSettings(): Settings {
-  return { sleepEnabled: false, sleepMinutes: 0, backlight: undefined, underglow: undefined };
+  return { sleepEnabled: false, sleepMinutes: 0, backlight: undefined, underglow: undefined, btIndicator: undefined };
 }
 
 export const Settings = {
@@ -240,6 +330,9 @@ export const Settings = {
     }
     if (message.underglow !== undefined) {
       Light.encode(message.underglow, writer.uint32(34).fork()).ldelim();
+    }
+    if (message.btIndicator !== undefined) {
+      Indicator.encode(message.btIndicator, writer.uint32(42).fork()).ldelim();
     }
     return writer;
   },
@@ -279,6 +372,13 @@ export const Settings = {
 
           message.underglow = Light.decode(reader, reader.uint32());
           continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.btIndicator = Indicator.decode(reader, reader.uint32());
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -294,6 +394,7 @@ export const Settings = {
       sleepMinutes: isSet(object.sleepMinutes) ? globalThis.Number(object.sleepMinutes) : 0,
       backlight: isSet(object.backlight) ? Light.fromJSON(object.backlight) : undefined,
       underglow: isSet(object.underglow) ? Light.fromJSON(object.underglow) : undefined,
+      btIndicator: isSet(object.btIndicator) ? Indicator.fromJSON(object.btIndicator) : undefined,
     };
   },
 
@@ -311,6 +412,9 @@ export const Settings = {
     if (message.underglow !== undefined) {
       obj.underglow = Light.toJSON(message.underglow);
     }
+    if (message.btIndicator !== undefined) {
+      obj.btIndicator = Indicator.toJSON(message.btIndicator);
+    }
     return obj;
   },
 
@@ -327,12 +431,15 @@ export const Settings = {
     message.underglow = (object.underglow !== undefined && object.underglow !== null)
       ? Light.fromPartial(object.underglow)
       : undefined;
+    message.btIndicator = (object.btIndicator !== undefined && object.btIndicator !== null)
+      ? Indicator.fromPartial(object.btIndicator)
+      : undefined;
     return message;
   },
 };
 
 function createBaseCapabilities(): Capabilities {
-  return { backlight: false, underglow: false, sleepMaxMinutes: 0, bleUpdate: false };
+  return { backlight: false, underglow: false, sleepMaxMinutes: 0, bleUpdate: false, btIndicator: false };
 }
 
 export const Capabilities = {
@@ -348,6 +455,9 @@ export const Capabilities = {
     }
     if (message.bleUpdate !== false) {
       writer.uint32(32).bool(message.bleUpdate);
+    }
+    if (message.btIndicator !== false) {
+      writer.uint32(40).bool(message.btIndicator);
     }
     return writer;
   },
@@ -387,6 +497,13 @@ export const Capabilities = {
 
           message.bleUpdate = reader.bool();
           continue;
+        case 5:
+          if (tag !== 40) {
+            break;
+          }
+
+          message.btIndicator = reader.bool();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -402,6 +519,7 @@ export const Capabilities = {
       underglow: isSet(object.underglow) ? globalThis.Boolean(object.underglow) : false,
       sleepMaxMinutes: isSet(object.sleepMaxMinutes) ? globalThis.Number(object.sleepMaxMinutes) : 0,
       bleUpdate: isSet(object.bleUpdate) ? globalThis.Boolean(object.bleUpdate) : false,
+      btIndicator: isSet(object.btIndicator) ? globalThis.Boolean(object.btIndicator) : false,
     };
   },
 
@@ -419,6 +537,9 @@ export const Capabilities = {
     if (message.bleUpdate !== false) {
       obj.bleUpdate = message.bleUpdate;
     }
+    if (message.btIndicator !== false) {
+      obj.btIndicator = message.btIndicator;
+    }
     return obj;
   },
 
@@ -431,6 +552,7 @@ export const Capabilities = {
     message.underglow = object.underglow ?? false;
     message.sleepMaxMinutes = object.sleepMaxMinutes ?? 0;
     message.bleUpdate = object.bleUpdate ?? false;
+    message.btIndicator = object.btIndicator ?? false;
     return message;
   },
 };

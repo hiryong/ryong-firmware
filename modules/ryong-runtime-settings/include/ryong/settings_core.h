@@ -8,6 +8,7 @@
 #define RY_RS_VERSION 1
 #define RY_RS_SLEEP_MAX_MIN 1440
 #define RY_RS_RECORD_SIZE 12
+#define RY_RS_INDICATOR_BRT_DEFAULT 1
 
 struct ry_light {
     bool use;
@@ -16,11 +17,18 @@ struct ry_light {
     bool usb_only;
 };
 
+/* Bluetooth slot light on the backlight (blink while pairing, flash when a slot is cleared). */
+struct ry_indicator {
+    bool use;
+    uint8_t brightness; /* 1-100 */
+};
+
 struct ry_settings {
     bool sleep_enabled;
     uint16_t sleep_minutes; /* 1-1440 */
     struct ry_light backlight;
     struct ry_light underglow;
+    struct ry_indicator indicator;
 };
 
 void ry_rs_defaults(struct ry_settings *s, uint16_t sleep_default_min, bool lights_use);

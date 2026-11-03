@@ -438,6 +438,18 @@ await step("keyboard settings: underglow on at start survives a power cycle", as
   await pane.getByLabel("RGB 언더글로우", { exact: true }).getByText(/지금 켜져 있어요/).waitFor({ timeout: 5000 });
 });
 
+await step("keyboard settings: Bluetooth slot light on/off and brightness", async () => {
+  const pane = page.locator("#ry-device-pane");
+  const slider = pane.getByRole("slider", { name: "알림 밝기" });
+  await slider.focus();
+  for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowRight"); // 1 → 5
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.btIndicator?.brightness === 5, null, { timeout: 5000 });
+  await pane.getByRole("switch", { name: "Bluetooth 슬롯 알림 사용" }).click();
+  await pane.getByRole("button", { name: "키보드에 저장" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.device.settings.btIndicator?.use === false, null, { timeout: 5000 });
+  assert.equal(await pane.getByRole("slider", { name: "알림 밝기" }).count(), 0, "brightness hidden while off");
+});
+
 await step("no page errors (desktop)", async () => assert.deepEqual(errors, []));
 await ctx.close();
 

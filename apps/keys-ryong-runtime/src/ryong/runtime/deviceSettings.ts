@@ -27,6 +27,7 @@ export function validate(s: DeviceSettings) {
   const int = (v: number, lo: number, hi: number) => Number.isInteger(v) && v >= lo && v <= hi;
   if (!int(s.sleepMinutes, 1, 1440)) throw new KeyboardError(t("Sleep time must be 1–1440 minutes.", "절전 시간은 1–1440분이어야 해요."));
   for (const l of [s.backlight, s.underglow]) if (!l || !int(l.brightness, 0, 100)) throw new KeyboardError(t("Brightness must be 0–100%.", "밝기는 0–100%여야 해요."));
+  if (s.btIndicator && !int(s.btIndicator.brightness, 1, 100)) throw new KeyboardError(t("Brightness must be 1–100%.", "밝기는 1–100%여야 해요."));
   return s;
 }
 

@@ -48,11 +48,15 @@ static void fill_state(ryong_settings_Response *response) {
     to_pb(&s.backlight, &st->settings.backlight);
     st->settings.has_underglow = true;
     to_pb(&s.underglow, &st->settings.underglow);
+    st->settings.has_bt_indicator = true;
+    st->settings.bt_indicator.use = s.indicator.use;
+    st->settings.bt_indicator.brightness = s.indicator.brightness;
     st->has_caps = true;
     st->caps.backlight = live.has_backlight;
     st->caps.underglow = live.has_underglow;
     st->caps.sleep_max_minutes = IS_ENABLED(CONFIG_ZMK_SLEEP) ? RY_RS_SLEEP_MAX_MIN : 0;
     st->caps.ble_update = IS_ENABLED(CONFIG_RYONG_BLE_DFU_ENTRY);
+    st->caps.bt_indicator = IS_ENABLED(CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR);
     st->backlight_on = live.backlight_on;
     st->underglow_on = live.underglow_on;
     st->usb_powered = live.usb_powered;
@@ -85,6 +89,15 @@ static bool handle(const zmk_custom_CallRequest *raw, pb_callback_t *encoded) {
         s.sleep_minutes = p->sleep_minutes > 0xffff ? 0 : (uint16_t)p->sleep_minutes;
         rc = from_pb(&p->backlight, p->has_backlight, &s.backlight);
         if (!rc) rc = from_pb(&p->underglow, p->has_underglow, &s.underglow);
+        if (p->has_bt_indicator) {
+            if (p->bt_indicator.brightness < 1 || p->bt_indicator.brightness > 100) rc = rc ? rc : -EINVAL;
+            s.indicator.use = p->bt_indicator.use;
+            s.indicator.brightness = (uint8_t)MIN(p->bt_indicator.brightness, 100);
+        } else {
+            struct ry_settings now; /* an older page: keep what is stored */
+            ry_rs_get(&now);
+            s.indicator = now.indicator;
+        }
         if (!rc) rc = ry_rs_set(&s);
         break;
     }
