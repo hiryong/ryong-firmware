@@ -36,7 +36,7 @@ await page.route("**/*", async route => {
   return route.continue();
 });
 try {
-  const url = "http://127.0.0.1:" + server.address().port + "/?runtime=1";
+  const url = "http://127.0.0.1:" + server.address().port + "/?runtime=1&virtual=1";
   await page.goto(url);
   await page.getByRole("button", { name: "콤보", exact: true }).click();
   if (await page.getByRole("button", { name: "연결 없이 미리보기", exact: true }).isVisible()) await page.getByRole("button", { name: "연결 없이 미리보기", exact: true }).click();

@@ -23,7 +23,7 @@ const server = http.createServer(async (req, res) => {
   } catch { res.statusCode = 404; res.end(); }
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const url = `http://127.0.0.1:${server.address().port}/?runtime=1`;
+const url = `http://127.0.0.1:${server.address().port}/?runtime=1&virtual=1`;
 const browser = await engine.launch(process.env.RYONG_CHROMIUM && !process.env.RYONG_BROWSER ? { executablePath: process.env.RYONG_CHROMIUM } : {});
 
 const results = [];

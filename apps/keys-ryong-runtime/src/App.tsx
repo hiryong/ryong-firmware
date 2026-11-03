@@ -52,7 +52,11 @@ declare global {
 }
 
 // Development copy only: a simulated keyboard so every screen can be tried without hardware.
-const VIRTUAL: TransportFactory[] = import.meta.env.VITE_RYONG_RUNTIME === "1" ? [{ label: t("Virtual keyboard", "가상 키보드"), connect: virtualConnect }] : [];
+/* The virtual keyboard is for automated tests and the offline preview only: hidden on the site
+ * unless the address has ?virtual (the tests open it that way). */
+const VIRTUAL_ON = import.meta.env.VITE_RYONG_RUNTIME === "1" &&
+  (import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1" || new URLSearchParams(location.search).has("virtual"));
+const VIRTUAL: TransportFactory[] = VIRTUAL_ON ? [{ label: t("Virtual keyboard", "가상 키보드"), connect: virtualConnect }] : [];
 const TRANSPORTS: TransportFactory[] = import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1" ? VIRTUAL : [...VIRTUAL,
   navigator.serial && { label: "USB", connect: serial_connect },
   // Bluetooth: WebHID on desktop Chrome/Edge (reaches the keyboard while it stays connected to the
@@ -330,7 +334,7 @@ function App() {
     <ConnectionContext.Provider value={conn}>
       <LockStateContext.Provider value={lockState}>
         <UndoRedoContext.Provider value={doIt}>
-          <UnlockModal extra={<>{import.meta.env.VITE_RYONG_RUNTIME === "1" && <VirtualUnlockButton />}<UnlockHelp deviceName={connectedDeviceName} onTab={setHubTab} onApp={openApp} /></>} />
+          <UnlockModal extra={<>{VIRTUAL_ON && <VirtualUnlockButton />}<UnlockHelp deviceName={connectedDeviceName} onTab={setHubTab} onApp={openApp} /></>} />
           <ConnectModal
             open={!conn.conn && !runtimeOpen && !updating}
             transports={TRANSPORTS}
@@ -393,7 +397,7 @@ function App() {
             {import.meta.env.VITE_RYONG_RUNTIME === "1" ? <RuntimePanel
               open={runtimeOpen || !!conn.conn} onClose={() => setRuntimeOpen(false)}
               deviceName={connectedDeviceName} keymap={<Keyboard />} onSectionChange={setRuntimeSection}
-              onVirtual={() => { void virtualConnect().then(onConnect); }}
+              onVirtual={VIRTUAL_ON ? () => { void virtualConnect().then(onConnect); } : undefined}
               onSaved={() => { reset(); setConn({ conn: conn.conn }); }} /> : <Keyboard />}
             <AppFooter
               onShowAbout={() => setShowAbout(true)}
@@ -403,7 +407,7 @@ function App() {
         </UndoRedoContext.Provider>
       </LockStateContext.Provider>
     </ConnectionContext.Provider>
-      {import.meta.env.VITE_RYONG_RUNTIME === "1" && <VirtualPanel onDisconnect={disconnect} />}
+      {VIRTUAL_ON && <VirtualPanel onDisconnect={disconnect} />}
     </UpdateConnectionContext.Provider>
   );
 }
