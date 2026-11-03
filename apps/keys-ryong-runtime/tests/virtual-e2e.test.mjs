@@ -257,6 +257,25 @@ await step("keymap: put the macro on Z from the 매크로·탭댄스 tab", async
   assert.ok((await key(42).innerText()).includes(globalThis.createdMacro));
 });
 
+await step("keymap: Layer-Tap and Mod-Tap from the 탭·홀드 tab", async () => {
+  await tab("키맵");
+  await key(29).click(); // Caps
+  await page.getByRole("tab", { name: "탭·홀드" }).click();
+  await page.getByRole("button", { name: "누르면 레이어 (Layer-Tap)" }).click();
+  await page.getByLabel("짧게 누르면").selectOption({ label: "Esc" });
+  await page.getByLabel("누르고 있으면").selectOption({ index: 1 });
+  await page.getByRole("button", { name: "이 키에 적용" }).click();
+  await page.getByRole("button", { name: "누르면 수정키 (Mod-Tap)" }).waitFor();
+  await key(41).click(); // Z row start: left Shift
+  await page.getByRole("tab", { name: "탭·홀드" }).click();
+  await page.getByRole("button", { name: "누르면 수정키 (Mod-Tap)" }).click();
+  await page.getByLabel("짧게 누르면").selectOption({ label: "Space" });
+  await page.getByLabel("누르고 있으면").selectOption({ label: "L Shift" });
+  await page.getByRole("button", { name: "이 키에 적용" }).click();
+  await page.locator("button:has([aria-label=Save])").click();
+  await page.waitForFunction(() => { const b = window.__ryongVirtual.flash.layers[0].bindings; return b[29].behaviorId === 10 && b[29].param1 === 1 && b[41].behaviorId === 9; }, null, { timeout: 3000 });
+});
+
 await step("tap dance: new dance with 1× A, 2× B and save", async () => {
   await tab("탭댄스");
   const before = (await flash()).dances.length;
