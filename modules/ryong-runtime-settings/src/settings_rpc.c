@@ -87,7 +87,7 @@ static int set_name(const char *name) {
     }
     char copy[33];
     memcpy(copy, name, len + 1);
-    return zmk_ble_set_device_name(copy); /* stored by Zephyr (bt/name); usb_name.c uses it at the next start */
+    return zmk_ble_set_device_name(copy); /* stored by Zephyr (bt/name) */
 }
 #endif
 

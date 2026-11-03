@@ -66,10 +66,6 @@ jobs:
             # Empty name = the board's product name (BT60 builds used to come out as "BT60 V2").
             if [ -z "$KBNAME" ]; then case "$TARGET" in bt60) KBNAME=Cheeto ;; bt60-oreo) KBNAME=Oreo ;; ryong60) KBNAME=ryong60 ;; esac; fi
             echo "CONFIG_ZMK_KEYBOARD_NAME=\"$KBNAME\""
-            # Users rename the keyboard on the web page; the USB name follows from the next start
-            # (modules/ryong-runtime-settings/src/usb_name.c). Its room is this string's length, so
-            # reserve 16 characters; the padding is never shown (the stored or built name replaces it).
-            printf 'CONFIG_USB_DEVICE_PRODUCT="%-16s"\n' "$KBNAME"
             # Oreo and Ryong60 have a backlight: its keyboard-side "use" switch starts ON (otherwise the light key turns
             # it on and the 1 s rule turns it straight off). Underglow always starts unused, every board.
             if [ "$TARGET" = bt60-oreo ] || [ "$TARGET" = ryong60 ]; then echo "CONFIG_RYONG_RUNTIME_SETTINGS_LIGHTS_DEFAULT_USE=y"; fi
