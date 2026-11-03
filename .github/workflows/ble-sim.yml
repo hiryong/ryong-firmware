@@ -1,9 +1,9 @@
 # Bluetooth simulation (BabbleSim) of the patched ZMK: the keyboard firmware and simulated
 # computers run together on a simulated radio. Catches hangs, crashes and wrong connection
 # behaviour before anything is flashed on a real keyboard. Nothing is published.
-#  - upstream: ZMK's own BLE tests with our patch (default build, one Bluetooth identity)
-#  - identities: the same scenarios with one identity per profile (BT_ID_MAX = profiles), checked
-#    for crashes/hangs and for every simulated computer pairing and receiving key reports
+#  - ZMK's own profile and security scenarios run against our slot code (one address per slot),
+#    each simulated computer judged against ZMK's expected outcome
+#  - upgrade: a keyboard paired under older firmware boots this one on the same flash
 name: BLE simulation
 on:
   workflow_dispatch:
@@ -50,27 +50,7 @@ jobs:
       - name: Build BabbleSim
         working-directory: zmk/tools/bsim
         run: make everything -j4 > /dev/null
-      - name: Identity scenarios (copies of ZMK's profile tests, one identity per profile)
-        working-directory: zmk/app
-        run: python3 "$GITHUB_WORKSPACE/ryong/tests/ble-sim/make_identity_cases.py" tests/ble
-      - name: Run upstream and identity scenarios
-        working-directory: zmk/app
-        env:
-          BSIM_COMPONENTS_PATH: ${{ github.workspace }}/zmk/tools/bsim/components
-          BSIM_OUT_PATH: ${{ github.workspace }}/zmk/tools/bsim
-        run: |
-          mkdir -p build/tests
-          ./run-ble-test.sh tests/ble/profiles > /dev/null 2>&1 || true
-          cp build/tests/pass-fail.log build/tests/upstream-pass-fail.log 2>/dev/null || true
-          ./run-ble-test.sh tests/ble/ryong-identities > /dev/null 2>&1 || true
-          # run-ble-test.sh hides build output: keep one identity build's log for diagnosis
-          c=tests/ble/ryong-identities/connnect-and-output-to-selection
-          west build -p -d build/diag -b nrf52_bsim//zmk_test_mock -- -DZMK_CONFIG="$(pwd)/$c" > build/tests/identity-build.log 2>&1 || true
-          tail -60 build/tests/identity-build.log | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY" || true
-          echo "### Upstream profile scenarios (our patch, one identity)" >> "$GITHUB_STEP_SUMMARY"
-          sed 's/^/    /' build/tests/upstream-pass-fail.log >> "$GITHUB_STEP_SUMMARY" || true
-          python3 "$GITHUB_WORKSPACE/ryong/tests/ble-sim/check_identity_runs.py" build/tests/ble/ryong-identities tests/ble/ryong-identities tests/ble/profiles | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Upgrade with paired slots (old shared address -> per-slot addresses, same flash)
+      - name: ZMK's Bluetooth scenarios against our slot code (src/ble_slots.c)
         working-directory: zmk/app
         shell: bash
         env:
@@ -78,13 +58,30 @@ jobs:
           BSIM_OUT_PATH: ${{ github.workspace }}/zmk/tools/bsim
         run: |
           set -o pipefail
-          R="$GITHUB_WORKSPACE/ryong"
-          # the start-up as it was before the fix (for comparison; may hang - that is the point)
-          git -C "$R" show 76a1944:third_party/zmk/zmk-custom-studio.patch > /tmp/before.patch
-          git -C .. worktree add -q --detach ../zmk-before HEAD   # the pinned commit, without our patch
-          git -C ../../zmk-before apply --whitespace=nowarn /tmp/before.patch
-          "$R/tests/ble-sim/run_migration.sh" "$R/tests/ble-sim/migration" before ../../zmk-before/app | tee -a "$GITHUB_STEP_SUMMARY" || true
-          "$R/tests/ble-sim/run_migration.sh" "$R/tests/ble-sim/migration" fixed | tee -a "$GITHUB_STEP_SUMMARY"
+          mkdir -p build/tests
+          ./run-ble-test.sh tests/ble/profiles > /dev/null 2>&1 || true
+          BLE_TESTS_NO_CENTRAL_BUILD=y ./run-ble-test.sh tests/ble/security > /dev/null 2>&1 || true
+          # addresses differ from ZMK's snapshots by design: judge each computer's outcome instead
+          python3 "$GITHUB_WORKSPACE/ryong/tests/ble-sim/check_identity_runs.py" build/tests/ble/profiles tests/ble/profiles tests/ble/profiles | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 "$GITHUB_WORKSPACE/ryong/tests/ble-sim/check_identity_runs.py" build/tests/ble/security tests/ble/security tests/ble/security | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upgrade a keyboard with paired slots (same flash, old firmware then this one)
+        working-directory: zmk/app
+        shell: bash
+        env:
+          BSIM_COMPONENTS_PATH: ${{ github.workspace }}/zmk/tools/bsim/components
+          BSIM_OUT_PATH: ${{ github.workspace }}/zmk/tools/bsim
+        run: |
+          set -o pipefail
+          R="$GITHUB_WORKSPACE/ryong"; M="$R/tests/ble-sim/migration"
+          # official ZMK (one shared address), and the build that froze keyboards (76a1944)
+          git -C .. worktree add -q --detach ../zmk-official HEAD
+          git -C .. worktree add -q --detach ../zmk-76a1944 HEAD
+          git -C "$R" show 76a1944:third_party/zmk/zmk-custom-studio.patch > /tmp/76a1944.patch
+          git -C ../../zmk-76a1944 apply --whitespace=nowarn /tmp/76a1944.patch
+          "$R/tests/ble-sim/run_migration.sh" "$M" from-official old ../../zmk-official/app . | tee -a "$GITHUB_STEP_SUMMARY"
+          "$R/tests/ble-sim/run_migration.sh" "$M" from-76a1944 old-ids ../../zmk-76a1944/app . | tee -a "$GITHUB_STEP_SUMMARY"
+          # for comparison only: the frozen build itself on the official firmware's flash
+          "$R/tests/ble-sim/run_migration.sh" "$M" before-fix old ../../zmk-official/app ../../zmk-76a1944/app | tee -a "$GITHUB_STEP_SUMMARY" || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:

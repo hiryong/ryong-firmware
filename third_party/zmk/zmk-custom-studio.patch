@@ -1,17 +1,23 @@
 diff --git a/app/CMakeLists.txt b/app/CMakeLists.txt
-index c41153cb17c97f790b3c7dac2262c7ee04a65cd2..f3a014efaa259cd012e33a6553feca547baef792 100644
+index c41153cb17c97f790b3c7dac2262c7ee04a65cd2..c3174f002e26881c227a833d36e06141e4c96315 100644
 --- a/app/CMakeLists.txt
 +++ b/app/CMakeLists.txt
-@@ -83,6 +83,8 @@ if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+@@ -83,7 +83,13 @@ if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
    if (CONFIG_ZMK_BLE)
      target_sources(app PRIVATE src/events/ble_active_profile_changed.c)
      target_sources(app PRIVATE src/behaviors/behavior_bt.c)
+-    target_sources(app PRIVATE src/ble.c)
 +    target_sources(app PRIVATE src/behaviors/behavior_bt_slot.c)
 +    target_sources_ifdef(CONFIG_ZMK_BLE_BACKLIGHT_INDICATOR app PRIVATE src/ble_indicator.c)
-     target_sources(app PRIVATE src/ble.c)
++    if (CONFIG_ZMK_SPLIT_BLE)
++      target_sources(app PRIVATE src/ble.c)
++    else()
++      target_sources(app PRIVATE src/ble_slots.c) # Ryong: one address per slot
++    endif()
      target_sources(app PRIVATE src/hog.c)
    endif()
-@@ -116,8 +118,10 @@ if (CONFIG_ZMK_STUDIO_RPC)
+ endif()
+@@ -116,8 +122,10 @@ if (CONFIG_ZMK_STUDIO_RPC)
  
    include(nanopb)
  
@@ -23,7 +29,7 @@ index c41153cb17c97f790b3c7dac2262c7ee04a65cd2..f3a014efaa259cd012e33a6553feca54
  
    nanopb_generate_cpp(proto_srcs proto_hdrs RELPATH ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}
                          ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/studio.proto
-@@ -125,6 +129,7 @@ if (CONFIG_ZMK_STUDIO_RPC)
+@@ -125,6 +133,7 @@ if (CONFIG_ZMK_STUDIO_RPC)
                          ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/core.proto
                          ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/behaviors.proto
                          ${ZEPHYR_ZMK_STUDIO_MESSAGES_MODULE_DIR}/proto/zmk/keymap.proto
@@ -32,22 +38,20 @@ index c41153cb17c97f790b3c7dac2262c7ee04a65cd2..f3a014efaa259cd012e33a6553feca54
  
    target_include_directories(app PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 diff --git a/app/Kconfig b/app/Kconfig
-index 8c0675e0d686fd3951ba23d51b37700720285cb3..faaaac0dc27881a0daa40656ec22827a48b95c3d 100644
+index 8c0675e0d686fd3951ba23d51b37700720285cb3..b0437d5ac366a9b3dec756df84f089eb77632cde 100644
 --- a/app/Kconfig
 +++ b/app/Kconfig
-@@ -190,6 +190,37 @@ config ZMK_BLE_EXPERIMENTAL_FEATURES
+@@ -190,6 +190,28 @@ config ZMK_BLE_EXPERIMENTAL_FEATURES
      help
        Enables experimental connection changes and security features.
  
-+config ZMK_BLE_PROFILE_IDENTITIES
-+    bool "Each profile has its own Bluetooth address"
-+    depends on BT_ID_MAX >= BT_MAX_PAIRED && !ZMK_SPLIT_BLE
-+    select BT_ID_UNPAIR_MATCHING_BONDS
-+    default y
-+    help
-+      Ryong: profile i advertises and bonds under Bluetooth identity i (needs BT_ID_MAX >=
-+      profile count). Hosts only see the address of the slot they paired with. Profiles other
-+      than the first that were paired before this was enabled need a new pairing.
++config ZMK_BLE_SLOTS_THREAD_STACK_SIZE
++    int "Stack of the Bluetooth slot worker (non-split keyboards)"
++    default 3072
++
++config ZMK_BLE_SLOTS_THREAD_PRIORITY
++    int "Priority of the Bluetooth slot worker"
++    default 6
 +
 +config ZMK_BLE_BACKLIGHT_INDICATOR
 +    bool "Show Bluetooth slot status on the backlight"
@@ -63,17 +67,10 @@ index 8c0675e0d686fd3951ba23d51b37700720285cb3..faaaac0dc27881a0daa40656ec22827a
 +    range 1 100
 +    default 1
 +
-+config ZMK_BLE_ONLY_ACTIVE_PROFILE
-+    bool "Only the selected profile's host may stay connected"
-+    default y
-+    help
-+      Ryong: a host registered on another profile is disconnected when it connects, so only
-+      the selected profile's host is connected (Easy-Switch behaviour).
-+
  config ZMK_BLE_PASSKEY_ENTRY
      bool "Require passkey entry on the keyboard to complete pairing"
      select RING_BUFFER
-@@ -351,6 +382,15 @@ menuconfig ZMK_BACKLIGHT
+@@ -351,6 +373,15 @@ menuconfig ZMK_BACKLIGHT
  
  if ZMK_BACKLIGHT
  
@@ -89,6 +86,22 @@ index 8c0675e0d686fd3951ba23d51b37700720285cb3..faaaac0dc27881a0daa40656ec22827a
  config ZMK_BACKLIGHT_BRT_STEP
      int "Brightness step in percent"
      range 1 100
+diff --git a/app/Kconfig.defaults b/app/Kconfig.defaults
+index 8800b454f409ce41ef7fb6ed11c95924720e3bcb..9ac517943bfaf3367b6ac719bdc537f0630bd8e8 100644
+--- a/app/Kconfig.defaults
++++ b/app/Kconfig.defaults
+@@ -116,3 +116,11 @@ config ZMK_BATTERY_REPORT_INTERVAL
+ # Imports
+ rsource "src/boot/Kconfig.defaults"
+ rsource "src/split/Kconfig.defaults"
++
++# Ryong: non-split keyboards use src/ble_slots.c, one Bluetooth identity per slot plus the
++# unused identity 0; a computer may be registered on one slot only.
++config BT_ID_MAX
++    default 6 if ZMK_BLE && !ZMK_SPLIT_BLE
++
++config BT_ID_UNPAIR_MATCHING_BONDS
++    default y if ZMK_BLE && !ZMK_SPLIT_BLE
 diff --git a/app/dts/behaviors.dtsi b/app/dts/behaviors.dtsi
 index 653b085d5c5df3b43935739bb18d10e5c4e533b9..aab0e3cb732b6f3927953fa4fa11963188228165 100644
 --- a/app/dts/behaviors.dtsi
@@ -1024,490 +1037,6 @@ index 0000000000000000000000000000000000000000..1d1d3e8aa5decad98ab763d98a445ba1
 +DT_INST_FOREACH_STATUS_OKAY(BT_SLOT_INST)
 +
 +#endif /* DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT) */
-diff --git a/app/src/ble.c b/app/src/ble.c
-index 51b172b9f5f68b8d1289cf378ddd3bd8474e6a92..dd7419f9a04f998312f1c4a2f5de3d1d8c0aa21e 100644
---- a/app/src/ble.c
-+++ b/app/src/ble.c
-@@ -61,6 +61,22 @@ enum advertising_type {
- 
- static struct zmk_ble_profile profiles[ZMK_BLE_PROFILE_COUNT];
- static uint8_t active_profile;
-+static bool directed_advertising_enabled = false;
-+
-+/* Ryong: each profile advertises and bonds under its own Bluetooth identity (address), like
-+ * Logitech Easy-Switch channels. A host only knows the address of the slot it paired with, so it
-+ * never jumps at another slot's advertising - with one shared address, every paired host nearby
-+ * reconnected to whichever slot was selected and a new device could not get in. Profile i uses
-+ * identity i (profile 0 keeps the original identity 0, so its pairing survives the change). */
-+#if IS_ENABLED(CONFIG_ZMK_BLE_PROFILE_IDENTITIES)
-+BUILD_ASSERT(CONFIG_BT_ID_MAX >= ZMK_BLE_PROFILE_COUNT, "one Bluetooth identity per profile");
-+static uint8_t identities_ready = 1; /* identities that exist; a profile without one uses identity 0 */
-+#define PROFILE_ID(i) ((uint8_t)((i) < identities_ready ? (i) : BT_ID_DEFAULT))
-+static bool ids_migrated;
-+#else
-+#define PROFILE_ID(i) BT_ID_DEFAULT
-+#endif
-+static int advertised_id = -1;
- 
- #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
- #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
-@@ -131,7 +147,7 @@ bool zmk_ble_profile_is_connected(uint8_t index) {
-     bt_addr_le_t *addr = &profiles[index].peer;
-     if (!bt_addr_le_cmp(addr, BT_ADDR_LE_ANY)) {
-         return false;
--    } else if ((conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, addr)) == NULL) {
-+    } else if ((conn = bt_conn_lookup_addr_le(PROFILE_ID(index), addr)) == NULL) {
-         return false;
-     }
- 
-@@ -152,7 +168,7 @@ bool zmk_ble_profile_is_connected(uint8_t index) {
- 
- #define CHECKED_DIR_ADV()                                                                          \
-     addr = zmk_ble_active_profile_addr();                                                          \
--    conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, addr);                                            \
-+    conn = bt_conn_lookup_addr_le(PROFILE_ID(active_profile), addr);                               \
-     if (conn != NULL) { /* TODO: Check status of connection */                                     \
-         LOG_DBG("Skipping advertising, profile host is already connected");                        \
-         bt_conn_unref(conn);                                                                       \
-@@ -167,12 +183,17 @@ bool zmk_ble_profile_is_connected(uint8_t index) {
-     advertising_status = ZMK_ADV_DIR;
- 
- #define CHECKED_OPEN_ADV()                                                                         \
--    err = bt_le_adv_start(ZMK_ADV_CONN_NAME, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), NULL, 0);         \
--    if (err) {                                                                                     \
--        LOG_ERR("Advertising failed to start (err %d)", err);                                      \
--        return err;                                                                                \
--    }                                                                                              \
--    advertising_status = ZMK_ADV_CONN;
-+    do {                                                                                           \
-+        struct bt_le_adv_param adv_param = *ZMK_ADV_CONN_NAME;                                     \
-+        adv_param.id = PROFILE_ID(active_profile);                                                 \
-+        err = bt_le_adv_start(&adv_param, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), NULL, 0);            \
-+        if (err) {                                                                                 \
-+            LOG_ERR("Advertising failed to start (err %d)", err);                                  \
-+            return err;                                                                            \
-+        }                                                                                          \
-+        advertised_id = adv_param.id;                                                              \
-+        advertising_status = ZMK_ADV_CONN;                                                         \
-+    } while (0)
- 
- int update_advertising(void) {
-     int err = 0;
-@@ -191,6 +212,8 @@ int update_advertising(void) {
- 
-         // LOG_DBG("Directed advertising to %s", addr_str);
-         // desired_adv = ZMK_ADV_DIR;
-+    } else if (directed_advertising_enabled) {
-+        desired_adv = ZMK_ADV_CONN; // TODO: Change back to ZMK_ADV_DIR when fixed
-     }
-     LOG_DBG("advertising from %d to %d", advertising_status, desired_adv);
- 
-@@ -214,6 +237,13 @@ int update_advertising(void) {
-     case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_NONE):
-         CHECKED_OPEN_ADV();
-         break;
-+    case ZMK_ADV_CONN + CURR_ADV(ZMK_ADV_CONN):
-+        /* Ryong: the selected profile changed: advertise under its identity instead. */
-+        if (advertised_id != PROFILE_ID(active_profile)) {
-+            CHECKED_ADV_STOP();
-+            CHECKED_OPEN_ADV();
-+        }
-+        break;
-     }
- 
-     return 0;
-@@ -223,17 +253,23 @@ static void update_advertising_callback(struct k_work *work) { update_advertisin
- 
- K_WORK_DEFINE(update_advertising_work, update_advertising_callback);
- 
--static void clear_profile_bond(uint8_t profile) {
-+__weak void zmk_ble_bond_event(uint8_t profile, enum zmk_ble_bond_cause cause) {
-+    ARG_UNUSED(profile);
-+    ARG_UNUSED(cause);
-+}
-+
-+static void clear_profile_bond(uint8_t profile, enum zmk_ble_bond_cause cause) {
-     if (bt_addr_le_cmp(&profiles[profile].peer, BT_ADDR_LE_ANY)) {
--        bt_unpair(BT_ID_DEFAULT, &profiles[profile].peer);
-+        bt_unpair(PROFILE_ID(profile), &profiles[profile].peer);
-         set_profile_address(profile, BT_ADDR_LE_ANY);
-+        zmk_ble_bond_event(profile, cause);
-     }
- }
- 
- void zmk_ble_clear_bonds(void) {
-     LOG_DBG("zmk_ble_clear_bonds()");
- 
--    clear_profile_bond(active_profile);
-+    clear_profile_bond(active_profile, ZMK_BLE_BOND_CLEARED);
-     update_advertising();
- };
- 
-@@ -242,8 +278,13 @@ void zmk_ble_clear_all_bonds(void) {
- 
-     // Unpair all profiles
-     for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
--        clear_profile_bond(i);
-+        clear_profile_bond(i, ZMK_BLE_BOND_CLEARED_ALL);
-+    }
-+#if IS_ENABLED(CONFIG_ZMK_BLE_PROFILE_IDENTITIES)
-+    for (uint8_t id = 0; id < CONFIG_BT_ID_MAX; id++) {
-+        bt_unpair(id, NULL); /* also records that belong to no profile */
-     }
-+#endif
- 
-     // Automatically switch to profile 0
-     zmk_ble_prof_select(0);
-@@ -252,6 +293,19 @@ void zmk_ble_clear_all_bonds(void) {
- 
- int zmk_ble_active_profile_index(void) { return active_profile; }
- 
-+/* Ryong: the profile a connection belongs to - by its identity when profiles have their own. */
-+int zmk_ble_conn_profile_index(struct bt_conn *conn) {
-+#if IS_ENABLED(CONFIG_ZMK_BLE_PROFILE_IDENTITIES)
-+    struct bt_conn_info info;
-+    if (!conn || bt_conn_get_info(conn, &info) || info.id >= ZMK_BLE_PROFILE_COUNT) {
-+        return -ENODEV;
-+    }
-+    return info.id; /* the slot it connected to, also while it is still pairing */
-+#else
-+    return conn ? zmk_ble_profile_index(bt_conn_get_dst(conn)) : -ENODEV;
-+#endif
-+}
-+
- int zmk_ble_profile_index(const bt_addr_le_t *addr) {
-     for (int i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
-         if (bt_addr_le_cmp(addr, &profiles[i].peer) == 0) {
-@@ -297,6 +351,16 @@ int zmk_ble_prof_select(uint8_t index) {
-     active_profile = index;
-     ble_save_profile();
- 
-+#if IS_ENABLED(CONFIG_ZMK_BLE_ONLY_ACTIVE_PROFILE)
-+    /* Ryong: switching slots ends the other slots' links (a keymap no longer needs
-+     * "select + disconnect the rest" macros); refuse_other_slot() keeps them from coming back. */
-+    for (uint8_t i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
-+        if (i != index) {
-+            (void)zmk_ble_prof_disconnect(i);
-+        }
-+    }
-+#endif
-+
-     update_advertising();
- 
-     raise_profile_changed_event();
-@@ -304,6 +368,18 @@ int zmk_ble_prof_select(uint8_t index) {
-     return 0;
- };
- 
-+/* Ryong: clear one slot without selecting it (the web page removes a slot while another one's
-+ * host stays connected). */
-+int zmk_ble_prof_clear(uint8_t index) {
-+    if (index >= ZMK_BLE_PROFILE_COUNT) {
-+        return -ERANGE;
-+    }
-+    (void)zmk_ble_prof_disconnect(index);
-+    clear_profile_bond(index, ZMK_BLE_BOND_CLEARED);
-+    update_advertising();
-+    return 0;
-+}
-+
- int zmk_ble_prof_next(void) {
-     LOG_DBG("");
-     return zmk_ble_prof_select((active_profile + 1) % ZMK_BLE_PROFILE_COUNT);
-@@ -325,7 +401,7 @@ int zmk_ble_prof_disconnect(uint8_t index) {
- 
-     if (!bt_addr_le_cmp(addr, BT_ADDR_LE_ANY)) {
-         return -ENODEV;
--    } else if ((conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, addr)) == NULL) {
-+    } else if ((conn = bt_conn_lookup_addr_le(PROFILE_ID(index), addr)) == NULL) {
-         return -ENODEV;
-     }
- 
-@@ -345,7 +421,7 @@ struct bt_conn *zmk_ble_active_profile_conn(void) {
-     if (!bt_addr_le_cmp(addr, BT_ADDR_LE_ANY)) {
-         LOG_WRN("Not sending, no active address for current profile");
-         return NULL;
--    } else if ((conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, addr)) == NULL) {
-+    } else if ((conn = bt_conn_lookup_addr_le(PROFILE_ID(active_profile), addr)) == NULL) {
-         LOG_WRN("Not sending, not connected to active profile");
-         return NULL;
-     }
-@@ -375,6 +451,11 @@ int zmk_ble_set_device_name(char *name) {
-     return update_advertising();
- }
- 
-+int zmk_ble_set_directed_advertising(bool enable) {
-+    directed_advertising_enabled = enable;
-+    return update_advertising();
-+}
-+
- #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE) && IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
- 
- int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr) {
-@@ -453,7 +534,13 @@ static int ble_profiles_handle_set(const char *name, size_t len, settings_read_c
-         bt_addr_le_to_str(&profiles[idx].peer, addr_str, sizeof(addr_str));
- 
-         LOG_DBG("Loaded %s address for profile %d", addr_str, idx);
--    } else if (settings_name_steq(name, "active_profile", &next) && !next) {
-+    }
-+#if IS_ENABLED(CONFIG_ZMK_BLE_PROFILE_IDENTITIES)
-+    else if (settings_name_steq(name, "ids_v1", &next) && !next) {
-+        ids_migrated = true;
-+    }
-+#endif
-+    else if (settings_name_steq(name, "active_profile", &next) && !next) {
-         if (len != sizeof(active_profile)) {
-             return -EINVAL;
-         }
-@@ -488,13 +575,51 @@ static int ble_profiles_handle_set(const char *name, size_t len, settings_read_c
- 
- static int zmk_ble_complete_startup(void);
- 
--static struct settings_handler profiles_handler = {
--    .name = "ble", .h_set = ble_profiles_handle_set, .h_commit = zmk_ble_complete_startup};
-+/* Ryong: the rest of the start-up (identities, the one-time move of old bonds, callbacks,
-+ * advertising) used to run in this commit, i.e. inside settings_load() with the settings lock
-+ * held. It sends HCI commands, which Zephyr 4.1 processes in the system work queue, and it
-+ * raises events that run there: a work item waiting for the settings lock then blocked the
-+ * HCI command main was waiting for, and a keyboard with paired slots froze at power-up (no USB
-+ * keys, no lights). Now main() calls zmk_ble_settings_loaded() after settings_load() returns. */
-+static bool startup_done;
-+
-+static struct settings_handler profiles_handler = {.name = "ble", .h_set = ble_profiles_handle_set};
-+
-+void zmk_ble_settings_loaded(void) {
-+    if (!startup_done) {
-+        startup_done = true;
-+        zmk_ble_complete_startup();
-+    }
-+}
- 
- #endif /* IS_ENABLED(CONFIG_SETTINGS) */
- 
- static bool is_conn_active_profile(const struct bt_conn *conn) {
--    return bt_addr_le_cmp(bt_conn_get_dst(conn), &profiles[active_profile].peer) == 0;
-+    return zmk_ble_conn_profile_index((struct bt_conn *)conn) == active_profile;
-+}
-+
-+/* Ryong: only the selected slot's host may be connected. A host registered on another slot (a
-+ * Mac nearby while the iPhone's slot is selected) reconnected as soon as the keyboard advertised
-+ * for the selected slot, showed "connected" without receiving keys, and could get in the way of
-+ * pairing a new device. Checked at connect and again once encryption reveals the host's identity
-+ * (a host using a private address is only recognised then). */
-+static bool refuse_other_slot(struct bt_conn *conn) {
-+#if IS_ENABLED(CONFIG_ZMK_BLE_ONLY_ACTIVE_PROFILE)
-+#if IS_ENABLED(CONFIG_ZMK_BLE_PROFILE_IDENTITIES)
-+    struct bt_conn_info info;
-+    int profile = bt_conn_get_info(conn, &info) ? -1 : info.id; /* the slot it connected to */
-+#else
-+    int profile = zmk_ble_profile_index(bt_conn_get_dst(conn));
-+#endif
-+    if (profile >= 0 && profile != active_profile) {
-+        LOG_INF("Refusing host of slot %d while slot %d is selected", profile, active_profile);
-+        bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
-+        return true;
-+    }
-+#else
-+    ARG_UNUSED(conn);
-+#endif
-+    return false;
- }
- 
- static void connected(struct bt_conn *conn, uint8_t err) {
-@@ -520,6 +645,26 @@ static void connected(struct bt_conn *conn, uint8_t err) {
- 
-     LOG_DBG("Connected %s", addr);
- 
-+#if IS_ENABLED(CONFIG_ZMK_BLE_PROFILE_IDENTITIES)
-+    /* A host that connected just as advertising switched identities can be filed under the new
-+     * one while it reached the old address: its keys would be looked up in the wrong slot. */
-+    {
-+        bt_addr_le_t ids[CONFIG_BT_ID_MAX];
-+        size_t n = ARRAY_SIZE(ids);
-+        bt_id_get(ids, &n);
-+        if (info.id < n && info.le.local && bt_addr_le_cmp(info.le.local, &ids[info.id]) != 0) {
-+            LOG_WRN("Connection reached another slot's address while switching; dropping it");
-+            bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
-+            update_advertising();
-+            return;
-+        }
-+    }
-+#endif
-+
-+    if (refuse_other_slot(conn)) {
-+        return;
-+    }
-+
-     update_advertising();
- 
-     if (is_conn_active_profile(conn)) {
-@@ -560,6 +705,10 @@ static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_
- 
-     if (!err) {
-         LOG_DBG("Security changed: %s level %u", addr, level);
-+        struct bt_conn_info info;
-+        if (bt_conn_get_info(conn, &info) == 0 && info.role == BT_CONN_ROLE_PERIPHERAL) {
-+            (void)refuse_other_slot(conn);
-+        }
-     } else {
-         LOG_ERR("Security failed: %s level %u err %d", addr, level, err);
-     }
-@@ -657,14 +806,40 @@ static void auth_pairing_complete(struct bt_conn *conn, bool bonded) {
- 
-     if (!pairing_allowed_for_current_profile(conn)) {
-         LOG_ERR("Pairing completed but current profile is not open: %s", addr);
--        bt_unpair(BT_ID_DEFAULT, dst);
-+        bt_unpair(info.id, dst);
-+        zmk_ble_bond_event(active_profile, ZMK_BLE_BOND_PAIRING_REFUSED);
-         return;
-     }
- 
-+#if IS_ENABLED(CONFIG_ZMK_BLE_PROFILE_IDENTITIES)
-+    if (info.id != PROFILE_ID(active_profile)) {
-+        LOG_ERR("Pairing on identity %d while profile %d is selected", info.id, active_profile);
-+        bt_unpair(info.id, dst);
-+        zmk_ble_bond_event(active_profile, ZMK_BLE_BOND_PAIRING_REFUSED);
-+        return;
-+    }
-+#endif
-+#if IS_ENABLED(CONFIG_ZMK_BLE_PROFILE_IDENTITIES)
-+    /* The same host paired on another slot before: Zephyr removed that bond
-+     * (BT_ID_UNPAIR_MATCHING_BONDS), so that slot is empty now - the host moved here. */
-+    for (uint8_t i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
-+        if (i != active_profile && bt_addr_le_cmp(&profiles[i].peer, dst) == 0) {
-+            bt_unpair(PROFILE_ID(i), dst);
-+            set_profile_address(i, BT_ADDR_LE_ANY);
-+            zmk_ble_bond_event(i, ZMK_BLE_BOND_MOVED);
-+        }
-+    }
-+#endif
-     set_profile_address(active_profile, dst);
-+    zmk_ble_bond_event(active_profile, ZMK_BLE_BOND_PAIRED);
-     update_advertising();
- };
- 
-+static void auth_pairing_failed(struct bt_conn *conn, enum bt_security_err reason) {
-+    LOG_WRN("Pairing failed (%d)", reason);
-+    zmk_ble_bond_event(active_profile, ZMK_BLE_BOND_PAIRING_FAILED);
-+}
-+
- static struct bt_conn_auth_cb zmk_ble_auth_cb_display = {
-     .pairing_accept = auth_pairing_accept,
- // .passkey_display = auth_passkey_display,
-@@ -677,6 +852,7 @@ static struct bt_conn_auth_cb zmk_ble_auth_cb_display = {
- 
- static struct bt_conn_auth_info_cb zmk_ble_auth_info_cb_display = {
-     .pairing_complete = auth_pairing_complete,
-+    .pairing_failed = auth_pairing_failed,
- };
- 
- static void zmk_ble_ready(int err) {
-@@ -689,12 +865,95 @@ static void zmk_ble_ready(int err) {
-     update_advertising();
- }
- 
-+#if IS_ENABLED(CONFIG_ZMK_BLE_PROFILE_IDENTITIES)
-+static uint8_t orphan_id;
-+static void orphan_cb(const struct bt_bond_info *info, void *user_data) {
-+    ARG_UNUSED(user_data);
-+    for (uint8_t i = 0; i < ZMK_BLE_PROFILE_COUNT; i++) {
-+        if (PROFILE_ID(i) == orphan_id && bt_addr_le_cmp(&profiles[i].peer, &info->addr) == 0) {
-+            return;
-+        }
-+    }
-+    LOG_WRN("Removing a bond that belongs to no profile (identity %d)", orphan_id);
-+    bt_unpair(orphan_id, &info->addr);
-+}
-+
-+struct bond_match {
-+    const bt_addr_le_t *addr;
-+    bool found;
-+};
-+static void bond_match_cb(const struct bt_bond_info *info, void *user_data) {
-+    struct bond_match *m = user_data;
-+    if (bt_addr_le_cmp(&info->addr, m->addr) == 0) {
-+        m->found = true;
-+    }
-+}
-+#endif
-+
-+/* Ryong: one identity per profile, created once (Zephyr stores them with the bonds). Profiles
-+ * registered before identities existed bonded under identity 0: their hosts would look for the
-+ * old address, so those profiles start empty (the host must pair again; profile 0 is kept). */
-+static void setup_profile_identities(void) {
-+#if IS_ENABLED(CONFIG_ZMK_BLE_PROFILE_IDENTITIES)
-+    bt_addr_le_t addrs[CONFIG_BT_ID_MAX];
-+    size_t count = ARRAY_SIZE(addrs);
-+    bt_id_get(addrs, &count);
-+    for (size_t i = count; i < ZMK_BLE_PROFILE_COUNT; i++) {
-+        int id = bt_id_create(NULL, NULL);
-+        if (id < 0) {
-+            LOG_ERR("Failed to create Bluetooth identity for profile %d (%d)", (int)i, id);
-+            break; /* the remaining profiles keep using identity 0 */
-+        }
-+        LOG_INF("Created Bluetooth identity %d for profile %d", id, (int)i);
-+    }
-+    count = ARRAY_SIZE(addrs);
-+    bt_id_get(addrs, &count);
-+    identities_ready = MIN(count, ZMK_BLE_PROFILE_COUNT);
-+
-+    for (int i = 1; i < ZMK_BLE_PROFILE_COUNT; i++) {
-+        if (!bt_addr_le_cmp(&profiles[i].peer, BT_ADDR_LE_ANY)) {
-+            continue;
-+        }
-+        struct bond_match m = {.addr = &profiles[i].peer};
-+        bt_foreach_bond(PROFILE_ID(i), bond_match_cb, &m);
-+        if (m.found) {
-+            continue;
-+        }
-+        /* Once, at the change to per-profile identities: those hosts paired with identity 0.
-+         * Afterwards a missing bond (a damaged record) also empties the slot, with its own cause. */
-+        LOG_WRN("Profile %d has no bond under its identity; it needs a new pairing", i);
-+        if (!ids_migrated && bt_addr_le_cmp(&profiles[i].peer, &profiles[0].peer) != 0) {
-+            bt_unpair(BT_ID_DEFAULT, &profiles[i].peer);
-+        }
-+        set_profile_address(i, BT_ADDR_LE_ANY);
-+        zmk_ble_bond_event(i, ids_migrated ? ZMK_BLE_BOND_MISSING : ZMK_BLE_BOND_MIGRATED);
-+    }
-+    if (!ids_migrated) {
-+#if IS_ENABLED(CONFIG_SETTINGS)
-+        uint8_t one = 1;
-+        settings_save_one("ble/ids_v1", &one, sizeof(one));
-+#endif
-+        ids_migrated = true;
-+    }
-+
-+    /* Bonds that belong to no profile take one of the few key slots (CONFIG_BT_MAX_PAIRED is
-+     * shared by all identities): with one stray record a new device could not pair. */
-+    for (uint8_t id = 0; id < identities_ready; id++) {
-+        orphan_id = id;
-+        bt_foreach_bond(id, orphan_cb, NULL);
-+    }
-+#endif
-+}
-+
- static int zmk_ble_complete_startup(void) {
- 
- #if IS_ENABLED(CONFIG_ZMK_BLE_CLEAR_BONDS_ON_START)
-     LOG_WRN("Clearing all existing BLE bond information from the keyboard");
- 
--    bt_unpair(BT_ID_DEFAULT, NULL);
-+    for (int id = 0; id < CONFIG_BT_ID_MAX; id++) {
-+        bt_unpair(id, NULL);
-+    }
-+    memset(profiles, 0, sizeof(profiles));
- 
-     for (int i = 0; i < 8; i++) {
-         char setting_name[15];
-@@ -720,6 +979,8 @@ static int zmk_ble_complete_startup(void) {
- 
- #endif // IS_ENABLED(CONFIG_ZMK_BLE_CLEAR_BONDS_ON_START)
- 
-+    setup_profile_identities();
-+
-     bt_conn_cb_register(&conn_callbacks);
-     bt_conn_auth_cb_register(&zmk_ble_auth_cb_display);
-     bt_conn_auth_info_cb_register(&zmk_ble_auth_info_cb_display);
 diff --git a/app/src/ble_indicator.c b/app/src/ble_indicator.c
 new file mode 100644
 index 0000000000000000000000000000000000000000..cdbbb05b27c7f5a3ef48d2556a0ebe3b696d3e24
@@ -1606,6 +1135,897 @@ index 0000000000000000000000000000000000000000..cdbbb05b27c7f5a3ef48d2556a0ebe3b
 +
 +ZMK_LISTENER(ble_indicator, listener);
 +ZMK_SUBSCRIPTION(ble_indicator, zmk_ble_active_profile_changed);
+diff --git a/app/src/ble_slots.c b/app/src/ble_slots.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..438fd312bb14e58fb87f4857b30432b639114d44
+--- /dev/null
++++ b/app/src/ble_slots.c
+@@ -0,0 +1,885 @@
++/*
++ * Copyright (c) 2026 The ZMK Contributors
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++/*
++ * Ryong: Bluetooth slots with one address each (replaces ble.c on non-split keyboards).
++ *
++ * Model (the one Nordic's nRF Desktop uses for multi-host mice and keyboards):
++ *  - Slot i has its own Bluetooth identity (address), identity i + 1. Identity 0 is never used:
++ *    it cannot be given a new address. A computer only knows the address of the slot it paired
++ *    with, so computers paired on other slots never react to this slot's advertising.
++ *  - Only the selected slot advertises, and only its computer may stay connected. Selecting
++ *    another slot ends the other links.
++ *  - Clearing a slot removes its pairing and gives it a brand-new address: the old computer
++ *    cannot come back, a new one pairs like with a new keyboard.
++ *  - The first start with this firmware removes every older pairing and starts all slots empty
++ *    with new addresses (older firmware shared one address; nothing is carried over).
++ *
++ * Threads: every change happens in one worker thread, in order. Bluetooth callbacks (RX thread)
++ * and the public API only post commands, so nothing here waits for itself. Start-up runs after
++ * settings_load() has returned (main.c), never inside a settings handler: HCI commands are sent
++ * by the system work queue, which must never wait for this worker.
++ */
++
++#include <zephyr/kernel.h>
++#include <zephyr/init.h>
++#include <zephyr/sys/ring_buffer.h>
++#include <zephyr/settings/settings.h>
++#include <zephyr/bluetooth/bluetooth.h>
++#include <zephyr/bluetooth/conn.h>
++#include <zephyr/bluetooth/hci.h>
++#include <zephyr/bluetooth/uuid.h>
++#include <zephyr/bluetooth/gatt.h>
++
++#include <errno.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#include <zephyr/logging/log.h>
++LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
++
++#include <zmk/ble.h>
++#include <zmk/keys.h>
++#include <zmk/event_manager.h>
++#include <zmk/events/ble_active_profile_changed.h>
++
++#if IS_ENABLED(CONFIG_ZMK_BLE_PASSKEY_ENTRY)
++#include <zmk/events/keycode_state_changed.h>
++#define PASSKEY_DIGITS 6
++static struct bt_conn *auth_passkey_entry_conn;
++RING_BUF_DECLARE(passkey_entries, PASSKEY_DIGITS);
++#endif
++
++#define SLOTS ZMK_BLE_PROFILE_COUNT
++#define SLOT_ID(slot) ((uint8_t)((slot) + 1))
++#define NEEDED_IDS (SLOTS + 1)
++BUILD_ASSERT(CONFIG_BT_ID_MAX >= NEEDED_IDS, "one Bluetooth identity per slot, plus the unused identity 0");
++
++/* Format version of this firmware's slot records. Anything else found at start-up is older
++ * firmware's: all of it is removed. */
++#define SLOTS_FORMAT 2
++
++/* A computer that connects to the selected slot but neither pairs nor encrypts is dropped. */
++#define UNAUTH_TIMEOUT K_SECONDS(30)
++
++#define ZMK_ADV_CONN_NAME                                                                          \
++    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN | BT_LE_ADV_OPT_USE_NAME | BT_LE_ADV_OPT_FORCE_NAME_IN_AD,  \
++                    BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
++
++static const struct bt_data zmk_ble_ad[] = {
++    BT_DATA_BYTES(BT_DATA_GAP_APPEARANCE, BT_BYTES_LIST_LE16(CONFIG_BT_DEVICE_APPEARANCE)),
++    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
++    BT_DATA_BYTES(BT_DATA_UUID16_SOME, BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL),
++                  BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)),
++};
++
++/* ---- state (written by the worker only; read anywhere) ---- */
++static struct zmk_ble_profile profiles[SLOTS];
++static volatile uint8_t active_profile;
++static uint8_t stored_format;
++static bool started;      /* start-up finished; advertising allowed */
++static int adv_id = -1;   /* identity currently advertising, -1 none */
++static bool directed_advertising_enabled;
++static struct k_spinlock lock;
++
++/* ---- commands ---- */
++enum cmd_type {
++    CMD_STARTUP,
++    CMD_SELECT,     /* active_profile already changed */
++    CMD_CLEAR,      /* arg: slot */
++    CMD_CLEAR_ALL,
++    CMD_DISCONNECT, /* arg: slot */
++    CMD_UPDATE,     /* re-check advertising and links */
++    CMD_RESTART_ADV,
++    CMD_CONNECTED,  /* conn (ref held) */
++    CMD_DISCONNECTED,
++    CMD_SECURED,    /* conn */
++    CMD_PAIRED,     /* conn */
++    CMD_PAIR_FAILED,
++    CMD_UNAUTH_CHECK,
++};
++struct cmd {
++    uint8_t type;
++    uint8_t arg;
++    struct bt_conn *conn;
++    struct k_sem *done;
++};
++K_MSGQ_DEFINE(cmds, sizeof(struct cmd), 24, 4);
++
++static void post(struct cmd c) {
++    if (k_msgq_put(&cmds, &c, K_NO_WAIT) != 0) {
++        LOG_ERR("Bluetooth command queue full, dropping %d", c.type);
++        if (c.conn) {
++            bt_conn_unref(c.conn);
++        }
++        if (c.done) {
++            k_sem_give(c.done);
++        }
++    }
++}
++
++static k_tid_t worker_tid;
++
++/* Waits for the worker only from preemptible threads other than the worker (e.g. Studio's RPC
++ * thread, so it reads the result back). Never from the system work queue or the Bluetooth RX
++ * thread (both cooperative): the worker needs them to send its HCI commands. */
++static void post_and_wait(uint8_t type, uint8_t arg) {
++    struct k_sem done;
++    bool wait = k_is_preempt_thread() && k_current_get() != worker_tid && !k_is_in_isr();
++    if (!wait) {
++        post((struct cmd){.type = type, .arg = arg});
++        return;
++    }
++    k_sem_init(&done, 0, 1);
++    post((struct cmd){.type = type, .arg = arg, .done = &done});
++    if (k_sem_take(&done, K_SECONDS(3)) != 0) {
++        LOG_WRN("Bluetooth command %d still running", type);
++    }
++}
++
++/* ---- events ---- */
++static void raise_profile_changed_cb(struct k_work *work) {
++    ARG_UNUSED(work);
++    uint8_t a = active_profile;
++    raise_zmk_ble_active_profile_changed(
++        (struct zmk_ble_active_profile_changed){.index = a, .profile = &profiles[a]});
++}
++static K_WORK_DEFINE(raise_profile_changed_work, raise_profile_changed_cb);
++static void raise_profile_changed(void) { k_work_submit(&raise_profile_changed_work); }
++
++__weak void zmk_ble_bond_event(uint8_t profile, enum zmk_ble_bond_cause cause) {
++    ARG_UNUSED(profile);
++    ARG_UNUSED(cause);
++}
++
++/* ---- storage (worker only; never inside settings_load) ---- */
++static void save_profile(uint8_t slot) {
++#if IS_ENABLED(CONFIG_SETTINGS)
++    char name[20];
++    snprintf(name, sizeof(name), "ble/profiles/%d", slot);
++    int err = settings_save_one(name, &profiles[slot], sizeof(profiles[slot]));
++    if (err) {
++        LOG_ERR("Saving slot %d failed (%d)", slot, err);
++    }
++#endif
++}
++static void save_active(void) {
++#if IS_ENABLED(CONFIG_SETTINGS)
++    uint8_t a = active_profile;
++    (void)settings_save_one("ble/active_profile", &a, sizeof(a));
++#endif
++}
++static void save_format(void) {
++#if IS_ENABLED(CONFIG_SETTINGS)
++    uint8_t f = SLOTS_FORMAT;
++    (void)settings_save_one("ble/slots_format", &f, sizeof(f));
++#endif
++}
++
++static void set_peer(uint8_t slot, const bt_addr_le_t *addr) {
++    k_spinlock_key_t key = k_spin_lock(&lock);
++    bt_addr_le_copy(&profiles[slot].peer, addr);
++    k_spin_unlock(&lock, key);
++    save_profile(slot);
++}
++
++/* ---- queries (any thread) ---- */
++static bool slot_is_open(uint8_t slot) {
++    return bt_addr_le_eq(&profiles[slot].peer, BT_ADDR_LE_ANY);
++}
++
++static int conn_slot(struct bt_conn *conn) {
++    struct bt_conn_info info;
++    if (!conn || bt_conn_get_info(conn, &info) || info.id < 1 || info.id > SLOTS) {
++        return -ENODEV;
++    }
++    return info.id - 1;
++}
++
++static bool is_peripheral(struct bt_conn *conn) {
++    struct bt_conn_info info;
++    return conn && bt_conn_get_info(conn, &info) == 0 && info.role == BT_CONN_ROLE_PERIPHERAL;
++}
++
++bool zmk_ble_profile_is_open(uint8_t index) { return index < SLOTS && slot_is_open(index); }
++bool zmk_ble_active_profile_is_open(void) { return slot_is_open(active_profile); }
++
++static struct bt_conn *slot_conn(uint8_t slot) {
++    bt_addr_le_t peer;
++    k_spinlock_key_t key = k_spin_lock(&lock);
++    bt_addr_le_copy(&peer, &profiles[slot].peer);
++    k_spin_unlock(&lock, key);
++    if (bt_addr_le_eq(&peer, BT_ADDR_LE_ANY)) {
++        return NULL;
++    }
++    return bt_conn_lookup_addr_le(SLOT_ID(slot), &peer);
++}
++
++bool zmk_ble_profile_is_connected(uint8_t index) {
++    if (index >= SLOTS) {
++        return false;
++    }
++    struct bt_conn *conn = slot_conn(index);
++    if (!conn) {
++        return false;
++    }
++    struct bt_conn_info info;
++    bool connected = bt_conn_get_info(conn, &info) == 0 && info.state == BT_CONN_STATE_CONNECTED;
++    bt_conn_unref(conn);
++    return connected;
++}
++bool zmk_ble_active_profile_is_connected(void) {
++    return zmk_ble_profile_is_connected(active_profile);
++}
++
++int zmk_ble_active_profile_index(void) { return active_profile; }
++int zmk_ble_conn_profile_index(struct bt_conn *conn) { return conn_slot(conn); }
++
++int zmk_ble_profile_index(const bt_addr_le_t *addr) {
++    for (int i = 0; i < SLOTS; i++) {
++        if (bt_addr_le_eq(addr, &profiles[i].peer)) {
++            return i;
++        }
++    }
++    return -ENODEV;
++}
++
++bt_addr_le_t *zmk_ble_profile_address(uint8_t index) {
++    if (index >= SLOTS) {
++        return (bt_addr_le_t *)(BT_ADDR_LE_NONE);
++    }
++    return &profiles[index].peer;
++}
++bt_addr_le_t *zmk_ble_active_profile_addr(void) { return &profiles[active_profile].peer; }
++char *zmk_ble_active_profile_name(void) { return profiles[active_profile].name; }
++
++struct bt_conn *zmk_ble_active_profile_conn(void) {
++    struct bt_conn *conn = slot_conn(active_profile);
++    if (!conn) {
++        LOG_DBG("Not sending, the selected slot's computer is not connected");
++    }
++    return conn;
++}
++
++/* ---- public commands ---- */
++int zmk_ble_prof_select(uint8_t index) {
++    if (index >= SLOTS) {
++        return -ERANGE;
++    }
++    if (active_profile == index) {
++        return 0;
++    }
++    active_profile = index;
++    post((struct cmd){.type = CMD_SELECT});
++    return 0;
++}
++int zmk_ble_prof_next(void) { return zmk_ble_prof_select((active_profile + 1) % SLOTS); }
++int zmk_ble_prof_prev(void) { return zmk_ble_prof_select((active_profile + SLOTS - 1) % SLOTS); }
++
++int zmk_ble_prof_clear(uint8_t index) {
++    if (index >= SLOTS) {
++        return -ERANGE;
++    }
++    post_and_wait(CMD_CLEAR, index);
++    return 0;
++}
++void zmk_ble_clear_bonds(void) { post_and_wait(CMD_CLEAR, active_profile); }
++void zmk_ble_clear_all_bonds(void) { post_and_wait(CMD_CLEAR_ALL, 0); }
++
++int zmk_ble_prof_disconnect(uint8_t index) {
++    if (index >= SLOTS) {
++        return -ERANGE;
++    }
++    post((struct cmd){.type = CMD_DISCONNECT, .arg = index});
++    return 0;
++}
++
++int zmk_ble_set_device_name(char *name) {
++    int err = bt_set_name(name);
++    if (err) {
++        LOG_ERR("Failed to set new device name (err %d)", err);
++        return err;
++    }
++    post((struct cmd){.type = CMD_RESTART_ADV});
++    return 0;
++}
++
++int zmk_ble_set_directed_advertising(bool enable) {
++    /* Kept for Studio's lock: directed advertising is not used (it fails with private hosts);
++     * the selected slot's undirected advertising only reaches its own computer anyway. */
++    directed_advertising_enabled = enable;
++    return 0;
++}
++
++/* ---- worker helpers ---- */
++static void adv_stop(void) {
++    if (adv_id >= 0) {
++        int err = bt_le_adv_stop();
++        if (err) {
++            LOG_ERR("Failed to stop advertising (err %d)", err);
++        }
++        adv_id = -1;
++    }
++}
++
++static void adv_update(bool restart) {
++    if (!started) {
++        return;
++    }
++    uint8_t slot = active_profile;
++    bool want = !zmk_ble_profile_is_connected(slot);
++    uint8_t id = SLOT_ID(slot);
++    if (restart || !want || adv_id != id) {
++        adv_stop();
++    }
++    if (!want || adv_id == id) {
++        return;
++    }
++    struct bt_le_adv_param param = *ZMK_ADV_CONN_NAME;
++    param.id = id;
++    int err = bt_le_adv_start(&param, zmk_ble_ad, ARRAY_SIZE(zmk_ble_ad), NULL, 0);
++    if (err == -ENOMEM) {
++        LOG_WRN("No free connection object yet; advertising starts when one is released");
++        return;
++    }
++    if (err) {
++        LOG_ERR("Advertising for slot %d failed (err %d)", slot, err);
++        return;
++    }
++    adv_id = id;
++    LOG_DBG("Advertising for slot %d (%s)", slot, slot_is_open(slot) ? "open" : "its computer");
++}
++
++struct drop_ctx {
++    int keep_slot; /* -1: drop all */
++};
++static void drop_cb(struct bt_conn *conn, void *user_data) {
++    struct drop_ctx *ctx = user_data;
++    if (!is_peripheral(conn)) {
++        return;
++    }
++    struct bt_conn_info info;
++    if (bt_conn_get_info(conn, &info) || info.state != BT_CONN_STATE_CONNECTED) {
++        return;
++    }
++    if (ctx->keep_slot >= 0 && conn_slot(conn) == ctx->keep_slot) {
++        return;
++    }
++    LOG_INF("Ending link on identity %d", info.id);
++    bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
++}
++/* Only the selected slot's links survive. */
++static void drop_other_links(void) {
++    struct drop_ctx ctx = {.keep_slot = active_profile};
++    bt_conn_foreach(BT_CONN_TYPE_LE, drop_cb, &ctx);
++}
++
++struct slot_drop_ctx {
++    uint8_t id;
++};
++static void drop_slot_cb(struct bt_conn *conn, void *user_data) {
++    struct slot_drop_ctx *ctx = user_data;
++    struct bt_conn_info info;
++    if (is_peripheral(conn) && bt_conn_get_info(conn, &info) == 0 && info.id == ctx->id &&
++        info.state == BT_CONN_STATE_CONNECTED) {
++        bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
++    }
++}
++static void drop_slot_links(uint8_t slot) {
++    struct slot_drop_ctx ctx = {.id = SLOT_ID(slot)};
++    bt_conn_foreach(BT_CONN_TYPE_LE, drop_slot_cb, &ctx);
++}
++
++/* Remove the slot's pairing and give it a new address. */
++static void reset_slot(uint8_t slot, enum zmk_ble_bond_cause cause) {
++    bool had_peer = !slot_is_open(slot);
++    if (adv_id == SLOT_ID(slot)) {
++        adv_stop(); /* bt_id_reset refuses an identity that is advertising */
++    }
++    drop_slot_links(slot);
++    int err = bt_id_reset(SLOT_ID(slot), NULL, NULL); /* also removes its bonds */
++    if (err < 0) {
++        LOG_ERR("New address for slot %d failed (%d); removing its pairing only", slot, err);
++        bt_unpair(SLOT_ID(slot), NULL);
++    }
++    set_peer(slot, BT_ADDR_LE_ANY);
++    if (had_peer) {
++        zmk_ble_bond_event(slot, cause);
++    }
++}
++
++static void unauth_timer_fn(struct k_timer *t) {
++    ARG_UNUSED(t);
++    post((struct cmd){.type = CMD_UNAUTH_CHECK});
++}
++static K_TIMER_DEFINE(unauth_timer, unauth_timer_fn, NULL);
++
++static void unauth_cb(struct bt_conn *conn, void *user_data) {
++    ARG_UNUSED(user_data);
++    struct bt_conn_info info;
++    if (is_peripheral(conn) && bt_conn_get_info(conn, &info) == 0 &&
++        info.state == BT_CONN_STATE_CONNECTED && info.security.level < BT_SECURITY_L2) {
++        LOG_INF("Dropping a computer that connected but did not pair or encrypt");
++        bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
++    }
++}
++
++struct bond_find {
++    const bt_addr_le_t *addr;
++    bool found;
++};
++static void bond_find_cb(const struct bt_bond_info *info, void *user_data) {
++    struct bond_find *f = user_data;
++    if (bt_addr_le_eq(&info->addr, f->addr)) {
++        f->found = true;
++    }
++}
++static bool has_bond(uint8_t id, const bt_addr_le_t *addr) {
++    struct bond_find f = {.addr = addr};
++    bt_foreach_bond(id, bond_find_cb, &f);
++    return f.found;
++}
++
++struct stray_ctx {
++    uint8_t id;
++    const bt_addr_le_t *keep;
++};
++static void stray_cb(const struct bt_bond_info *info, void *user_data) {
++    struct stray_ctx *c = user_data;
++    if (!c->keep || !bt_addr_le_eq(&info->addr, c->keep)) {
++        LOG_WRN("Removing a pairing that belongs to no slot (identity %d)", c->id);
++        bt_unpair(c->id, &info->addr);
++    }
++}
++
++/* ---- Bluetooth callbacks (RX thread): post only ---- */
++static void connected(struct bt_conn *conn, uint8_t err) {
++    if (!is_peripheral(conn)) {
++        return;
++    }
++    if (err) {
++        LOG_WRN("Connection failed (%u)", err);
++        post((struct cmd){.type = CMD_UPDATE});
++        return;
++    }
++    post((struct cmd){.type = CMD_CONNECTED, .conn = bt_conn_ref(conn)});
++}
++
++static void disconnected(struct bt_conn *conn, uint8_t reason) {
++    if (!is_peripheral(conn)) {
++        return;
++    }
++    LOG_DBG("Disconnected (reason 0x%02x)", reason);
++    int slot = conn_slot(conn);
++    post((struct cmd){.type = CMD_DISCONNECTED, .arg = slot >= 0 ? (uint8_t)slot : 0xFF});
++}
++
++static void recycled(void) { post((struct cmd){.type = CMD_UPDATE}); }
++
++static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err) {
++    if (!is_peripheral(conn)) {
++        return;
++    }
++    if (err) {
++        LOG_WRN("Security failed: level %u err %d", level, err);
++        return;
++    }
++    post((struct cmd){.type = CMD_SECURED, .conn = bt_conn_ref(conn)});
++}
++
++static struct bt_conn_cb conn_callbacks = {
++    .connected = connected,
++    .disconnected = disconnected,
++    .recycled = recycled,
++    .security_changed = security_changed,
++};
++
++/* Pairing is allowed only on the selected slot's address, and only while that slot is empty
++ * (or, with BT_SMP_ALLOW_UNAUTH_OVERWRITE, by the computer already registered there). */
++static bool pairing_allowed(struct bt_conn *conn) {
++    int slot = conn_slot(conn);
++    if (slot < 0 || slot != active_profile) {
++        return false;
++    }
++    return slot_is_open(slot) ||
++           (IS_ENABLED(CONFIG_BT_SMP_ALLOW_UNAUTH_OVERWRITE) &&
++            bt_addr_le_eq(&profiles[slot].peer, bt_conn_get_dst(conn)));
++}
++
++static enum bt_security_err auth_pairing_accept(struct bt_conn *conn,
++                                                const struct bt_conn_pairing_feat *const feat) {
++    ARG_UNUSED(feat);
++    if (is_peripheral(conn) && !pairing_allowed(conn)) {
++        LOG_WRN("Refusing pairing: slot %d is taken or not selected", conn_slot(conn));
++        return BT_SECURITY_ERR_PAIR_NOT_ALLOWED;
++    }
++    return BT_SECURITY_ERR_SUCCESS;
++}
++
++static void auth_pairing_complete(struct bt_conn *conn, bool bonded) {
++    ARG_UNUSED(bonded);
++    if (!is_peripheral(conn)) {
++        return;
++    }
++    post((struct cmd){.type = CMD_PAIRED, .conn = bt_conn_ref(conn)});
++}
++
++static void auth_pairing_failed(struct bt_conn *conn, enum bt_security_err reason) {
++    if (!is_peripheral(conn)) {
++        return;
++    }
++    LOG_WRN("Pairing failed (%d)", reason);
++    post((struct cmd){.type = CMD_PAIR_FAILED, .arg = (uint8_t)MAX(conn_slot(conn), 0)});
++}
++
++#if IS_ENABLED(CONFIG_ZMK_BLE_PASSKEY_ENTRY)
++static void auth_passkey_entry(struct bt_conn *conn) {
++    LOG_DBG("Passkey entry requested");
++    ring_buf_reset(&passkey_entries);
++    auth_passkey_entry_conn = bt_conn_ref(conn);
++}
++#endif
++
++static void auth_cancel(struct bt_conn *conn) {
++    ARG_UNUSED(conn);
++#if IS_ENABLED(CONFIG_ZMK_BLE_PASSKEY_ENTRY)
++    if (auth_passkey_entry_conn) {
++        bt_conn_unref(auth_passkey_entry_conn);
++        auth_passkey_entry_conn = NULL;
++    }
++    ring_buf_reset(&passkey_entries);
++#endif
++    LOG_DBG("Pairing cancelled");
++}
++
++static struct bt_conn_auth_cb auth_cb = {
++    .pairing_accept = auth_pairing_accept,
++#if IS_ENABLED(CONFIG_ZMK_BLE_PASSKEY_ENTRY)
++    .passkey_entry = auth_passkey_entry,
++#endif
++    .cancel = auth_cancel,
++};
++static struct bt_conn_auth_info_cb auth_info_cb = {
++    .pairing_complete = auth_pairing_complete,
++    .pairing_failed = auth_pairing_failed,
++};
++
++/* ---- worker ---- */
++static void do_startup(void) {
++    bt_addr_le_t addrs[CONFIG_BT_ID_MAX];
++    size_t n = ARRAY_SIZE(addrs);
++    bt_id_get(addrs, &n);
++    while (n < NEEDED_IDS) {
++        int id = bt_id_create(NULL, NULL);
++        if (id < 0) {
++            LOG_ERR("Creating Bluetooth identity %d failed (%d): Bluetooth stays off", (int)n, id);
++            return; /* USB keeps working */
++        }
++        n++;
++    }
++
++    bool fresh = stored_format != SLOTS_FORMAT || IS_ENABLED(CONFIG_ZMK_BLE_CLEAR_BONDS_ON_START);
++    if (fresh) {
++        LOG_WRN("Bluetooth slots: first start with per-slot addresses, removing older pairings");
++        for (uint8_t id = 0; id < n; id++) {
++            bt_unpair(id, NULL);
++        }
++        for (uint8_t s = 0; s < SLOTS; s++) {
++            bool had = !slot_is_open(s);
++            int err = bt_id_reset(SLOT_ID(s), NULL, NULL);
++            if (err < 0) {
++                LOG_ERR("New address for slot %d failed (%d)", s, err);
++            }
++            set_peer(s, BT_ADDR_LE_ANY);
++            if (had) {
++                zmk_ble_bond_event(s, ZMK_BLE_BOND_MIGRATED);
++            }
++        }
++        active_profile = 0;
++        save_active();
++        save_format();
++        stored_format = SLOTS_FORMAT;
++    } else {
++        for (uint8_t s = 0; s < SLOTS; s++) {
++            if (!slot_is_open(s) && !has_bond(SLOT_ID(s), &profiles[s].peer)) {
++                LOG_WRN("Slot %d lost its pairing record; it is empty now", s);
++                set_peer(s, BT_ADDR_LE_ANY);
++                zmk_ble_bond_event(s, ZMK_BLE_BOND_MISSING);
++            }
++        }
++        /* Stray records would take one of the few key slots (BT_MAX_PAIRED is shared). */
++        struct stray_ctx c0 = {.id = BT_ID_DEFAULT, .keep = NULL};
++        bt_foreach_bond(BT_ID_DEFAULT, stray_cb, &c0);
++        for (uint8_t s = 0; s < SLOTS; s++) {
++            struct stray_ctx c = {.id = SLOT_ID(s),
++                                  .keep = slot_is_open(s) ? NULL : &profiles[s].peer};
++            bt_foreach_bond(SLOT_ID(s), stray_cb, &c);
++        }
++    }
++    if (active_profile >= SLOTS) {
++        active_profile = 0;
++    }
++
++    bt_conn_cb_register(&conn_callbacks);
++    bt_conn_auth_cb_register(&auth_cb);
++    bt_conn_auth_info_cb_register(&auth_info_cb);
++    started = true;
++    LOG_INF("Bluetooth slots ready, slot %d selected", active_profile);
++    adv_update(false);
++    raise_profile_changed();
++}
++
++static void on_connected(struct bt_conn *conn) {
++    adv_id = -1; /* a connectable legacy advertiser stops when it makes a connection */
++    int slot = conn_slot(conn);
++    if (slot < 0 || slot != active_profile) {
++        LOG_INF("Refusing a computer on slot %d while slot %d is selected", slot, active_profile);
++        bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
++    } else {
++        k_timer_start(&unauth_timer, UNAUTH_TIMEOUT, K_NO_WAIT);
++        if (zmk_ble_profile_is_connected(slot)) {
++            raise_profile_changed();
++        }
++    }
++    adv_update(false);
++}
++
++static void on_paired(struct bt_conn *conn) {
++    const bt_addr_le_t *dst = bt_conn_get_dst(conn);
++    struct bt_conn_info info;
++    if (bt_conn_get_info(conn, &info)) {
++        return;
++    }
++    int slot = conn_slot(conn);
++    if (!pairing_allowed(conn)) {
++        LOG_ERR("Pairing finished on slot %d, which is not open; removing it", slot);
++        bt_unpair(info.id, dst);
++        bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
++        zmk_ble_bond_event(MAX(slot, 0), ZMK_BLE_BOND_PAIRING_REFUSED);
++        return;
++    }
++    /* Zephyr removed this computer's pairing on any other slot (BT_ID_UNPAIR_MATCHING_BONDS):
++     * it moved here, that slot is empty now. */
++    for (uint8_t s = 0; s < SLOTS; s++) {
++        if (s != slot && bt_addr_le_eq(&profiles[s].peer, dst)) {
++            bt_unpair(SLOT_ID(s), dst);
++            set_peer(s, BT_ADDR_LE_ANY);
++            zmk_ble_bond_event(s, ZMK_BLE_BOND_MOVED);
++        }
++    }
++    set_peer(slot, dst);
++    zmk_ble_bond_event(slot, ZMK_BLE_BOND_PAIRED);
++    LOG_INF("Slot %d paired", slot);
++    adv_update(false);
++    raise_profile_changed();
++}
++
++static void handle(struct cmd *c) {
++    switch (c->type) {
++    case CMD_STARTUP:
++        do_startup();
++        break;
++    case CMD_SELECT:
++        if (!started) {
++            break;
++        }
++        save_active();
++        drop_other_links();
++        adv_update(false);
++        raise_profile_changed();
++        break;
++    case CMD_CLEAR:
++        if (started && c->arg < SLOTS) {
++            reset_slot(c->arg, ZMK_BLE_BOND_CLEARED);
++            adv_update(false);
++            raise_profile_changed();
++        }
++        break;
++    case CMD_CLEAR_ALL:
++        if (started) {
++            for (uint8_t s = 0; s < SLOTS; s++) {
++                reset_slot(s, ZMK_BLE_BOND_CLEARED_ALL);
++            }
++            bt_unpair(BT_ID_DEFAULT, NULL);
++            active_profile = 0;
++            save_active();
++            adv_update(false);
++            raise_profile_changed();
++        }
++        break;
++    case CMD_DISCONNECT:
++        drop_slot_links(c->arg);
++        break;
++    case CMD_UPDATE:
++        adv_update(false);
++        break;
++    case CMD_RESTART_ADV:
++        adv_update(true);
++        break;
++    case CMD_CONNECTED:
++        on_connected(c->conn);
++        break;
++    case CMD_DISCONNECTED:
++        adv_update(false);
++        if (c->arg == active_profile) {
++            raise_profile_changed();
++        }
++        break;
++    case CMD_SECURED: {
++        int slot = conn_slot(c->conn);
++        if (slot >= 0 && slot != active_profile) {
++            bt_conn_disconnect(c->conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
++        } else if (slot >= 0 && zmk_ble_profile_is_connected(slot)) {
++            adv_update(false);
++            raise_profile_changed();
++        }
++        break;
++    }
++    case CMD_PAIRED:
++        on_paired(c->conn);
++        break;
++    case CMD_PAIR_FAILED:
++        zmk_ble_bond_event(c->arg, ZMK_BLE_BOND_PAIRING_FAILED);
++        break;
++    case CMD_UNAUTH_CHECK:
++        bt_conn_foreach(BT_CONN_TYPE_LE, unauth_cb, NULL);
++        break;
++    }
++}
++
++static void worker(void *a, void *b, void *c) {
++    ARG_UNUSED(a);
++    ARG_UNUSED(b);
++    ARG_UNUSED(c);
++    struct cmd cmd;
++    for (;;) {
++        k_msgq_get(&cmds, &cmd, K_FOREVER);
++        handle(&cmd);
++        if (cmd.conn) {
++            bt_conn_unref(cmd.conn);
++        }
++        if (cmd.done) {
++            k_sem_give(cmd.done);
++        }
++    }
++}
++
++K_THREAD_DEFINE(zmk_ble_slots_thread, CONFIG_ZMK_BLE_SLOTS_THREAD_STACK_SIZE, worker, NULL, NULL,
++                NULL, K_PRIO_PREEMPT(CONFIG_ZMK_BLE_SLOTS_THREAD_PRIORITY), 0, 0);
++
++/* ---- settings: read only; nothing is done until main() says loading is over ---- */
++#if IS_ENABLED(CONFIG_SETTINGS)
++static int ble_settings_set(const char *name, size_t len, settings_read_cb read_cb, void *cb_arg) {
++    const char *next;
++    if (settings_name_steq(name, "profiles", &next) && next) {
++        char *end;
++        unsigned long idx = strtoul(next, &end, 10);
++        if (*end != '\0' || idx >= SLOTS || len != sizeof(struct zmk_ble_profile)) {
++            return 0; /* ignore: from another firmware */
++        }
++        (void)read_cb(cb_arg, &profiles[idx], sizeof(struct zmk_ble_profile));
++    } else if (settings_name_steq(name, "active_profile", &next) && !next) {
++        uint8_t a;
++        if (len == sizeof(a) && read_cb(cb_arg, &a, sizeof(a)) == sizeof(a) && a < SLOTS) {
++            active_profile = a;
++        }
++    } else if (settings_name_steq(name, "slots_format", &next) && !next) {
++        if (len == sizeof(stored_format)) {
++            (void)read_cb(cb_arg, &stored_format, sizeof(stored_format));
++        }
++    }
++    return 0;
++}
++static struct settings_handler ble_settings = {.name = "ble", .h_set = ble_settings_set};
++#endif
++
++void zmk_ble_settings_loaded(void) {
++    static bool once;
++    if (!once) {
++        once = true;
++        post((struct cmd){.type = CMD_STARTUP});
++    }
++}
++
++static int zmk_ble_init(void) {
++    worker_tid = zmk_ble_slots_thread;
++    int err = bt_enable(NULL);
++    if (err < 0 && err != -EALREADY) {
++        LOG_ERR("BLUETOOTH FAILED (%d)", err);
++        return err;
++    }
++#if IS_ENABLED(CONFIG_SETTINGS)
++    settings_register(&ble_settings);
++#else
++    zmk_ble_settings_loaded();
++#endif
++    return 0;
++}
++
++/* ---- passkey entry (unchanged from ZMK) ---- */
++#if IS_ENABLED(CONFIG_ZMK_BLE_PASSKEY_ENTRY)
++static bool zmk_ble_numeric_usage_to_value(const zmk_key_t key, const zmk_key_t one,
++                                           const zmk_key_t zero, uint8_t *value) {
++    if (key < one || key > zero) {
++        return false;
++    }
++    *value = (key == zero) ? 0 : (key - one + 1);
++    return true;
++}
++
++static int zmk_ble_handle_key_user(struct zmk_keycode_state_changed *event) {
++    zmk_key_t key = event->keycode;
++    if (!auth_passkey_entry_conn) {
++        return ZMK_EV_EVENT_BUBBLE;
++    }
++    if (event->state) {
++        return ZMK_EV_EVENT_HANDLED;
++    }
++    if (key == HID_USAGE_KEY_KEYBOARD_ESCAPE) {
++        bt_conn_auth_cancel(auth_passkey_entry_conn);
++        return ZMK_EV_EVENT_HANDLED;
++    }
++    if (key == HID_USAGE_KEY_KEYBOARD_RETURN || key == HID_USAGE_KEY_KEYBOARD_RETURN_ENTER) {
++        uint8_t digits[PASSKEY_DIGITS];
++        uint32_t count = ring_buf_get(&passkey_entries, digits, PASSKEY_DIGITS);
++        uint32_t passkey = 0;
++        for (int i = 0; i < count; i++) {
++            passkey = (passkey * 10) + digits[i];
++        }
++        bt_conn_auth_passkey_entry(auth_passkey_entry_conn, passkey);
++        bt_conn_unref(auth_passkey_entry_conn);
++        auth_passkey_entry_conn = NULL;
++        return ZMK_EV_EVENT_HANDLED;
++    }
++    uint8_t val;
++    if (!(zmk_ble_numeric_usage_to_value(key, HID_USAGE_KEY_KEYBOARD_1_AND_EXCLAMATION,
++                                         HID_USAGE_KEY_KEYBOARD_0_AND_RIGHT_PARENTHESIS, &val) ||
++          zmk_ble_numeric_usage_to_value(key, HID_USAGE_KEY_KEYPAD_1_AND_END,
++                                         HID_USAGE_KEY_KEYPAD_0_AND_INSERT, &val))) {
++        return ZMK_EV_EVENT_HANDLED;
++    }
++    if (ring_buf_space_get(&passkey_entries) <= 0) {
++        uint8_t discard_val;
++        ring_buf_get(&passkey_entries, &discard_val, 1);
++    }
++    ring_buf_put(&passkey_entries, &val, 1);
++    return ZMK_EV_EVENT_HANDLED;
++}
++
++static int zmk_ble_listener(const zmk_event_t *eh) {
++    struct zmk_keycode_state_changed *kc_state = as_zmk_keycode_state_changed(eh);
++    if (kc_state != NULL) {
++        return zmk_ble_handle_key_user(kc_state);
++    }
++    return 0;
++}
++
++ZMK_LISTENER(zmk_ble, zmk_ble_listener);
++ZMK_SUBSCRIPTION(zmk_ble, zmk_keycode_state_changed);
++#endif
++
++SYS_INIT(zmk_ble_init, APPLICATION, CONFIG_ZMK_BLE_INIT_PRIORITY);
 diff --git a/app/src/event_manager.c b/app/src/event_manager.c
 index c28da97f5944fff51fada51a146b8989a0245bfc..037c647e831c1c29905bfcb7b636e5f22b68d3c2 100644
 --- a/app/src/event_manager.c
@@ -1762,7 +2182,7 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..eca58c97b7af02b5153622490548d8d1
  K_THREAD_STACK_DEFINE(hog_q_stack, CONFIG_ZMK_BLE_THREAD_STACK_SIZE);
  
 diff --git a/app/src/main.c b/app/src/main.c
-index 0f77382addb243d2fc878e0497366e202e000f55..92fba27a34895d30dfba003171be0cb7ab8ad2aa 100644
+index 0f77382addb243d2fc878e0497366e202e000f55..6a075f76dfeb44410ea87a1b62e236f17c976823 100644
 --- a/app/src/main.c
 +++ b/app/src/main.c
 @@ -8,6 +8,7 @@
@@ -1777,7 +2197,7 @@ index 0f77382addb243d2fc878e0497366e202e000f55..92fba27a34895d30dfba003171be0cb7
  #if IS_ENABLED(CONFIG_SETTINGS)
      settings_subsys_init();
      settings_load();
-+#if IS_ENABLED(CONFIG_ZMK_BLE)
++#if IS_ENABLED(CONFIG_ZMK_BLE) && !IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
 +    zmk_ble_settings_loaded();
 +#endif
  #endif

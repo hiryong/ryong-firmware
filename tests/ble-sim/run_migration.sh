@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Two power-ups of one simulated keyboard on the same flash: first the old firmware (one shared
 # Bluetooth address; two computers pair on profiles 0 and 1), then the per-slot-address firmware.
-# Usage (from zmk/app, BSIM_OUT_PATH set): run_migration.sh <cases dir> <label> [app dir]
+# Usage (from zmk/app, BSIM_OUT_PATH set):
+#   run_migration.sh <cases dir> <label> <old case: old|old-ids> <old app dir> <new app dir>
 set -u
-cases=$1; label=$2; app=${3:-.}
+cases=$1; label=$2; old_case=$3; old_app=$4; new_app=$5
 out=$(pwd)/build/tests/migration-$label; mkdir -p "$out"; rm -f "$out"/*.log
 bin=$BSIM_OUT_PATH/bin; flash=$out/flash.bin; rm -f "$flash"
 for v in old new; do
-  west build -p -d "build/migration-$label-$v" -s "$app" -b nrf52_bsim//zmk_test_mock -- -DZMK_CONFIG="$cases/$v" > "$out/build-$v.log" 2>&1 \
+  if [ $v = old ]; then app=$old_app; c=$old_case; else app=$new_app; c=new; fi
+  west build -p -d "build/migration-$label-$v" -s "$app" -b nrf52_bsim//zmk_test_mock -- -DZMK_CONFIG="$cases/$c" > "$out/build-$v.log" 2>&1 \
     || { echo "BUILD FAILED ($v): see build-$v.log"; tail -30 "$out/build-$v.log"; exit 1; }
   cp "build/migration-$label-$v/zephyr/zmk.exe" "$bin/mig_${label}_$v.exe"
 done
@@ -25,6 +27,6 @@ run new "./ble_test_central.exe"
 echo "### Upgrade with paired slots ($label)"
 for v in old new; do
   f=$out/$v.log
-  echo "- $v: start-up finished: $(grep -c 'zmk_ble_ready: ready' "$f"), pairings: $(grep -c 'Pairing complete' "$f"), key reports: $(grep -c 'notify_func: payload' "$f"), migrated: $(grep -c 'needs a new pairing' "$f"), errors: $(grep -cE 'FATAL|ASSERTION|panic|Fault|timeout' "$f")"
+  echo "- $v: start-up finished: $(grep -c 'zmk_ble_ready: ready' "$f"), pairings: $(grep -c 'Pairing complete' "$f"), key reports: $(grep -c 'notify_func: payload' "$f"), older pairings removed: $(grep -c 'removing older pairings' "$f"), errors: $(grep -cE 'FATAL|ASSERTION|panic|Fault|timeout' "$f")"
 done
 grep -q 'zmk_ble_ready: ready' "$out/new.log" && grep -q 'notify_func: payload' "$out/new.log"
