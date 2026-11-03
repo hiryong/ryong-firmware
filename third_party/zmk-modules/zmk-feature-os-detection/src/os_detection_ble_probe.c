@@ -31,7 +31,9 @@
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #define TEXT_MAX 32
-#define START_DELAY K_MSEC(1500) /* let the host finish its own discovery first */
+/* Long enough for the host to finish pairing and set up the keyboard before we ask it anything:
+ * asking while macOS was still setting up a fresh pairing could leave the keys dead until a restart. */
+#define START_DELAY K_SECONDS(8)
 
 /* Apple "Continuity" GATT service, published by Macs, iPhones and iPads. */
 static struct bt_uuid_128 continuity_uuid =

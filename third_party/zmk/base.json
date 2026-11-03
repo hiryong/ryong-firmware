@@ -25,7 +25,7 @@
     "zmk-feature-os-detection": {
       "from": "cormoran/zmk-feature-os-detection@3052679",
       "from_revision": "3052679f645b8fc1997275c2eaa6b86bdd55ca01",
-      "tree_sha256": "6e8ef15c6081714b35f83ac815e7548a78d6866d4a97c3ac3d371b43577f5105",
+      "tree_sha256": "9fc6d343b23cc6743704b1c5ebcf745de848e376ea67cc99eafa09d7f55f957e",
       "ryong_changes": "keep cached OS on weak reconnect fingerprints; report the last BLE fingerprint over Studio; src/os_detection_ble_probe.c asks the host (DIS manufacturer/model, GAP name, Apple Continuity service) - decisive Mac/iPhone vs not Apple; slot resolved after pairing"
     },
     "zmk-feature-runtime-combo": {
