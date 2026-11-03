@@ -204,7 +204,7 @@ function ZmkNotice({ z }: { z: ZmkUpdate }) {
       {!!c.overlaps?.length && <ul className="kc-why">{c.overlaps.map((o) => <li key={o}>{o}</li>)}</ul>}
       <div className="kc-row">
         {(c.builds ?? []).map((b) => <span key={b.run} className="ry-faint">{TARGET_LABEL[b.target] ?? b.target} r{b.run}</span>)}
-        {c.details_url && <a className="ry-text" href={c.details_url} target="_blank" rel="noreferrer">{t("Details", "자세히")}</a>}
+        {c.details_url?.startsWith("https://github.com/") && <a className="ry-text" href={c.details_url} target="_blank" rel="noreferrer">{t("Details", "자세히")}</a>}
       </div>
       <p className="ry-faint">{t("As always, an installable release needs a bench-test record first.", "설치용 배포는 지금처럼 검증 기록을 남긴 뒤에만 할 수 있어요.")}</p>
     </div>

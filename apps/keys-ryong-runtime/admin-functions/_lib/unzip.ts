@@ -29,7 +29,16 @@ export async function readZipEntry(zip: Uint8Array, e: ZipEntry): Promise<Uint8A
   if (e.method === 0) return data.slice();
   if (e.method !== 8) throw new Error("unsupported zip compression");
   const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-  const out = new Uint8Array(await new Response(stream).arrayBuffer());
-  if (out.length !== e.size) throw new Error("zip entry size mismatch");
+  // Read with a cap: never expand past the size the directory announced.
+  const reader = stream.getReader();
+  const out = new Uint8Array(e.size);
+  let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (n + value.length > e.size) { await reader.cancel(); throw new Error("zip entry larger than announced"); }
+    out.set(value, n); n += value.length;
+  }
+  if (n !== e.size) throw new Error("zip entry size mismatch");
   return out;
 }

@@ -15,6 +15,9 @@ from pathlib import Path
 CHECKLIST = Path(__file__).resolve().parents[1] / "apps/keys-ryong-runtime/admin-functions/_lib/checklist.json"
 
 
+RELEASE_BRANCH = "dev/keys-ryong-runtime"
+
+
 def evaluate(items, checklist):
     required = [i for i in checklist["items"] if i["required"]]
     stable = [i for i in checklist["items"] if i["required"] or i.get("stable")]
@@ -32,6 +35,9 @@ def blockers(channel, run, info, uf2_bytes, record, released, checklist):
         why.append("build run did not succeed")
     if not str(run.get("path", "")).endswith("/firmware-build.yml") or run.get("event") != "workflow_dispatch":
         why.append("run is not a firmware-build.yml build")
+    # Only builds of the development branch can be released (another branch could carry a changed gate).
+    if run.get("head_branch") != RELEASE_BRANCH:
+        why.append("build is not from " + RELEASE_BRANCH)
     actual = hashlib.sha256(uf2_bytes).hexdigest()
     if info.get("uf2_sha256") != actual:
         why.append("UF2 does not match build-info.json")

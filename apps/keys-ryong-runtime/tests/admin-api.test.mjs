@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { crc32, deflateRawSync } from "node:zlib";
+import { createHash } from "node:crypto";
 
 const dir = mkdtempSync(path.join(tmpdir(), "admin-api-"));
 const load = async (rel) => {
@@ -23,7 +24,8 @@ const h = {
 };
 
 /* ---------- fake GitHub ---------- */
-const SHA = "a".repeat(64);
+const UF2 = Buffer.from("UF2\n".repeat(300)), BLE = Buffer.from("PK-ble-package");
+const SHA = createHash("sha256").update(UF2).digest("hex"); // artifact name carries the UF2 hash
 const gh = {
   runs: [{ id: 101, display_title: "Firmware build · bt60 · test · req-0001", status: "completed", conclusion: "success", html_url: "https://github.com/x/101",
     created_at: new Date().toISOString(), updated_at: "", head_sha: "f".repeat(40), head_branch: "dev", path: ".github/workflows/firmware-build.yml", event: "workflow_dispatch" }],
@@ -31,7 +33,6 @@ const gh = {
 };
 const reply = (data, status = 200, headers = {}) => new Response(data === null ? null : JSON.stringify(data), { status, headers: { "Content-Type": "application/json", ...headers } });
 // A real artifact zip: one stored entry, one deflated entry, one in a folder.
-const UF2 = Buffer.from("UF2\n".repeat(300)), BLE = Buffer.from("PK-ble-package");
 function makeZip(files) {
   const locals = [], centrals = []; let off = 0;
   for (const [name, data, deflate] of files) {

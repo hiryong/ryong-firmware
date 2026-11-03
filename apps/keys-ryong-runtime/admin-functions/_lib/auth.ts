@@ -64,7 +64,8 @@ export async function verify(env: AdminEnv, value: string | null, now = Date.now
 
 export function readCookie(req: Request, name = COOKIE): string | null {
   const m = (req.headers.get("Cookie") || "").match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
-  return m ? decodeURIComponent(m[1]) : null;
+  if (!m) return null;
+  try { return decodeURIComponent(m[1]); } catch { return null; } // malformed cookie = signed out
 }
 
 export const sessionCookie = (value: string) =>

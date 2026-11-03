@@ -19,7 +19,8 @@ export class GitHubError extends Error {
 
 export async function gh(env: AdminEnv, path: string, init: RequestInit = {}): Promise<Response> {
   if (!env.ADMIN_GITHUB_TOKEN) throw new GitHubError(503, "GitHub 토큰(ADMIN_GITHUB_TOKEN)이 설정되지 않았어요.", "The GitHub token (ADMIN_GITHUB_TOKEN) is not set.");
-  const url = path.startsWith("https://") ? path : `https://api.github.com${path}`;
+  if (!path.startsWith("/")) throw new GitHubError(500, "잘못된 GitHub 요청이에요.", "Bad GitHub request."); // the token only ever goes to api.github.com
+  const url = `https://api.github.com${path}`;
   const r = await fetch(url, {
     ...init,
     headers: {

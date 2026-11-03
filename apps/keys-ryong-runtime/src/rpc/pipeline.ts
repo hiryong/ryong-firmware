@@ -35,18 +35,43 @@ type State = {
   queue: { size: number; go: () => void }[]; /* waiting to be sent, in call order */
   dead?: unknown;
   cache: Map<string, Promise<RequestResponse>>;
+  fail: (e: unknown) => void;
 };
+
+/** Longest wait for one answer. Saves write flash and can take a while over Bluetooth. */
+function timeoutFor(req: Omit<Request, "requestId">): number {
+  if (req.keymap?.saveChanges || (req as { custom?: unknown }).custom) return 30000;
+  return 10000;
+}
+
+export class RpcTimeoutError extends Error {
+  constructor() { super("The keyboard stopped answering."); }
+}
+
+/** Close a connection cleanly (the request stream is held by this module). */
+export async function closeConnection(conn: RpcConnection, reason: unknown = "User disconnected") {
+  const st = states.get(conn);
+  if (!st) { await conn.request_writable.close().catch(() => {}); return; }
+  const w = st.writer;
+  st.fail(reason);
+  if (w) await w.close().catch(() => {});
+}
 
 const states = new WeakMap<RpcConnection, State>();
 
 function stateFor(conn: RpcConnection): State {
   let s = states.get(conn);
   if (s) return s;
-  const st: State = { pending: new Map(), inflight: 0, inflightBytes: 0, queue: [], cache: new Map(), shared: new Map() };
+  const st: State = { fail: () => {}, pending: new Map(), inflight: 0, inflightBytes: 0, queue: [], cache: new Map(), shared: new Map() };
   states.set(conn, st);
+  st.fail = (e) => fail(e);
   const reader = conn.request_response_readable.getReader();
   const fail = (e: unknown) => {
+    if (st.dead) return;
     st.dead = e ?? "No response";
+    // End the connection too: answers come in order, so after a lost one nothing would line up.
+    // (Aborting the request stream makes the stock client abort the transport.)
+    st.writer?.abort(st.dead).catch(() => {});
     for (const p of st.pending.values()) p.reject(st.dead);
     st.pending.clear();
     st.queue.splice(0).forEach((q) => { st.inflight++; st.inflightBytes += q.size; q.go(); });
@@ -118,6 +143,7 @@ async function send(conn: RpcConnection, st: State, req: Omit<Request, "requestI
   // the transport can pack several requests into one report.
   st.writer ??= conn.request_writable.getWriter();
   const write = st.writer.write(request);
+  const timer = setTimeout(() => st.fail(new RpcTimeoutError()), timeoutFor(req));
   try {
     await Promise.all([write, answer]);
     return await answer;
@@ -125,6 +151,7 @@ async function send(conn: RpcConnection, st: State, req: Omit<Request, "requestI
     st.pending.delete(request.requestId);
     throw e;
   } finally {
+    clearTimeout(timer);
     st.inflight--;
     st.inflightBytes -= size;
     pump(st);

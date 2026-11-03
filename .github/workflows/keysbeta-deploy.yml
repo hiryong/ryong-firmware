@@ -10,11 +10,11 @@ on:
   push:
     branches: [dev/keys-ryong-runtime]
     paths: ['apps/keys-ryong-runtime/**', 'experiments/runtime-client/**', '.github/workflows/keysbeta-deploy.yml']
+  workflow_dispatch:
 env:
   PROJECT: ryong-keys-beta
   DOMAIN: keysbeta.ryong.com
   ZONE: ryong.com
-  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -68,12 +68,12 @@ jobs:
           mkdir -p /tmp/deploy && cp -r apps/keys-ryong-runtime/dist-runtime /tmp/deploy/site
           cp -r apps/keys-ryong-runtime/admin-functions /tmp/deploy/functions && rm -f /tmp/deploy/functions/tsconfig.json
           cd /tmp/deploy
-          npx --yes wrangler@3 pages project list | grep -q " $PROJECT " || npx --yes wrangler@3 pages project create "$PROJECT" --production-branch=main
+          npx --yes wrangler@3.114.17 pages project list | grep -q " $PROJECT " || npx --yes wrangler@3.114.17 pages project create "$PROJECT" --production-branch=main
           # Admin secrets live encrypted in the Pages project; they are never part of the uploaded files.
           for name in ADMIN_PASSWORD ADMIN_GITHUB_TOKEN; do
-            if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx --yes wrangler@3 pages secret put "$name" --project-name="$PROJECT" >/dev/null && echo "$name set"; else echo "::notice::$name not set; /admin stays closed until it is."; fi
+            if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx --yes wrangler@3.114.17 pages secret put "$name" --project-name="$PROJECT" >/dev/null && echo "$name set"; else echo "::notice::$name not set; /admin stays closed until it is."; fi
           done
-          npx --yes wrangler@3 pages deploy site --project-name="$PROJECT" --branch=main --commit-hash="$GITHUB_SHA" --commit-dirty=true
+          npx --yes wrangler@3.114.17 pages deploy site --project-name="$PROJECT" --branch=main --commit-hash="$GITHUB_SHA" --commit-dirty=true
           echo "### keysbeta deployed" >> "$GITHUB_STEP_SUMMARY"
           echo "Pages project: \`$PROJECT\` · https://$PROJECT.pages.dev · https://$DOMAIN" >> "$GITHUB_STEP_SUMMARY"
       - name: Connect keysbeta.ryong.com (only this name; never keys.ryong.com)

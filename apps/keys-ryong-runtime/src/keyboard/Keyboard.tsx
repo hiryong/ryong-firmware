@@ -299,6 +299,7 @@ export default function Keyboard() {
           );
         } else {
           console.error("Failed to set binding", resp.keymap?.setLayerBinding);
+          throw new Error("Failed to set binding"); // no undo entry for a change that didn't happen
         }
 
         return async () => {

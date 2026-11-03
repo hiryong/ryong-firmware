@@ -1,5 +1,5 @@
 import { exportProfile, importProfile, downloadText } from "../runtime/profileFile";
-import { ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Code, Copy, Lock, Plus, Trash2 } from "lucide-react";
 import { Board, confPath, links, matchesDevice, useMyBoards } from "../keyboards";
 import { KeyRect, LAYOUTS } from "./layouts";
@@ -348,10 +348,14 @@ const Editor = ({
     }
   }, [kb, jsonPath, runtimeConn, preview, runtime, runtimeConn ? runtimeLock : null]);
 
+  // The connection the loaded document came from: a reconnect (or another keyboard) gives a new
+  // connection object, and the old session must not be used for saving.
+  const loadedFrom = useRef<unknown>(undefined);
   useEffect(() => {
     // Lock notifications must never replace an in-progress editor document.
     if (runtime && runtimeConn && runtimeLock !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED) return;
-    if (runtime && loaded) return;
+    if (runtime && loaded && loadedFrom.current === runtimeConn) return;
+    loadedFrom.current = runtimeConn;
     void load();
   }, [load, runtimeLock]);
 

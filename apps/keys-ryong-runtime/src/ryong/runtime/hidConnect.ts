@@ -101,8 +101,12 @@ export async function connect(): Promise<RpcTransport> {
   const abortController = new AbortController();
   let onReport: ((e: Event) => void) | undefined;
   let onGone: ((e: Event) => void) | undefined;
+  let rd: ReadableStreamDefaultController<Uint8Array> | undefined;
+  /* End the incoming stream so the app sees the connection is gone (it waits on it). */
+  const endReadable = (e?: unknown) => { try { if (e) rd?.error(e); else rd?.close(); } catch { /* already ended */ } };
   const readable = new ReadableStream<Uint8Array>({
     start(controller) {
+      rd = controller;
       onReport = (e: Event) => {
         const ev = e as Event & { reportId: number; data: DataView };
         if (ev.reportId !== STUDIO_REPORT_ID) return;
@@ -144,7 +148,7 @@ export async function connect(): Promise<RpcTransport> {
     }
   };
   const kick = () => {
-    sending ??= flush().catch((e) => { failure = e; }).finally(() => { sending = undefined; if (queued.length && !failure) kick(); });
+    sending ??= flush().catch((e) => { failure = e; endReadable(e); }).finally(() => { sending = undefined; if (queued.length && !failure) kick(); });
   };
   const writable = new WritableStream<Uint8Array>({
     write(chunk) {
@@ -155,7 +159,7 @@ export async function connect(): Promise<RpcTransport> {
     async close() { await sending; },
   });
   const sig = abortController.signal;
-  const abort = () => { sig.removeEventListener("abort", abort); cleanup(); hidStats.active = false; bump(); dev.close().catch(() => {}); };
+  const abort = () => { sig.removeEventListener("abort", abort); cleanup(); endReadable(); hidStats.active = false; bump(); dev.close().catch(() => {}); };
   sig.addEventListener("abort", abort);
   return { label, abortController, readable, writable };
 }

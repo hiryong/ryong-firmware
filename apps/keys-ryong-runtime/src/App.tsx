@@ -5,6 +5,8 @@ import { t } from "./ryong/i18n";
 
 import { create_rpc_connection } from "@zmkfirmware/zmk-studio-ts-client";
 import { call_rpc } from "./rpc/logging";
+import { closeConnection } from "./rpc/pipeline";
+import { RpcErrorToast } from "./ryong/RpcErrorToast";
 
 import type { Notification } from "@zmkfirmware/zmk-studio-ts-client/studio";
 import { ConnectionState, ConnectionContext } from "./rpc/ConnectionContext";
@@ -159,12 +161,13 @@ async function connect(
         console.error("Failed first RPC call", e);
         return undefined;
       }),
-    valueAfter(undefined, 1000),
+    valueAfter(undefined, 5000), // a Bluetooth keyboard waking from sleep needs a moment
   ]);
 
   if (!details) {
-    // TODO: Show a proper toast/alert not using `window.alert`
-    window.alert("Failed to connect to the chosen device");
+    // Release the device, or the next attempt would run beside a half-open connection.
+    transport.abortController.abort("No answer");
+    window.alert(t("The keyboard didn't answer. Wake it with a key press and try again.", "키보드가 응답하지 않았어요. 키를 한 번 눌러 깨운 뒤 다시 연결해 주세요."));
     return;
   }
 
@@ -300,7 +303,7 @@ function App() {
         return;
       }
 
-      await conn.conn.request_writable.close();
+      await closeConnection(conn.conn);
       connectionAbort.abort("User disconnected");
       setConnectionAbort(new AbortController());
     }
@@ -349,6 +352,7 @@ function App() {
               setConn({ conn: conn.conn });
             }}
           />
+          <RpcErrorToast />
           <KeysWatcher
             deviceName={connectedDeviceName}
             onRestored={() => {

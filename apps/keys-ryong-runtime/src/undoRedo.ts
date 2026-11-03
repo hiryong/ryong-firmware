@@ -1,4 +1,4 @@
-import { createContext, useMemo, useState } from "react";
+import { createContext, useMemo, useRef, useState } from "react";
 
 export type UndoCallback = () => Promise<void>;
 
@@ -27,15 +27,24 @@ export function useUndoRedo(): [
     [locked, redoStack]
   );
 
-  const doIt = async (doCb: DoCallback, preserveRedo?: boolean) => {
-    setLocked(true);
-    let undo = await doCb();
-
-    setUndoStack([[doCb, undo], ...undoStack]);
-    if (!preserveRedo) {
-      setRedoStack([]);
-    }
-    setLocked(false);
+  // Ryong: edits run one after another (fast clicks no longer overwrite each other's undo entries),
+  // a failed edit adds no undo entry, and the lock is always released.
+  const chain = useRef<Promise<void>>(Promise.resolve());
+  const doIt = (doCb: DoCallback, preserveRedo?: boolean) => {
+    const run = chain.current.then(async () => {
+      setLocked(true);
+      try {
+        const undo = await doCb();
+        setUndoStack((s) => [[doCb, undo], ...s]);
+        if (!preserveRedo) {
+          setRedoStack([]);
+        }
+      } finally {
+        setLocked(false);
+      }
+    });
+    chain.current = run.catch(() => {});
+    return run;
   };
 
   const undo = async () => {
@@ -49,12 +58,14 @@ export function useUndoRedo(): [
 
     setLocked(true);
     let [doCb, undoCb] = undoStack[0];
-    setUndoStack(undoStack.slice(1));
-    setRedoStack([doCb, ...redoStack]);
+    setUndoStack((s) => s.slice(1));
+    setRedoStack((s) => [doCb, ...s]);
 
-    await undoCb();
-
-    setLocked(false);
+    try {
+      await undoCb();
+    } finally {
+      setLocked(false);
+    }
   };
 
   const redo = async () => {
@@ -68,7 +79,7 @@ export function useUndoRedo(): [
 
     let doCb = redoStack[0];
 
-    setRedoStack(redoStack.slice(1));
+    setRedoStack((s) => s.slice(1));
 
     return await doIt(doCb, true);
   };

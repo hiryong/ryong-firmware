@@ -37,7 +37,9 @@ export function TapHoldSettings({ doc, setDoc }: { doc: BehaviorDoc; setDoc: Rea
   const quick = Number(val(lead, "quick-tap-ms"));
   const idle = Number(val(lead, "require-prior-idle-ms"));
   const differs = present.length > 1 && ["tapping-term-ms", "flavor", "quick-tap-ms", "require-prior-idle-ms"].some((p) => String(val("mt", p)) !== String(val("lt", p)));
-  const [custom, setCustom] = useState(!TERMS.some((x) => x.ms === term));
+  const [customPicked, setCustom] = useState(false);
+  const custom = customPicked || !TERMS.some((x) => x.ms === term); // device values like 230 show as custom
+  const [draft, setDraft] = useState<string | null>(null); // typed text, applied on blur / Enter
 
   /** Same values for Mod-Tap and Layer-Tap: the first change makes them identical (what is shown). */
   const set = (p: string, v: number | string) => setDoc((d) => {
@@ -66,8 +68,10 @@ export function TapHoldSettings({ doc, setDoc }: { doc: BehaviorDoc; setDoc: Rea
         <button className="ry-chip" aria-pressed={custom} onClick={() => setCustom(true)}>{t("Custom", "직접")}</button>
       </div>
       {custom && <label className="ry-inline">
-        <input type="number" className="ry-num" min={50} max={2000} value={term} aria-label={t("Hold time (ms)", "홀드 판단 시간 (ms)")}
-          onChange={(e) => set("tapping-term-ms", Math.max(50, Math.min(2000, Math.round(Number(e.target.value) || 200))))} /> ms</label>}
+        <input type="number" className="ry-num" min={50} max={2000} value={draft ?? String(term)} aria-label={t("Hold time (ms)", "홀드 판단 시간 (ms)")}
+          onChange={(e) => { const v = e.target.value; const n = Number(v); setDraft(v); if (v.trim() && Number.isInteger(n) && n >= 50 && n <= 2000) set("tapping-term-ms", n); }}
+          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+          onBlur={() => { if (draft !== null) { const n = Number(draft); if (draft.trim() && Number.isFinite(n)) set("tapping-term-ms", Math.max(50, Math.min(2000, Math.round(n)))); setDraft(null); } }} /> ms</label>}
     </section>
 
     <section className="ry-card ry-setcard">

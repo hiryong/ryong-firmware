@@ -22,7 +22,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
-    if: github.event_name == 'workflow_dispatch'
+    # Only from the development branch: a dispatch on another branch could run a modified gate.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev/keys-ryong-runtime'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:

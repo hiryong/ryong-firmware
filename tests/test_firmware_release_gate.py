@@ -17,7 +17,7 @@ ALL = {i["id"]: "pass" for i in CHECKLIST["items"]}
 
 
 def run(**kw):
-    return {"id": 7, "conclusion": "success", "path": ".github/workflows/firmware-build.yml", "event": "workflow_dispatch", **kw}
+    return {"id": 7, "conclusion": "success", "path": ".github/workflows/firmware-build.yml", "event": "workflow_dispatch", "head_branch": "dev/keys-ryong-runtime", **kw}
 
 
 def info(**kw):
@@ -37,6 +37,7 @@ class Gate(unittest.TestCase):
 
     def test_refusals(self):
         self.assertTrue(self.check(rec=None))
+        self.assertTrue(self.check(r=run(head_branch="other")))  # only the development branch
         self.assertTrue(self.check(data=b"other"))  # file changed after the test
         self.assertTrue(self.check(rec=record(uf2_sha256="0" * 64)))
         self.assertTrue(self.check(rec=record(tested_board="ryong60")))
