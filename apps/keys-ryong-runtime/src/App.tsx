@@ -52,10 +52,12 @@ declare global {
 const VIRTUAL: TransportFactory[] = import.meta.env.VITE_RYONG_RUNTIME === "1" ? [{ label: t("Virtual keyboard", "가상 키보드"), connect: virtualConnect }] : [];
 const TRANSPORTS: TransportFactory[] = import.meta.env.VITE_RYONG_PREVIEW_ONLY === "1" ? VIRTUAL : [...VIRTUAL,
   navigator.serial && { label: "USB", connect: serial_connect },
-  // Linux/Android Chrome, plus iPhone/iPad browsers that add Web Bluetooth themselves (e.g. Bluefy):
-  // Safari and other iOS browsers have no navigator.bluetooth, so the button stays hidden there.
-  ...(navigator.bluetooth && /Linux|iPhone|iPad/.test(navigator.userAgent)
-    ? [{ label: "BLE", connect: gatt_connect }]
+  // Web Bluetooth wherever the browser has it. On Windows/macOS a keyboard already connected to the
+  // computer is invisible to the browser until Studio is unlocked: the firmware then advertises again
+  // (ZMK_STUDIO_LOCK_BLE_DIRECT_ADVERTISING_ON_UNLOCK), so the label says to unlock first.
+  // Safari and other iOS browsers have no navigator.bluetooth (Bluefy does).
+  ...(navigator.bluetooth
+    ? [{ label: /Linux|iPhone|iPad/.test(navigator.userAgent) ? "Bluetooth" : t("Bluetooth (unlock first)", "블루투스 (먼저 잠금 해제)"), connect: gatt_connect }]
     : []),
   ...(window.__TAURI_INTERNALS__
     ? [
