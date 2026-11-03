@@ -90,10 +90,11 @@ try {
   }
   await page.getByRole("button", {name:"미리보기 저장",exact:true}).click();
   await page.getByText("미리보기를 이 브라우저에 저장했습니다.",{exact:true}).waitFor();
-  await page.getByRole("button", {name:/^Hold-Tap/}).click();
-  const modtap=page.locator(".ry-item").filter({has:page.getByText("Mod-Tap",{exact:true})});
+  await page.getByRole("button", {name:/^탭·홀드/}).click();
+  const modtap=page.locator(".ry-taphold");
+  await page.getByRole("button",{name:"직접",exact:true}).click();
   await modtap.locator("input[type=number]").first().fill("285");
-  await modtap.locator("select").selectOption("balanced");
+  await page.getByRole("radio",{name:/균형/}).check();
   await page.getByRole("button", {name:"미리보기 저장",exact:true}).click();
   await page.getByText("미리보기를 이 브라우저에 저장했습니다.",{exact:true}).waitFor();
   const downloadEvent=page.waitForEvent("download");
@@ -104,7 +105,7 @@ try {
   await page.reload();
   await page.getByRole("button", { name: "콤보", exact: true }).click();
   if (await page.getByRole("button", { name: "연결 없이 미리보기", exact: true }).isVisible()) await page.getByRole("button", { name: "연결 없이 미리보기", exact: true }).click();
-  await page.getByRole("button",{name:/^Hold-Tap/}).click();
+  await page.getByRole("button",{name:/^탭·홀드/}).click();
   assert.equal(await modtap.locator("input[type=number]").first().inputValue(),"285");
   await page.getByLabel("동적 설정 백업 불러오기",{exact:true}).setInputFiles({name:"backup.json",mimeType:"application/json",buffer:Buffer.from(backup)});
   await page.getByRole("button",{name:/^탭댄스/}).click();
@@ -112,13 +113,13 @@ try {
   await page.locator(".ry-workspace").evaluate(element=>element.scrollTo(0,0));
   await page.screenshot({path:output+"/advanced.png",fullPage:true});
   // Unsaved edits survive navigation, reload and explicit review-only draft recovery.
-  await page.getByRole("button",{name:/^Hold-Tap/}).click();
+  await page.getByRole("button",{name:/^탭·홀드/}).click();
   await modtap.locator("input[type=number]").first().fill("299");
   await page.reload();
   await page.getByRole("button",{name:"콤보",exact:true}).click();
   await page.getByRole("button",{name:"연결 없이 미리보기",exact:true}).click();
   await page.getByRole("button",{name:"편집 내용 복원",exact:true}).click();
-  await page.getByRole("button",{name:/^Hold-Tap/}).click();
+  await page.getByRole("button",{name:/^탭·홀드/}).click();
   assert.equal(await modtap.locator("input[type=number]").first().inputValue(),"299");
   assert.equal(JSON.parse(await page.evaluate(()=>localStorage.getItem("ryong-runtime-preview-v1"))).advanced.holds[0].tappingTermMs,285);
   await page.setViewportSize({width:390,height:844});
@@ -141,7 +142,7 @@ try {
   assert.deepEqual(mutations, []);
   await fs.writeFile(output + "/result.json", JSON.stringify({ passed: true,
     mode: "browser-only preview; no device attached", checks: ["original editor rendering", "combo edit/save/reload",
-      "macro text edit/save/reload", "Tap Dance actions/save/reload", "Hold-Tap timing/save/reload", "dynamic backup download/import", "standalone file:// preview", "no JavaScript page errors", "zero HTTP mutations"] }, null, 2));
+      "macro text edit/save/reload", "Tap Dance actions/save/reload", "Tap·Hold timing/save/reload", "dynamic backup download/import", "standalone file:// preview", "no JavaScript page errors", "zero HTTP mutations"] }, null, 2));
   console.log("PASS: original runtime editor browser preview, combo/macro saves and reload, zero remote mutations");
 } catch (error) {
   await page.screenshot({ path: output + "/failure.png", fullPage: true });
