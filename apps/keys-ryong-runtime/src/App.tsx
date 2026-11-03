@@ -12,7 +12,7 @@ import { Dispatch, useCallback, useEffect, useState } from "react";
 import { ConnectModal, TransportFactory } from "./ConnectModal";
 
 import type { RpcTransport } from "@zmkfirmware/zmk-studio-ts-client/transport/index";
-import { connect as gatt_connect } from "@zmkfirmware/zmk-studio-ts-client/transport/gatt";
+import { connect as gatt_connect } from "./ryong/runtime/gattConnect";
 import { connect as serial_connect } from "@zmkfirmware/zmk-studio-ts-client/transport/serial";
 import {
   connect as tauri_ble_connect,
