@@ -127,16 +127,32 @@ export async function connect(): Promise<RpcTransport> {
     if (onReport) dev.removeEventListener("inputreport", onReport);
     if (onGone) hid.removeEventListener("disconnect", onGone);
   };
-  let sending = Promise.resolve();
+  // Requests written in the same moment are packed into full reports: each report is one Bluetooth
+  // write (one round trip on a Mac), and the keyboard reads the bytes as a stream anyway.
+  let queued: Uint8Array[] = [];
+  let sending: Promise<void> | undefined;
+  let failure: unknown;
+  const flush = async () => {
+    while (queued.length) {
+      await new Promise((r) => setTimeout(r, 0)); // let the other requests of this moment arrive
+      const parts = queued; queued = [];
+      const total = parts.reduce((n, p) => n + p.length, 0);
+      const all = new Uint8Array(total); let o = 0;
+      for (const p of parts) { all.set(p, o); o += p.length; }
+      for (const r of toReports(all, size)) await dev.sendReport(STUDIO_REPORT_ID, r);
+      hidStats.writes += parts.length; hidStats.bytesOut += total; if (!pendingSince) pendingSince = performance.now(); bump();
+    }
+  };
+  const kick = () => {
+    sending ??= flush().catch((e) => { failure = e; }).finally(() => { sending = undefined; if (queued.length && !failure) kick(); });
+  };
   const writable = new WritableStream<Uint8Array>({
     write(chunk) {
-      // Reports go out in order, one at a time.
-      sending = sending.then(async () => {
-        for (const r of toReports(chunk, size)) await dev.sendReport(STUDIO_REPORT_ID, r);
-        hidStats.writes++; hidStats.bytesOut += chunk.length; if (!pendingSince) pendingSince = performance.now(); bump();
-      });
-      return sending;
+      if (failure) throw failure;
+      queued.push(chunk.slice());
+      kick();
     },
+    async close() { await sending; },
   });
   const sig = abortController.signal;
   const abort = () => { sig.removeEventListener("abort", abort); cleanup(); hidStats.active = false; bump(); dev.close().catch(() => {}); };

@@ -353,10 +353,10 @@ index 0eb63ad73d56feb9d4e814f1cb0db3a87c3a24bf..f728555c4fd40fe681fe61179cbaf875
 +#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_RELAY_EVENT)
 \ No newline at end of file
 diff --git a/app/include/zmk/hid.h b/app/include/zmk/hid.h
-index 962180e706d6952061e255551d89096faf5038c0..6b65e05f0451a8d7efc917b3382e902e99c6343e 100644
+index 962180e706d6952061e255551d89096faf5038c0..2fb714998062df18981ea9269f698bea31ec918d 100644
 --- a/app/include/zmk/hid.h
 +++ b/app/include/zmk/hid.h
-@@ -77,6 +77,16 @@
+@@ -77,6 +77,17 @@
  #define ZMK_HID_REPORT_ID_CONSUMER 0x02
  #define ZMK_HID_REPORT_ID_MOUSE 0x03
  
@@ -364,16 +364,17 @@ index 962180e706d6952061e255551d89096faf5038c0..6b65e05f0451a8d7efc917b3382e902e
 + * collection, so hosts leave it alone and WebHID can open it while the keyboard stays connected.
 + * Each report: byte 0 = number of valid bytes (0..31), then up to 31 bytes of the Studio stream. */
 +#define ZMK_HID_REPORT_ID_STUDIO 0x10
-+/* 60: one report per BLE notification with ZMK's ATT MTU (65 - 3 - ID-less) and one USB full-speed
-+ * packet with the ID. Hosts read the size from the report map, so a change needs a re-pair. */
-+#define ZMK_HID_STUDIO_REPORT_SIZE 60
++/* 62 = the largest report that fits both links in one piece: a BLE notification carries ATT MTU 65
++ * - 3 = 62 bytes (HOG reports have no ID byte), a USB full-speed packet 64 bytes (ID + 62 = 63).
++ * Hosts read the size from the report map, so a change needs a re-pair. */
++#define ZMK_HID_STUDIO_REPORT_SIZE 62
 +#define ZMK_HID_STUDIO_USAGE_PAGE_LO 0x5A
 +#define ZMK_HID_STUDIO_USAGE_PAGE_HI 0xFF
 +
  #ifndef HID_ITEM_TAG_PUSH
  #define HID_ITEM_TAG_PUSH 0xA
  #endif
-@@ -253,6 +263,22 @@ static const uint8_t zmk_hid_report_desc[] = {
+@@ -253,6 +264,22 @@ static const uint8_t zmk_hid_report_desc[] = {
      HID_END_COLLECTION,
      HID_END_COLLECTION,
  #endif // IS_ENABLED(CONFIG_ZMK_POINTING)
@@ -1843,7 +1844,7 @@ index a8417dd768885482a44cc8d8b0883ddb6903fd2a..491ea44fedb6f2b48b8ca860ed9cbf42
 +target_sources_ifdef(CONFIG_ZMK_STUDIO_TRANSPORT_HID app PRIVATE hid_rpc_transport.c)
 \ No newline at end of file
 diff --git a/app/src/studio/Kconfig b/app/src/studio/Kconfig
-index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..92a1cb0a23038ce9c5859b69a8d8340df1ac1590 100644
+index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..ed180f015d89ab52b2954cd141ab40d13ebe2be6 100644
 --- a/app/src/studio/Kconfig
 +++ b/app/src/studio/Kconfig
 @@ -29,6 +29,13 @@ config ZMK_STUDIO_LOCK_ON_DISCONNECT
@@ -1860,13 +1861,14 @@ index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..92a1cb0a23038ce9c5859b69a8d8340d
  menuconfig ZMK_STUDIO_RPC
      bool "Remote Procedure Calls (RPC)"
      select NANOPB
-@@ -73,6 +80,25 @@ config ZMK_STUDIO_TRANSPORT_UART_RX_PRIORITY
+@@ -73,6 +80,26 @@ config ZMK_STUDIO_TRANSPORT_UART_RX_PRIORITY
  
  endif
  
 +config ZMK_STUDIO_TRANSPORT_HID
 +    bool "HID reports (USB and BLE HID; reachable from WebHID while the keyboard stays connected)"
 +    select RING_BUFFER
++    select BT_USER_DATA_LEN_UPDATE if ZMK_BLE
 +    depends on ZMK_BLE || ZMK_USB
 +    default y
 +
@@ -1886,7 +1888,7 @@ index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..92a1cb0a23038ce9c5859b69a8d8340d
  config ZMK_STUDIO_TRANSPORT_BLE
      bool "BLE (GATT)"
      select RING_BUFFER
-@@ -109,6 +135,25 @@ config ZMK_STUDIO_RPC_TX_BUF_SIZE
+@@ -109,6 +136,25 @@ config ZMK_STUDIO_RPC_TX_BUF_SIZE
      int "TX Buffer Size"
      default 64
  
@@ -2177,10 +2179,10 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..c6aa9f8b032ab69a61b8ac2d4ff04538
  }
 diff --git a/app/src/studio/hid_rpc_transport.c b/app/src/studio/hid_rpc_transport.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..d0d019c5474a90a164921e86881265c614016ed0
+index 0000000000000000000000000000000000000000..37fa8f8a326ce5b898b15223e457d31f7b686941
 --- /dev/null
 +++ b/app/src/studio/hid_rpc_transport.c
-@@ -0,0 +1,288 @@
+@@ -0,0 +1,294 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -2292,6 +2294,12 @@ index 0000000000000000000000000000000000000000..d0d019c5474a90a164921e86881265c6
 +        }
 +        fast_conn = bt_conn_ref(conn);
 +        set_latency(conn, 0);
++        /* Longer radio packets (Data Length Extension): a 62-byte report then goes out in one packet
++         * instead of three 27-byte pieces. Hosts that can't simply keep 27. */
++        int dle = bt_conn_le_data_len_update(conn, BT_LE_DATA_LEN_PARAM_MAX);
++        if (dle < 0 && dle != -EALREADY) {
++            LOG_DBG("Studio HID: data length update not started (%d)", dle);
++        }
 +    }
 +    k_mutex_unlock(&fast_lock);
 +    k_work_reschedule_for_queue(&hid_rpc_q, &slow_work, FAST_IDLE);

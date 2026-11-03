@@ -19,22 +19,27 @@ export async function readAdvanced(port: AdvancedPort): Promise<AdvancedState> {
     if (!list) throw new Error("Missing Tap Dance page.");
     for (const entry of list.entries) {
       if (dances.some(x => x.index === entry.index) || (hasAfterId && entry.index <= afterId)) throw new Error("Invalid Tap Dance pagination.");
-      const state = checked(await port.dance(T.Request.fromPartial({ get: { index: entry.index } }))).state;
+    }
+    const states = await Promise.all(list.entries.map(entry => port.dance(T.Request.fromPartial({ get: { index: entry.index } }))));
+    list.entries.forEach((entry, i) => {
+      const state = checked(states[i]).state;
       if (!state || state.index !== entry.index) throw new Error("Tap Dance changed while reading.");
       dances.push(state);
-    }
+    });
     if (!list.hasMore) break;
     if (!list.entries.length || list.nextAfterId <= afterId) throw new Error("Non-progressing Tap Dance page.");
     afterId = list.nextAfterId; hasAfterId = true;
   }
   if (dances.length !== global.usedEntries) throw new Error("Tap Dance count changed. Reload.");
-  const count = (await port.hold(H.Request.fromPartial({ count: {} }))).count?.count;
+  const [countR, ...items] = await Promise.all([port.hold(H.Request.fromPartial({ count: {} })),
+    ...Array.from({ length: 8 }, (_, slot) => port.hold(H.Request.fromPartial({ get: { slot } })))]);
+  const count = countR.count?.count;
   if (count === undefined || count > 8) throw new Error("Unsupported Hold-Tap count.");
   const holds: H.HoldTapInfo[] = [];
-  for (let slot = 0; slot < 8; slot++) {
-    const item = (await port.hold(H.Request.fromPartial({ get: { slot } }))).get;
+  items.forEach((r, slot) => {
+    const item = r.get;
     if (item?.found) { if (item.slot !== slot || !item.behaviorId) throw new Error("Unknown Hold-Tap identity."); holds.push(item); }
-  }
+  });
   if (holds.length !== count) throw new Error("Hold-Tap count changed.");
   return { global, dances, holds };
 }

@@ -56,24 +56,32 @@ export class RuntimeSession {
 
   async read(): Promise<RuntimeSnapshot> {
     await this.port.assertUnlocked();
-    const combos = await this.port.combo(C.Request.fromPartial({ listCombos: {} }));
-    const comboLimits = await this.port.combo(C.Request.fromPartial({ getGlobalSettings: {} }));
-    const macros = await this.port.macro(M.Request.fromPartial({ listMacros: {} }));
-    const macroLimits = await this.port.macro(M.Request.fromPartial({ getMacroGlobalSettings: {} }));
+    // Everything at once: the connection keeps many requests in flight (rpc/pipeline.ts), and over
+    // Bluetooth each wait costs a round trip.
+    const advancedP = this.port.advanced ? readAdvanced(this.port.advanced) : Promise.resolve(undefined);
+    const keymapP = this.port.keymap ? this.port.keymap.read() : Promise.resolve(undefined);
+    advancedP.catch(() => {}); keymapP.catch(() => {});
+    const [combos, comboLimits, macros, macroLimits] = await Promise.all([
+      this.port.combo(C.Request.fromPartial({ listCombos: {} })),
+      this.port.combo(C.Request.fromPartial({ getGlobalSettings: {} })),
+      this.port.macro(M.Request.fromPartial({ listMacros: {} })),
+      this.port.macro(M.Request.fromPartial({ getMacroGlobalSettings: {} })),
+    ]);
     for (const response of [combos, comboLimits, macros, macroLimits]) check(response);
     if (!combos.listCombos || !comboLimits.getGlobalSettings?.settings ||
         !macros.listMacros || !macroLimits.getMacroGlobalSettings?.settings) {
       throw new Error("Incomplete runtime capability response.");
     }
-    const details: M.MacroDetail[] = [];
-    for (const summary of macros.listMacros.macros) {
-      const response = await this.port.macro(M.Request.fromPartial({ getMacro: { slot: summary.slot } }));
+    const details: M.MacroDetail[] = (await Promise.all(macros.listMacros.macros.map((summary) =>
+      this.port.macro(M.Request.fromPartial({ getMacro: { slot: summary.slot } }))))).map((response, i) => {
       check(response);
-      if (!response.getMacro?.macro || response.getMacro.macro.slot !== summary.slot) {
+      const slot = macros.listMacros!.macros[i].slot;
+      if (!response.getMacro?.macro || response.getMacro.macro.slot !== slot) {
         throw new Error("Macro slot changed while reading. Reload the device.");
       }
-      details.push(response.getMacro.macro);
-    }
+      return response.getMacro.macro;
+    });
+    const [advanced, keymap] = await Promise.all([advancedP, keymapP]);
     return {
       combos: combos.listCombos.combos,
       macros: details,
@@ -81,8 +89,8 @@ export class RuntimeSession {
       macroLimits: macroLimits.getMacroGlobalSettings.settings,
       maxMacroBytes: macros.listMacros.maxMacroBytes,
       maxNameLength: macros.listMacros.maxNameLength,
-      advanced: this.port.advanced ? await readAdvanced(this.port.advanced) : undefined,
-      keymap: this.port.keymap ? await this.port.keymap.read() : undefined,
+      advanced,
+      keymap,
     };
   }
 
