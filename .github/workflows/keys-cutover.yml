@@ -52,8 +52,9 @@ jobs:
           [ -n "$zone" ] || echo "- The token cannot read the $ZONE DNS zone: DNS records are changed by hand (see the end)." | tee -a "$GITHUB_STEP_SUMMARY"
           Z="https://api.cloudflare.com/client/v4/zones/$zone/dns_records"
           if [ "$MODE" = attach ]; then  # retry attaching keys.ryong.com to the new project only
-            for i in 1 2 3 4 5 6; do
-              r=$(api -X POST "$A/$NEW/domains" --data-raw '{"name":"keys.ryong.com"}')
+            echo "domains now:"; api "$A/$NEW/domains" | head -c 800; echo
+            for i in $(seq 1 20); do
+              r=$(printf '{"name":"%s"}' keys.ryong.com | api -X POST "$A/$NEW/domains" --data-binary @-)
               echo "$r" | head -c 400; echo
               echo "$r" | grep -q '"success":true' && { echo "- attached keys.ryong.com to $NEW" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; }
               sleep 20
