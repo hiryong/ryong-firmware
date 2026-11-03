@@ -24,7 +24,7 @@ over a vendor HID collection** (usage page 0xFF5A, report 0x10, 32 bytes each wa
 Browsers' WebHID can open it while the keyboard stays connected over Bluetooth or USB, which Web
 Bluetooth cannot on Windows/macOS. Files: `include/zmk/hid.h` (descriptor), `src/hog.c` (BLE
 report characteristics, appended last), `src/usb_hid.c` (SET_REPORT, 64-byte interrupt endpoint),
-`src/studio/hid_rpc_transport.c`, `src/studio/rpc.c` (`zmk_rpc_use_transport`). Hosts must re-read
+`src/studio/hid_rpc_transport.c`, `src/studio/rpc.c` (`zmk_rpc_note_rx`: every transport keeps receiving and the one a request arrived on answers, so web HID, Web Bluetooth, the desktop app and USB serial work one after another without reconnecting). Hosts must re-read
 the HID descriptor once: remove the keyboard from the computer's Bluetooth list and pair again.
 
 ## Feature modules (`third_party/zmk-modules/`)

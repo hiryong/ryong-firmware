@@ -642,15 +642,16 @@ index 0000000000000000000000000000000000000000..07ea65aa6a1c0bf5a9f710ca2036669b
 +int zmk_hog_send_studio_report(struct bt_conn *conn, const uint8_t *body, size_t len);
 +int zmk_usb_hid_send_studio_report(const uint8_t *report, size_t len);
 diff --git a/app/include/zmk/studio/rpc.h b/app/include/zmk/studio/rpc.h
-index e223b7a5af98325d3b0224fa33307e8c00d515b2..b6aa0749096488196231b4a6a2833a17aad88589 100644
+index e223b7a5af98325d3b0224fa33307e8c00d515b2..01d65fc938cd3d7b01c74d73fdeca2c76a316fe9 100644
 --- a/app/include/zmk/studio/rpc.h
 +++ b/app/include/zmk/studio/rpc.h
-@@ -219,6 +219,9 @@ struct ring_buf *zmk_rpc_get_tx_buf(void);
+@@ -219,6 +219,10 @@ struct ring_buf *zmk_rpc_get_tx_buf(void);
  struct ring_buf *zmk_rpc_get_rx_buf(void);
  void zmk_rpc_rx_notify(void);
  
 +struct zmk_rpc_transport;
-+void zmk_rpc_use_transport(const struct zmk_rpc_transport *t);
++/* Call when bytes arrive on t (any context): t answers the next request. */
++void zmk_rpc_note_rx(const struct zmk_rpc_transport *t);
 +
  #define ZMK_RPC_TRANSPORT(name, _transport, _rx_start, _rx_stop, _tx_user_data, _tx_notify)        \
      STRUCT_SECTION_ITERABLE(zmk_rpc_transport, name) = {                                           \
@@ -2022,7 +2023,7 @@ index 0000000000000000000000000000000000000000..b2096405bbe045bf04fc7234ec4f46d9
 +SYS_INIT(custom_subsystem_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 +#endif
 diff --git a/app/src/studio/gatt_rpc_transport.c b/app/src/studio/gatt_rpc_transport.c
-index dff1825908b8f8c54bce758aa8701a25ce928d20..0e020dc5df9ce37676bfcb48bb8b3753413b776f 100644
+index dff1825908b8f8c54bce758aa8701a25ce928d20..24ba011d963c5a819f307eb767f72aa86ad0a7a8 100644
 --- a/app/src/studio/gatt_rpc_transport.c
 +++ b/app/src/studio/gatt_rpc_transport.c
 @@ -16,7 +16,6 @@
@@ -2033,7 +2034,22 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..0e020dc5df9ce37676bfcb48bb8b3753
  #include "uuid.h"
  
  #include <zephyr/logging/log.h>
-@@ -196,7 +195,21 @@ static void gatt_tx_notify(struct ring_buf *tx_buf, size_t added, bool msg_done,
+@@ -61,11 +60,14 @@ static ssize_t read_rpc_resp(struct bt_conn *conn, const struct bt_gatt_attr *at
+     return 0;
+ }
+ 
++extern struct zmk_rpc_transport gatt;
++
+ static ssize_t write_rpc_req(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf,
+                              uint16_t len, uint16_t offset, uint8_t flags) {
+     if (!handling_rx) {
+         return len;
+     }
++    zmk_rpc_note_rx(&gatt);
+ 
+     uint32_t copied = 0;
+     struct ring_buf *rpc_buf = zmk_rpc_get_rx_buf();
+@@ -196,7 +198,21 @@ static void gatt_tx_notify(struct ring_buf *tx_buf, size_t added, bool msg_done,
      atomic_t ns = atomic_get(&notify_size);
  
      if (msg_done || state->pending_notify > ns) {
@@ -2058,10 +2074,10 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..0e020dc5df9ce37676bfcb48bb8b3753
  }
 diff --git a/app/src/studio/hid_rpc_transport.c b/app/src/studio/hid_rpc_transport.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..cbb64f354607a0210133e8e15f00a27a02703456
+index 0000000000000000000000000000000000000000..bdc7552f324ec85caf0734747e40aca9df45a18b
 --- /dev/null
 +++ b/app/src/studio/hid_rpc_transport.c
-@@ -0,0 +1,188 @@
+@@ -0,0 +1,186 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -2076,7 +2092,7 @@ index 0000000000000000000000000000000000000000..cbb64f354607a0210133e8e15f00a27a
 + * one extra collection (usage page 0xFF5A) with a 32-byte input and output report:
 + *   byte 0 = number of valid bytes (0..31), bytes 1.. = the Studio byte stream (same framing as
 + *   the serial and GATT transports).
-+ * The transport takes over Studio whenever a request arrives on it (zmk_rpc_use_transport), and
++ * Studio answers on the transport a request arrived on (zmk_rpc_note_rx), so this one
 + * answers on the same link: the BLE connection the request came from, or USB.
 + */
 +
@@ -2171,9 +2187,7 @@ index 0000000000000000000000000000000000000000..cbb64f354607a0210133e8e15f00a27a
 +    struct rx_item item;
 +    while (k_msgq_get(&hid_rx_q, &item, K_FOREVER) == 0) {
 +        set_peer(item.conn);
-+        if (!handling_rx) {
-+            zmk_rpc_use_transport(&studio_hid_transport);
-+        }
++        zmk_rpc_note_rx(&studio_hid_transport);
 +        struct ring_buf *rx = zmk_rpc_get_rx_buf();
 +        uint32_t copied = 0;
 +        while (copied < item.len) {
@@ -2251,10 +2265,18 @@ index 0000000000000000000000000000000000000000..cbb64f354607a0210133e8e15f00a27a
 +
 +SYS_INIT(hid_rpc_transport_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 diff --git a/app/src/studio/rpc.c b/app/src/studio/rpc.c
-index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..c04d543fe0e184e3489c79fcab3ab9b89102c5b9 100644
+index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..dad27219985fc4cb884243e7ec54a9d4b2efbff9 100644
 --- a/app/src/studio/rpc.c
 +++ b/app/src/studio/rpc.c
-@@ -131,6 +131,13 @@ static bool rpc_tx_buffer_write(pb_ostream_t *stream, const uint8_t *buf, size_t
+@@ -13,6 +13,7 @@
+ #include <zephyr/kernel.h>
+ #include <zephyr/debug/thread_analyzer.h>
+ #include <zephyr/logging/log.h>
++#include <zephyr/sys/atomic.h>
+ 
+ LOG_MODULE_REGISTER(zmk_studio, CONFIG_ZMK_STUDIO_LOG_LEVEL);
+ 
+@@ -131,6 +132,13 @@ static bool rpc_tx_buffer_write(pb_ostream_t *stream, const uint8_t *buf, size_t
          uint32_t claim_len = ring_buf_put_claim(&rpc_tx_buf, &write_buf, count - written);
  
          if (claim_len == 0) {
@@ -2268,7 +2290,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..c04d543fe0e184e3489c79fcab3ab9b8
              continue;
          }
  
-@@ -177,6 +184,7 @@ static pb_ostream_t pb_ostream_for_tx_buf(void *user_data) {
+@@ -177,6 +185,7 @@ static pb_ostream_t pb_ostream_for_tx_buf(void *user_data) {
  }
  
  static int send_response(const zmk_studio_Response *resp) {
@@ -2276,7 +2298,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..c04d543fe0e184e3489c79fcab3ab9b8
      k_mutex_lock(&rpc_transport_mutex, K_FOREVER);
  
      if (!selected_transport) {
-@@ -188,7 +196,19 @@ static int send_response(const zmk_studio_Response *resp) {
+@@ -188,7 +197,19 @@ static int send_response(const zmk_studio_Response *resp) {
      pb_ostream_t stream = pb_ostream_for_tx_buf(user_data);
  
      uint8_t framing_byte = FRAMING_SOF;
@@ -2297,7 +2319,7 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..c04d543fe0e184e3489c79fcab3ab9b8
  
      selected_transport->tx_notify(&rpc_tx_buf, 1, false, user_data);
  
-@@ -198,18 +218,34 @@ static int send_response(const zmk_studio_Response *resp) {
+@@ -198,18 +219,54 @@ static int send_response(const zmk_studio_Response *resp) {
      if (!status) {
  #if !IS_ENABLED(CONFIG_NANOPB_NO_ERRMSG)
          LOG_ERR("Failed to encode the message %s", stream.errmsg);
@@ -2331,32 +2353,99 @@ index e79b5568c83d63b9285e2a0cad64c9967b63c1d3..c04d543fe0e184e3489c79fcab3ab9b8
      k_mutex_unlock(&rpc_transport_mutex);
 -    return 0;
 +    return err;
++}
++
++/* Ryong: every transport keeps receiving, and the one a request arrived on answers it. Lets the
++ * web page (HID or Web Bluetooth), the desktop app (GATT) and USB serial be used one after another
++ * without reconnecting. ISR-safe: only records the transport; the RPC thread switches itself. */
++static atomic_ptr_t pending_transport = ATOMIC_PTR_INIT(NULL);
++
++void zmk_rpc_note_rx(const struct zmk_rpc_transport *t) { atomic_ptr_set(&pending_transport, (void *)t); }
++
++static void apply_pending_transport(void) {
++    const struct zmk_rpc_transport *t = atomic_ptr_clear(&pending_transport);
++    if (!t) {
++        return;
++    }
++    k_mutex_lock(&rpc_transport_mutex, K_FOREVER);
++    if (selected_transport != t) {
++        LOG_DBG("Studio answers on the transport the request came from");
++        selected_transport = t;
++    }
++    k_mutex_unlock(&rpc_transport_mutex);
  }
  
  static void rpc_main(void) {
-@@ -279,6 +315,22 @@ exit_refresh:
-     k_mutex_unlock(&rpc_transport_mutex);
- }
+@@ -224,6 +281,7 @@ static void rpc_main(void) {
+         rpc_framing_state = FRAMING_STATE_IDLE;
  
-+/* Ryong: a transport that is not tied to the selected endpoint (Studio over HID reports) takes
-+ * over when a request arrives on it. Called from a work item, never from a BT/USB callback. */
-+void zmk_rpc_use_transport(const struct zmk_rpc_transport *t) {
-+    k_mutex_lock(&rpc_transport_mutex, K_FOREVER);
-+    if (selected_transport != t) {
-+        if (selected_transport && selected_transport->rx_stop) {
-+            selected_transport->rx_stop();
-+        }
-+        selected_transport = t;
+         if (status) {
++            apply_pending_transport();
+             zmk_studio_Response resp = handle_request(&req);
+ 
+             int err = send_response(&resp);
+@@ -252,9 +310,6 @@ static void refresh_selected_transport(void) {
+     }
+ 
+     if (selected_transport) {
+-        if (selected_transport->rx_stop) {
+-            selected_transport->rx_stop();
+-        }
+         selected_transport = NULL;
+ #if IS_ENABLED(CONFIG_ZMK_STUDIO_LOCK_ON_DISCONNECT)
+         zmk_studio_core_lock();
+@@ -264,9 +319,6 @@ static void refresh_selected_transport(void) {
+     STRUCT_SECTION_FOREACH(zmk_rpc_transport, t) {
+         if (t->transport == transport) {
+             selected_transport = t;
+-            if (selected_transport->rx_start) {
+-                selected_transport->rx_start();
+-            }
+             break;
+         }
+     }
+@@ -306,6 +358,12 @@ static int zmk_rpc_init(void) {
+         prev_sub->handlers_end_index = i - 1;
+     }
+ 
++    STRUCT_SECTION_FOREACH(zmk_rpc_transport, t) {
 +        if (t->rx_start) {
 +            t->rx_start();
 +        }
 +    }
-+    k_mutex_unlock(&rpc_transport_mutex);
-+}
 +
- static int zmk_rpc_init(void) {
-     int prev_choice = -1;
-     struct zmk_rpc_subsystem *prev_sub = NULL;
+     refresh_selected_transport();
+ 
+     return 0;
+diff --git a/app/src/studio/uart_rpc_transport.c b/app/src/studio/uart_rpc_transport.c
+index 6dcac6d1d09ca0238f625d9a7f030eb9a960c460..73a3142cf9ebea9bd2a190d5f718d42105a5e33d 100644
+--- a/app/src/studio/uart_rpc_transport.c
++++ b/app/src/studio/uart_rpc_transport.c
+@@ -18,6 +18,8 @@ LOG_MODULE_DECLARE(zmk_studio, CONFIG_ZMK_STUDIO_LOG_LEVEL);
+ /* change this to any other UART peripheral if desired */
+ #define UART_DEVICE_NODE DT_CHOSEN(zmk_studio_rpc_uart)
+ 
++extern struct zmk_rpc_transport uart;
++
+ static const struct device *const uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
+ 
+ static void tx_notify(struct ring_buf *tx_ring_buf, size_t written, bool msg_done,
+@@ -59,6 +61,7 @@ static void uart_rx_main(void) {
+             k_sleep(K_MSEC(1));
+         } else {
+             ring_buf_put_finish(ring_buf, 1);
++            zmk_rpc_note_rx(&uart);
+             zmk_rpc_rx_notify();
+         }
+     }
+@@ -119,6 +122,7 @@ static void serial_cb(const struct device *dev, void *user_data) {
+             }
+         } while (last_read && last_read == len);
+ 
++        zmk_rpc_note_rx(&uart);
+         zmk_rpc_rx_notify();
+     }
+ 
 diff --git a/app/src/usb_hid.c b/app/src/usb_hid.c
 index 9adc7db809252d2f1dfa8f4d8ec8d1d4d97fc834..bb3af9d54885229904cfba59ccaa3f4e34342fc8 100644
 --- a/app/src/usb_hid.c
