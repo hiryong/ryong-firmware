@@ -89,8 +89,8 @@ export function DeviceSettingsPanel() {
     const bytes = new TextEncoder().encode(value.trim()).length;
     const changed = value.trim() !== current && bytes > 0 && bytes <= max;
     return <section className="ry-card ry-setcard" aria-label={t("Keyboard name", "키보드 이름")}>
-      <Row title={t("Keyboard name", "키보드 이름")} hint={t("Shown in Bluetooth lists with the slot number (e.g. “{n} 1”). Computers that already paired may keep the old name until paired again. The USB name stays the board's own.",
-        "Bluetooth 목록에 슬롯 번호와 함께(예: “{n} 1”) 보여요. 이미 페어링한 컴퓨터는 다시 페어링할 때까지 예전 이름이 남을 수 있어요. USB 이름은 보드 이름 그대로예요.", { n: value.trim() || current })}>
+      <Row title={t("Keyboard name", "키보드 이름")} hint={t("Shown in Bluetooth lists with the slot number (e.g. “{n} 1”) at once, and over USB from the next start. Computers that already paired may keep the old name until paired again.",
+        "Bluetooth 목록에는 슬롯 번호와 함께(예: “{n} 1”) 바로, USB 이름은 다음에 켤 때부터 바뀌어요. 이미 페어링한 컴퓨터는 다시 페어링할 때까지 예전 이름이 남을 수 있어요.", { n: value.trim() || current })}>
         <span className="ry-gap">
           <input type="text" className="ry-input" value={value} aria-label={t("Keyboard name", "키보드 이름")} disabled={busy}
             onChange={(e) => setNameDraft(e.target.value)} style={{ width: "12em" }} />

@@ -84,8 +84,8 @@ export interface LightPower {
 }
 
 /**
- * The keyboard's Bluetooth name (at once). Stored on the keyboard; firmware updates keep it.
- * The USB name stays the build-time one (rewriting the USB descriptor broke enumeration).
+ * The keyboard's name: Bluetooth at once, USB from the next start (usb_name.c). Stored on the
+ * keyboard, so every computer sees it; firmware updates keep it.
  */
 export interface KeyboardName {
   name: string;
