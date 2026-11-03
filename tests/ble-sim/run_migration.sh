@@ -31,7 +31,7 @@ for v in old new; do
   f=$out/$v.log
   echo "- $v: Bluetooth started: $(grep -cE "$ready" "$f"), slots paired: $(grep -cE "$paired" "$f"), key reports received: $(grep -c 'notify_func: payload' "$f"), older pairings removed: $(grep -c 'removing older pairings' "$f"), crashes: $(grep -cE 'FATAL|ASSERTION|panic|Fault' "$f")"
 done
-# the old firmware must have left paired slots behind, and the new one must start, pair a new
-# computer and deliver keys to it
-grep -qE "$paired" "$out/old.log" && grep -qE "$ready" "$out/new.log" && grep -qE "$paired" "$out/new.log" \
+# the old firmware must have left paired slots behind (REQUIRE_OLD_PAIRED=0 for a broken old build),
+# and the new one must start, pair a new computer and deliver keys to it
+{ [ "${REQUIRE_OLD_PAIRED:-1}" = 0 ] || grep -qE "$paired" "$out/old.log"; } && grep -qE "$ready" "$out/new.log" && grep -qE "$paired" "$out/new.log" \
   && grep -q 'notify_func: payload' "$out/new.log" && ! grep -qE 'FATAL|ASSERTION|panic|Fault' "$out/new.log"

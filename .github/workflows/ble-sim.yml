@@ -80,9 +80,9 @@ jobs:
           git -C "$R" show 76a1944:third_party/zmk/zmk-custom-studio.patch > /tmp/76a1944.patch
           git -C ../../zmk-76a1944 apply --whitespace=nowarn /tmp/76a1944.patch
           "$R/tests/ble-sim/run_migration.sh" "$M" from-official old ../../zmk-official/app . | tee -a "$GITHUB_STEP_SUMMARY"
-          "$R/tests/ble-sim/run_migration.sh" "$M" from-76a1944 old-ids ../../zmk-76a1944/app . | tee -a "$GITHUB_STEP_SUMMARY"
-          # for comparison only: the frozen build itself on the official firmware's flash
-          "$R/tests/ble-sim/run_migration.sh" "$M" before-fix old ../../zmk-official/app ../../zmk-76a1944/app | tee -a "$GITHUB_STEP_SUMMARY" || true
+          # 76a1944 itself stops at power-up once settings are stored (HCI command timeout while its
+          # start-up ran inside settings_load): whatever it left behind, this firmware must start
+          REQUIRE_OLD_PAIRED=0 "$R/tests/ble-sim/run_migration.sh" "$M" from-76a1944 old-ids ../../zmk-76a1944/app . | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
