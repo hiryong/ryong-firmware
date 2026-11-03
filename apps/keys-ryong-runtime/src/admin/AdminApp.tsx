@@ -148,8 +148,9 @@ function ChannelCards({ channels }: { channels: Channels }) {
 }
 
 function Status({ onError, go, me }: { onError: (e: unknown) => void; go: (t: "build" | "test", id?: number) => void; me: Me }) {
-  const { data, loading, reload } = useLoad<{ checks: Check[]; builds: BuildRow[]; channels: Channels }>(me.setup.github ? "/overview" : null, onError);
+  const { data, loading, reload } = useLoad<{ checks: Check[]; builds: BuildRow[]; channels: Channels; zmk: ZmkUpdate | null }>(me.setup.github ? "/overview" : null, onError);
   return <>
+    {data?.zmk?.candidate && <ZmkNotice z={data.zmk} />}
     <Section title="배포 중인 펌웨어" action={<button className="ry-text" onClick={reload} disabled={loading}>{loading ? "불러오는 중…" : "새로고침"}</button>}>
       <ChannelCards channels={data?.channels ?? {}} />
     </Section>
@@ -167,6 +168,31 @@ function Status({ onError, go, me }: { onError: (e: unknown) => void; go: (t: "b
       <BuildList rows={data?.builds ?? []} go={go} />
     </Section>
   </>;
+}
+
+type ZmkUpdate = {
+  checked_at: string; current: { zmk: string; label: string }; latest_release: string | null;
+  candidate?: { release: string; status: "ready" | "needs_work" | "failed"; summary: string; overlaps?: string[];
+    builds?: { target: string; run: number }[]; prepared_at: string; details_url?: string };
+};
+const ZMK_STATUS = { ready: "설치 테스트 가능", needs_work: "확인 필요", failed: "빌드 실패" } as const;
+
+/** A new official ZMK release, already combined with our modules and judged (vendor/zmk/README.md). */
+function ZmkNotice({ z }: { z: ZmkUpdate }) {
+  const c = z.candidate!;
+  return <Section title={`새 ZMK 정식 버전 · ${c.release}`}>
+    <div className="kc-card kc-notice">
+      <div className="kc-row"><span className={`kc-dot ${c.status === "ready" ? "is-ok" : c.status === "failed" ? "is-bad" : "is-busy"}`} />
+        <strong>{ZMK_STATUS[c.status]}</strong><span className="ry-faint">지금 {z.current.label} · {ago(c.prepared_at)}</span></div>
+      <p className="kc-notice-t">{c.summary}</p>
+      {!!c.overlaps?.length && <ul className="kc-why">{c.overlaps.map((o) => <li key={o}>{o}</li>)}</ul>}
+      <div className="kc-row">
+        {(c.builds ?? []).map((b) => <span key={b.run} className="ry-faint">{TARGET_LABEL[b.target] ?? b.target} r{b.run}</span>)}
+        {c.details_url && <a className="ry-text" href={c.details_url} target="_blank" rel="noreferrer">자세히</a>}
+      </div>
+      <p className="ry-faint">설치용 배포는 지금처럼 검증 기록을 남긴 뒤에만 할 수 있어요.</p>
+    </div>
+  </Section>;
 }
 
 function BuildList({ rows, go }: { rows: BuildRow[]; go: (t: "test", id?: number) => void }) {

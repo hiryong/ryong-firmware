@@ -1,5 +1,5 @@
 import { AdminEnv, json } from "../../_lib/auth";
-import { BUILD_WORKFLOW, ghJson, parseBuildTitle, readChannels, ref, repo, Run } from "../../_lib/github";
+import { BUILD_WORKFLOW, ghJson, parseBuildTitle, readChannels, readRegistry, ref, repo, Run } from "../../_lib/github";
 
 const CHECKS: [string, string][] = [
   ["runtime-client-validation.yml", "웹앱·가상 키보드 테스트"],
@@ -12,7 +12,7 @@ const CHECKS: [string, string][] = [
 
 export const onRequestGet: PagesFunction<AdminEnv> = async ({ env }) => {
   const r = repo(env), branch = encodeURIComponent(ref(env));
-  const [checks, builds, channels] = await Promise.all([
+  const [checks, builds, channels, zmk] = await Promise.all([
     Promise.all(CHECKS.map(async ([file, label]) => {
       const x = await ghJson<{ workflow_runs: Run[] }>(env, `/repos/${r}/actions/workflows/${file}/runs?branch=${branch}&per_page=1`).catch(() => null);
       const run = x?.workflow_runs[0];
@@ -21,10 +21,13 @@ export const onRequestGet: PagesFunction<AdminEnv> = async ({ env }) => {
     })),
     ghJson<{ workflow_runs: Run[] }>(env, `/repos/${r}/actions/workflows/${BUILD_WORKFLOW}/runs?per_page=5&event=workflow_dispatch`).catch(() => ({ workflow_runs: [] as Run[] })),
     readChannels(env),
+    // Written by the weekly ZMK release check (vendor/zmk/README.md): official release + our modules, prepared and judged.
+    readRegistry<unknown>(env, "zmk-update.json").then((x) => x?.data ?? null).catch(() => null),
   ]);
   return json({
     checks,
     builds: builds.workflow_runs.map((b) => ({ id: b.id, ...parseBuildTitle(b.display_title), status: b.status, conclusion: b.conclusion, at: b.created_at, url: b.html_url })),
     channels,
+    zmk,
   });
 };

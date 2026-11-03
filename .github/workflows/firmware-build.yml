@@ -80,10 +80,7 @@ jobs:
             /tmp/fw/modules
             /tmp/fw/tools
             /tmp/fw/bootloader
-            /tmp/fw/zmk-feature-runtime-combo
-            /tmp/fw/zmk-feature-runtime-macro
-            /tmp/fw/zmk-feature-custom-settings
-          key: fw-${{ inputs.target == 'ryong60' && 'ryong60' || 'bt60' }}-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'experiments/dya-runtime/west.yml', 'vendor/zmk/base.json') }}
+          key: fw-${{ inputs.target == 'ryong60' && 'ryong60' || 'bt60' }}-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'experiments/dya-runtime/west.yml', 'vendor/zmk/base.json', 'vendor/zmk-modules/**') }}
       - name: Resolve pinned dependencies
         working-directory: /tmp/fw
         run: |

@@ -10,6 +10,7 @@ later changes to (or removal of) that fork can never reach our builds. See vendo
 """
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +23,36 @@ BASE = json.loads((VENDOR / "base.json").read_text())
 OFFICIAL = {"zmk": "https://github.com/zmkfirmware/zmk",
             "zmk-studio-messages": "https://github.com/zmkfirmware/zmk-studio-messages"}
 MESSAGES_PATH = "modules/msgs/zmk-studio-messages"
+MODULES = ROOT / "vendor/zmk-modules"
+
+
+def tree_hash(path):
+    """sha256 over every vendored file (path + content), so an edit is noticed and re-reviewed."""
+    h = hashlib.sha256()
+    for f in sorted(x for x in path.rglob("*") if x.is_file()):
+        h.update(f.relative_to(path).as_posix().encode() + b"\0" + f.read_bytes() + b"\0")
+    return h.hexdigest()
+
+
+def local_repo(name, dest):
+    """A throwaway git repo holding our vendored copy, so west treats it like any other project
+    (module discovery, same workspace path) without fetching anything from the network."""
+    info = BASE["modules"][name]
+    src = MODULES / name
+    if tree_hash(src) != info["tree_sha256"]:
+        raise SystemExit(f"vendor/zmk-modules/{name} does not match base.json; re-review before building")
+    repo = dest / name
+    if repo.exists():
+        raise SystemExit(f"{repo} already exists")
+    subprocess.run(["cp", "-r", str(src), str(repo)], check=True)
+    env = {**os.environ, "GIT_AUTHOR_NAME": "ryong-vendor", "GIT_AUTHOR_EMAIL": "vendor@ryong.invalid",
+           "GIT_COMMITTER_NAME": "ryong-vendor", "GIT_COMMITTER_EMAIL": "vendor@ryong.invalid",
+           "GIT_AUTHOR_DATE": "2026-11-03T00:00:00Z", "GIT_COMMITTER_DATE": "2026-11-03T00:00:00Z"}
+    git = lambda *a: subprocess.run(["git", "-C", str(repo), *a], check=True, env=env, capture_output=True, text=True).stdout.strip()
+    git("init", "-q", "-b", "vendored")
+    git("add", "-A")
+    git("commit", "-q", "-m", f"vendored {name} (from {info['from']})")
+    return repo.as_uri(), git("rev-parse", "HEAD")
 
 
 def check_patches():
@@ -47,8 +78,30 @@ def manifest(path):
         p.pop("remote", None)
         p["url"] = OFFICIAL[name]
         p["revision"] = rev
+    # Feature modules (combo, macro, tap dance, OS detection, custom settings) come from vendor/zmk-modules.
+    store = path.parent.parent / ".ryong-vendor"
+    store.mkdir(exist_ok=True)
+    for p in projects:
+        if p["name"] in ("zmk", "zmk-studio-messages"):
+            continue
+        third_party = "cormoran" in str(p.get("url", "")) or p.get("remote") == "cormoran"
+        if not third_party:
+            continue
+        info = BASE["modules"].get(p["name"])
+        if info is None:
+            raise SystemExit(f"{p['name']} is not vendored; add it to vendor/zmk-modules first")
+        if p.get("revision") != info["from_revision"]:
+            raise SystemExit(f"{p['name']} is pinned to {p.get('revision')}, vendored copy is {info['from_revision']}")
+        p.pop("remote", None)
+        p["url"], p["revision"] = local_repo(p["name"], store)
+    leftover = [p["name"] for p in projects if "cormoran" in str(p.get("url", "")) or p.get("remote") == "cormoran"]
+    if leftover:
+        raise SystemExit(f"still fetching from a third-party fork: {leftover}")
+    data["manifest"]["remotes"] = [r for r in data["manifest"].get("remotes", []) if r.get("name") != "cormoran"] or None
+    if data["manifest"]["remotes"] is None:
+        data["manifest"].pop("remotes")
     path.write_text(yaml.safe_dump(data, sort_keys=False))
-    print(f"official zmk {BASE['zmk'][:7]}, zmk-studio-messages {BASE['zmk_studio_messages'][:7]} (+ vendored patches)")
+    print(f"official zmk {BASE['zmk'][:7]}, zmk-studio-messages {BASE['zmk_studio_messages'][:7]} (+ vendored patches and modules)")
 
 
 def apply(workspace):
