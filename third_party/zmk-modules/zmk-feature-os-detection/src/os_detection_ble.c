@@ -153,6 +153,15 @@ static void settle_work_handler(struct k_work *work) {
     }
     s->settled = true;
     s->profile = profile;
+#if IS_ENABLED(CONFIG_BT_REMOTE_INFO)
+    if (!s->stats.ll_company_id) {
+        struct bt_conn_remote_info ri;
+        if (bt_conn_get_remote_info(s->conn, &ri) == 0) {
+            s->stats.ll_company_id = ri.manufacturer;
+            s->stats.ll_version = ri.version;
+        }
+    }
+#endif
 #if IS_ENABLED(CONFIG_ZMK_CUSTOM_SETTINGS)
     if (s->fresh) {
         /* A new computer on this slot: the previous one's manual choice must not carry over. */

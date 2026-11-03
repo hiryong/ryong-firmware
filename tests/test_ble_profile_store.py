@@ -65,6 +65,7 @@ int zmk_ble_active_profile_index(void){return active;}
 int zmk_ble_prof_select(uint8_t i){if(i>=5)return -ERANGE;assert(lock_depth==1);selects[nselect++]=i;active=i;return 0;}
 void zmk_ble_clear_bonds(void){memset(&peers[active],0,sizeof peers[0]);conn[active]=false;}
 int ryong_host_guard_profile(uint8_t i){guards[nguard++]=i;return 0;}
+static int site_flag;void ryong_bt_log_site_clear(bool on){site_flag=on;}
 int settings_name_steq(const char *name,const char *key,const char **next){
  size_t n=strlen(key);if(strncmp(name,key,n))return 0;if(name[n]=='/'){*next=name+n+1;return 1;}if(!name[n]){*next=NULL;return 1;}return 0;}
 static int slot(const char *k,int create){

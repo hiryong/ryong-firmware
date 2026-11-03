@@ -21,6 +21,9 @@ const hostSaid = (f: NonNullable<O_BleProfileState["fingerprint"]>) =>
     : t("The computer did not answer.", "컴퓨터가 정보를 주지 않았어요.");
 const fingerprintText = (f: NonNullable<O_BleProfileState["fingerprint"]>) =>
   `HID map ${f.reportMap} · HID info ${f.hidsInfo} · report ${f.report} · PnP ${f.pnpId} · appearance ${f.appearance} · MTU ${f.attMtu} · interval ${f.connInterval} · probe ${f.appleProbe} · LL 0x${(f.llCompany ?? 0).toString(16).padStart(4, "0")} v${f.llVersion ?? 0}${f.keptCached ? " · kept" : ""}`;
+const causeLabel = (c: number) => c === 1 ? t("paired", "페어링됨") : c === 2 ? t("cleared with the keyboard's clear key", "키보드의 슬롯 지우기 키로 지워짐")
+  : c === 3 ? t("all slots cleared with the keyboard's key", "키보드 키로 전체 지워짐") : c === 4 ? t("pairing refused (slot taken)", "페어링 거부됨 (사용 중인 슬롯)")
+  : c === 5 ? t("removed on this page", "이 페이지에서 등록 삭제") : t("changed", "변경됨");
 const detectedLabel = (os: Os) => os === Os.OS_UNKNOWN || os === Os.OS_UNSPECIFIED
   ? t("Not detected yet", "아직 감지 안 됨") : apple(os) ? t("Apple (macOS / iOS)", "Apple 계열 (macOS / iOS)") : t("Windows or other", "Windows 또는 기타");
 
@@ -153,6 +156,12 @@ export function HostPanel() {
         </div>}
       </div>;
     })}
+    {!!slots?.history?.length && <details className="ry-card">
+      <summary>{t("Registration history", "등록 기록")}</summary>
+      <ul className="ry-faint">{slots.history.map((h, i) => <li key={i}>
+        Bluetooth {h.slot + 1} · {causeLabel(h.cause)} · {h.bootsAgo === 0 ? t("since it was switched on", "이번에 켠 뒤") : t("{n} power-ups ago", "{n}번 전에 켰을 때", { n: h.bootsAgo })}
+      </li>)}</ul>
+    </details>}
     {ready && <button className="ry-outline" style={{ alignSelf: "flex-start" }} disabled={busy} onClick={() => setReload(n => n + 1)}>{t("Reload from keyboard", "키보드에서 다시 읽기")}</button>}
   </div>;
 }

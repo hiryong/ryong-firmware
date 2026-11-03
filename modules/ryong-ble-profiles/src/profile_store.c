@@ -146,7 +146,9 @@ static void run_op(struct k_work *work) {
         int previous = zmk_ble_active_profile_index();
         op.rc = previous == op.index ? 0 : zmk_ble_prof_select(op.index);
         if (!op.rc) {
+            ryong_bt_log_site_clear(true); /* the bond history records "removed from the web page" */
             zmk_ble_clear_bonds(); /* public API: clears the active slot only */
+            ryong_bt_log_site_clear(false);
             if (previous != op.index && previous >= 0) (void)zmk_ble_prof_select((uint8_t)previous);
             op.rc = zmk_ble_profile_is_open(op.index) ? 0 : -EIO;
         }

@@ -44,6 +44,15 @@ static void fill_state(ryong_ble_profiles_Response *response) {
     state->active_index = (uint32_t)ryong_bt_profiles_active();
     state->name_max_bytes = RY_BT_NAME_MAX;
     state->protocol_version = RYONG_BLE_PROFILES_PROTOCOL;
+    struct ryong_bt_bond_event ev[ARRAY_SIZE(state->history)];
+    uint16_t boot = 0;
+    int n = ryong_bt_bond_history(ev, ARRAY_SIZE(ev), &boot);
+    for (int i = 0; i < n; i++) {
+        ryong_ble_profiles_BondEvent *h = &state->history[state->history_count++];
+        h->slot = ev[i].slot;
+        h->cause = ev[i].cause;
+        h->boots_ago = (uint16_t)(boot - ev[i].boot);
+    }
 }
 
 static bool handle(const zmk_custom_CallRequest *raw, pb_callback_t *encoded) {

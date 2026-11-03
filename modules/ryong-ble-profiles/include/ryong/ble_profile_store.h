@@ -24,4 +24,19 @@ int ryong_bt_profile_rename(uint8_t index, uint32_t token, const char *name, siz
 int ryong_bt_profile_clear(uint8_t index, uint32_t token);
 /* Deletes names left behind by a bond that changed outside this RPC. */
 int ryong_bt_profiles_purge_stale(void);
+
+/* Bond history (bond_log.c). Causes: */
+#define RY_BT_EVENT_PAIRED 1
+#define RY_BT_EVENT_CLEARED_KEY 2   /* the slot-clear key on the keyboard */
+#define RY_BT_EVENT_CLEARED_ALL 3   /* the clear-all key */
+#define RY_BT_EVENT_PAIRING_REFUSED 4
+#define RY_BT_EVENT_CLEARED_SITE 5  /* "remove" on the web page */
+struct ryong_bt_bond_event {
+    uint16_t boot; /* power-up number it happened in */
+    uint8_t slot;
+    uint8_t cause;
+};
+/* Newest first; returns the count. */
+int ryong_bt_bond_history(struct ryong_bt_bond_event *out, int max, uint16_t *current_boot);
+void ryong_bt_log_site_clear(bool active);
 #endif

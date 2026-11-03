@@ -1,6 +1,6 @@
 if(CONFIG_RYONG_BLE_PROFILES)
   zephyr_include_directories(include)
-  target_sources(app PRIVATE src/profile_core.c src/profile_store.c src/profile_rpc.c)
+  target_sources(app PRIVATE src/profile_core.c src/profile_store.c src/profile_rpc.c src/bond_log.c)
   list(APPEND CMAKE_MODULE_PATH ${ZEPHYR_BASE}/modules/nanopb)
   include(nanopb)
   set(NANOPB_GENERATE_CPP_APPEND_PATH TRUE)

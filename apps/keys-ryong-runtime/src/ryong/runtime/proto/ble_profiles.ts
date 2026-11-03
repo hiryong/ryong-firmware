@@ -25,11 +25,21 @@ export interface Profile {
   token: number;
 }
 
+/** One change of a slot's registered host (newest first). No addresses. */
+export interface BondEvent {
+  slot: number;
+  /** 1 paired, 2 cleared with the keyboard key, 3 all cleared, 4 pairing refused, 5 removed from the web page */
+  cause: number;
+  /** 0 = since the keyboard was last switched on */
+  bootsAgo: number;
+}
+
 export interface State {
   profiles: Profile[];
   activeIndex: number;
   nameMaxBytes: number;
   protocolVersion: number;
+  history: BondEvent[];
 }
 
 export interface Select {
@@ -226,8 +236,97 @@ export const Profile = {
   },
 };
 
+function createBaseBondEvent(): BondEvent {
+  return { slot: 0, cause: 0, bootsAgo: 0 };
+}
+
+export const BondEvent = {
+  encode(message: BondEvent, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.slot !== 0) {
+      writer.uint32(8).uint32(message.slot);
+    }
+    if (message.cause !== 0) {
+      writer.uint32(16).uint32(message.cause);
+    }
+    if (message.bootsAgo !== 0) {
+      writer.uint32(24).uint32(message.bootsAgo);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): BondEvent {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBondEvent();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.slot = reader.uint32();
+          continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.cause = reader.uint32();
+          continue;
+        case 3:
+          if (tag !== 24) {
+            break;
+          }
+
+          message.bootsAgo = reader.uint32();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BondEvent {
+    return {
+      slot: isSet(object.slot) ? globalThis.Number(object.slot) : 0,
+      cause: isSet(object.cause) ? globalThis.Number(object.cause) : 0,
+      bootsAgo: isSet(object.bootsAgo) ? globalThis.Number(object.bootsAgo) : 0,
+    };
+  },
+
+  toJSON(message: BondEvent): unknown {
+    const obj: any = {};
+    if (message.slot !== 0) {
+      obj.slot = Math.round(message.slot);
+    }
+    if (message.cause !== 0) {
+      obj.cause = Math.round(message.cause);
+    }
+    if (message.bootsAgo !== 0) {
+      obj.bootsAgo = Math.round(message.bootsAgo);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BondEvent>, I>>(base?: I): BondEvent {
+    return BondEvent.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BondEvent>, I>>(object: I): BondEvent {
+    const message = createBaseBondEvent();
+    message.slot = object.slot ?? 0;
+    message.cause = object.cause ?? 0;
+    message.bootsAgo = object.bootsAgo ?? 0;
+    return message;
+  },
+};
+
 function createBaseState(): State {
-  return { profiles: [], activeIndex: 0, nameMaxBytes: 0, protocolVersion: 0 };
+  return { profiles: [], activeIndex: 0, nameMaxBytes: 0, protocolVersion: 0, history: [] };
 }
 
 export const State = {
@@ -243,6 +342,9 @@ export const State = {
     }
     if (message.protocolVersion !== 0) {
       writer.uint32(32).uint32(message.protocolVersion);
+    }
+    for (const v of message.history) {
+      BondEvent.encode(v!, writer.uint32(42).fork()).ldelim();
     }
     return writer;
   },
@@ -282,6 +384,13 @@ export const State = {
 
           message.protocolVersion = reader.uint32();
           continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.history.push(BondEvent.decode(reader, reader.uint32()));
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -297,6 +406,7 @@ export const State = {
       activeIndex: isSet(object.activeIndex) ? globalThis.Number(object.activeIndex) : 0,
       nameMaxBytes: isSet(object.nameMaxBytes) ? globalThis.Number(object.nameMaxBytes) : 0,
       protocolVersion: isSet(object.protocolVersion) ? globalThis.Number(object.protocolVersion) : 0,
+      history: globalThis.Array.isArray(object?.history) ? object.history.map((e: any) => BondEvent.fromJSON(e)) : [],
     };
   },
 
@@ -314,6 +424,9 @@ export const State = {
     if (message.protocolVersion !== 0) {
       obj.protocolVersion = Math.round(message.protocolVersion);
     }
+    if (message.history?.length) {
+      obj.history = message.history.map((e) => BondEvent.toJSON(e));
+    }
     return obj;
   },
 
@@ -326,6 +439,7 @@ export const State = {
     message.activeIndex = object.activeIndex ?? 0;
     message.nameMaxBytes = object.nameMaxBytes ?? 0;
     message.protocolVersion = object.protocolVersion ?? 0;
+    message.history = object.history?.map((e) => BondEvent.fromPartial(e)) || [];
     return message;
   },
 };

@@ -1,3 +1,4 @@
 ryong.ble_profiles.Profile.name max_size:31
 ryong.ble_profiles.State.profiles max_count:8
 ryong.ble_profiles.Rename.name max_size:31
+ryong.ble_profiles.State.history max_count:8

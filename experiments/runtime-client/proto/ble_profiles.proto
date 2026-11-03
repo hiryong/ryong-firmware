@@ -12,11 +12,19 @@ message Profile {
     uint32 token = 5;     // per-boot opaque bond token, 0 when empty; not stable across reboots
 }
 
+// One change of a slot's registered host (newest first). No addresses.
+message BondEvent {
+    uint32 slot = 1;
+    uint32 cause = 2;      // 1 paired, 2 cleared with the keyboard key, 3 all cleared, 4 pairing refused, 5 removed from the web page
+    uint32 boots_ago = 3;  // 0 = since the keyboard was last switched on
+}
+
 message State {
     repeated Profile profiles = 1;
     uint32 active_index = 2;
     uint32 name_max_bytes = 3;
     uint32 protocol_version = 4;
+    repeated BondEvent history = 5;
 }
 
 message Select { uint32 index = 1; }
