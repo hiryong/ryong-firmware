@@ -74,7 +74,7 @@ jobs:
         run: |
           if [ "${{ inputs.target }}" = bt60 ]; then python3 scripts/prepare_bt60.py /tmp/fw --host-layout --variant cheeto
           elif [ "${{ inputs.target }}" = bt60-oreo ]; then python3 scripts/prepare_bt60.py /tmp/fw --host-layout --variant oreo
-          else python3 scripts/prepare_zmk.py /tmp/fw; fi
+          else python3 scripts/prepare_zmk.py /tmp/fw --host-layout; fi
       - uses: actions/cache@v4
         with:
           path: |
@@ -111,9 +111,9 @@ jobs:
               "-DCONFIG_RYONG_UPDATE_BUILD_ID=\"${GITHUB_SHA}\""
           else
             west build -s zmk/app -d build -b ryong60//zmk -S studio-rpc-usb-uart -- -DZMK_CONFIG=/tmp/fw/config \
-              "-DZMK_EXTRA_MODULES=/tmp/fw/board;$W/modules/ryong-holdtap;$W/modules/ryong-ble-profiles;$W/modules/ryong-runtime-settings;$W/modules/ryong-named-macro" \
-              "-DEXTRA_CONF_FILE=$W/experiments/dya-runtime/ryong60-runtime.conf;$W/experiments/host-layout/ble-profiles.conf;$W/experiments/host-layout/runtime-settings.conf;/tmp/admin-settings.conf" \
-              "-DEXTRA_DTC_OVERLAY_FILE=$W/experiments/dya-runtime/ryong60-runtime.overlay;/tmp/fw/runtime-defaults.overlay"
+              "-DZMK_EXTRA_MODULES=/tmp/fw/board;$W/modules/ryong-holdtap;$W/modules/ryong-host-layout;$W/modules/ryong-ble-profiles;$W/modules/ryong-runtime-settings;$W/modules/ryong-named-macro" \
+              "-DEXTRA_CONF_FILE=$W/experiments/dya-runtime/ryong60-runtime.conf;$W/experiments/host-layout/host-layout.conf;$W/experiments/host-layout/ble-profiles.conf;$W/experiments/host-layout/runtime-settings.conf;/tmp/admin-settings.conf" \
+              "-DEXTRA_DTC_OVERLAY_FILE=$W/experiments/dya-runtime/ryong60-runtime.overlay;$W/experiments/host-layout/host-layout.overlay;/tmp/fw/runtime-defaults.overlay"
           fi
       - name: Confirm every requested setting reached the firmware
         shell: bash

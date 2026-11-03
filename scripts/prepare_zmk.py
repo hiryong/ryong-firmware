@@ -24,3 +24,19 @@ if "CONFIG_ZMK_RGB_UNDERGLOW=n" not in text:
 unused = ("CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_USB=", "CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX=")
 defconfig.write_text("".join(line for line in text.splitlines(keepends=True)
                              if not line.startswith(unused)))
+
+# Same OS-adaptive modifiers as BT60 (Mac-ordered base like Oreo): Windows hosts get Win, Alt / Alt, Menu,
+# Apple hosts Option, Command / Command, Option. Fn+Tab (os layer) = the other OS's order.
+if "--host-layout" in sys.argv[2:]:
+    keymap = dest / "board/boards/ryong/ryong60/ryong60.keymap"
+    text = keymap.read_text()
+    start, end = text.index("    base {"), text.index("    os {")
+    os_end = text.index("    raise {", end)
+    base, os_layer = text[start:end], text[end:os_end]
+    row = "&kp LCTRL &kp LALT &kp LGUI &kp SPACE &kp RGUI &kp RALT &kp RCTRL"
+    os_row = "&trans &kp LGUI &kp LALT &trans &kp RALT &kp C_MENU &trans &trans"
+    if base.count(row) != 1 or os_layer.count(os_row) != 1 or "&tog 1" not in text[os_end:]:
+        raise SystemExit("Re-audit Ryong60 modifier positions")
+    base = base.replace(row, "&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL")
+    os_layer = os_layer.replace(os_row, "&trans &ry_host LALT LGUI &ry_host LGUI LALT &trans &ry_host RGUI RALT &ry_host RALT C_MENU &trans &trans")
+    keymap.write_text(text[:start] + base + os_layer + text[os_end:])

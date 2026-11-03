@@ -58,6 +58,17 @@ class BuildTools(unittest.TestCase):
             self.assertIn('&trans &ry_host LALT LGUI &ry_host LGUI LALT &trans &ry_host RGUI RALT &ry_host RALT C_MENU &trans &trans', generated.split('    os {', 1)[1].split('    raise {', 1)[0])
             self.assertIn('&bl BL_TOG', generated)  # Oreo's backlight keys stay
 
+    def test_ryong60_gets_the_same_adaptive_rows(self):
+        with tempfile.TemporaryDirectory() as temp:
+            dest = Path(temp) / 'workspace'
+            subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_zmk.py'), str(dest), '--host-layout'], check=True, capture_output=True)
+            generated = (dest / 'board/boards/ryong/ryong60/ryong60.keymap').read_text()
+            base = generated.split('    base {', 1)[1].split('    os {', 1)[0]
+            self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL', base)
+            os_layer = generated.split('    os {', 1)[1].split('    raise {', 1)[0]
+            self.assertIn('&trans &ry_host LALT LGUI &ry_host LGUI LALT &trans &ry_host RGUI RALT &ry_host RALT C_MENU &trans &trans', os_layer)
+            self.assertNotIn('&ry_host', (ROOT / 'hardware/ryong60/boards/ryong/ryong60/ryong60.keymap').read_text())
+
     def test_simulation_requires_hardened_metadata(self):
         spec = importlib.util.spec_from_file_location("sim_runner", ROOT / "scripts/run_module_simulations.py")
         module = importlib.util.module_from_spec(spec)
