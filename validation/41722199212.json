@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "run_id": 41722199212,
+  "target": "ryong60",
+  "tested_board": "bt60",
+  "uf2_sha256": "990314d58d5828363a35ab213f3f7685d9a74668dff482ae977b0beffdd79bd8",
+  "tester": "admin",
+  "tested_at": "2026-11-03T22:21:14.820Z",
+  "items": {
+    "boots": "pass",
+    "all_keys": "pass",
+    "usb_typing": "pass",
+    "ble_pair": "pass",
+    "ble_switch": "pass",
+    "studio_save": "pass",
+    "runtime_features": "skip",
+    "device_settings": "pass",
+    "sleep_wake": "pass",
+    "lights": "skip",
+    "recovery": "pass",
+    "keeps_settings": "pass",
+    "battery": "pass"
+  },
+  "notes": "",
+  "result": "incomplete",
+  "stable_ready": false
+}
