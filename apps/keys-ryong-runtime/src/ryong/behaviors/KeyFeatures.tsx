@@ -230,7 +230,7 @@ const i18nHint = (text: string) => text ? <p className="ry-faint">{text}</p> : n
 
 /* ------------------------------------------------------------------ tap·hold */
 
-const MODS: [string, string][] = [["Ctrl", "LCTRL"], ["Shift", "LSHFT"], ["Alt / Option", "LALT"], ["Win / ⌘", "LGUI"]];
+const MODS: [string, string][] = [["Ctrl", "LCTRL"], ["Shift", "LSHFT"], ["Alt (⌥)", "LALT"], ["Win (⌘)", "LGUI"]];
 type HoldDraft = { from?: Spot; spot?: Spot; tap: Binding | null; hold: string | null };
 const HOLD_TERMS = [
   { ms: 150, label: () => t("Quick", "빠르게") },

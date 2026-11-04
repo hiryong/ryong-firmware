@@ -21,7 +21,7 @@ const BASIC: [string, string][] = [
   ["Caps", "CAPS"], ["A", "A"], ["S", "S"], ["D", "D"], ["F", "F"], ["G", "G"], ["H", "H"], ["J", "J"], ["K", "K"], ["L", "L"], [";", "SEMI"], ["'", "SQT"], ["Enter", "RET"],
   ["Z", "Z"], ["X", "X"], ["C", "C"], ["V", "V"], ["B", "B"], ["N", "N"], ["M", "M"], [",", "COMMA"], [".", "DOT"], ["/", "FSLH"], ["Space", "SPACE"],
 ];
-const MODS: [string, string][] = [["L Ctrl", "LCTRL"], ["L Shift", "LSHFT"], ["L Alt · Opt", "LALT"], ["L Win · Cmd", "LGUI"], ["R Ctrl", "RCTRL"], ["R Shift", "RSHFT"], ["R Alt · Opt", "RALT"], ["R Win · Cmd", "RGUI"]];
+const MODS: [string, string][] = [["L Ctrl", "LCTRL"], ["L Shift", "LSHFT"], ["L Alt (⌥)", "LALT"], ["L Win (⌘)", "LGUI"], ["R Ctrl", "RCTRL"], ["R Shift", "RSHFT"], ["R Alt (⌥)", "RALT"], ["R Win (⌘)", "RGUI"]];
 const NAV: [string, string][] = [["↑", "UP"], ["↓", "DOWN"], ["←", "LEFT"], ["→", "RIGHT"], ["Home", "HOME"], ["End", "END"], ["PgUp", "PG_UP"], ["PgDn", "PG_DN"], ["Ins", "INS"], ["Del", "DEL"],
   ["PrtSc", "PSCRN"], ["ScrLk", "SLCK"], ["Pause", "PAUSE_BREAK"], ["Menu", "C_MENU"], ["App", "K_APP"]];
 const MEDIA: [string, string][] = [["Vol +", "C_VOL_UP"], ["Vol −", "C_VOL_DN"], ["Mute", "C_MUTE"], ["Play", "C_PLAY_PAUSE"], ["Next", "C_NEXT"], ["Prev", "C_PREV"], ["Stop", "C_STOP"],
@@ -90,11 +90,13 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
     const special = [
       ...simple("graveescape", "Esc · `", t("Esc, or ` with Shift/GUI", "Esc, Shift·GUI와 함께면 `")),
       ...simple("backspacedelete", "Bksp · Del", t("Backspace, or Delete with Shift", "Backspace, Shift와 함께면 Delete")),
-      ...simple("osadaptivekey", t("L OS Alt/Cmd", "왼 OS Alt/Cmd"), t("Left of the space bar: Alt on Windows, Command on Apple", "스페이스 왼쪽용: Windows는 왼쪽 Alt, Apple은 왼쪽 Command"), usage("LALT"), usage("LGUI")),
-      ...simple("osadaptivekey", t("L OS Win/Opt", "왼 OS Win/Opt"), t("Left of the space bar: Win on Windows, Option on Apple", "스페이스 왼쪽용: Windows는 왼쪽 Win, Apple은 왼쪽 Option"), usage("LGUI"), usage("LALT")),
-      ...simple("osadaptivekey", t("R OS Alt/Cmd", "오른 OS Alt/Cmd"), t("Right of the space bar: Alt on Windows, Command on Apple", "스페이스 오른쪽용: Windows는 오른쪽 Alt, Apple은 오른쪽 Command"), usage("RALT"), usage("RGUI")),
-      ...simple("osadaptivekey", t("R OS Win/Opt", "오른 OS Win/Opt"), t("Right of the space bar: Win on Windows, Option on Apple", "스페이스 오른쪽용: Windows는 오른쪽 Win, Apple은 오른쪽 Option"), usage("RGUI"), usage("RALT")),
-      ...simple("osadaptivekey", t("R OS Menu/Opt", "오른 OS Menu/Opt"), t("Right of the space bar: Menu on Windows, Option on Apple", "스페이스 오른쪽용: Windows는 메뉴 키, Apple은 오른쪽 Option"), usage("C_MENU"), usage("RALT")),
+      // Same key on every computer: the modifier tiles ("Alt (⌥)" = the Alt key, which a Mac calls Option).
+      // These change with the computer instead: "Windows key / Mac key".
+      ...simple("osadaptivekey", t("Auto Alt/⌘", "자동 Alt/⌘"), t("Changes with the computer: Windows → left Alt, Mac → left ⌘ Command", "컴퓨터에 따라 바뀜: Windows → 왼쪽 Alt, Mac → 왼쪽 ⌘ Command"), usage("LALT"), usage("LGUI")),
+      ...simple("osadaptivekey", t("Auto Win/⌥", "자동 Win/⌥"), t("Changes with the computer: Windows → left Win, Mac → left ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 왼쪽 Win, Mac → 왼쪽 ⌥ Option"), usage("LGUI"), usage("LALT")),
+      ...simple("osadaptivekey", t("Auto R Alt/⌘", "자동 R Alt/⌘"), t("Changes with the computer: Windows → right Alt, Mac → right ⌘ Command", "컴퓨터에 따라 바뀜: Windows → 오른쪽 Alt, Mac → 오른쪽 ⌘ Command"), usage("RALT"), usage("RGUI")),
+      ...simple("osadaptivekey", t("Auto R Win/⌥", "자동 R Win/⌥"), t("Changes with the computer: Windows → right Win, Mac → right ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 오른쪽 Win, Mac → 오른쪽 ⌥ Option"), usage("RGUI"), usage("RALT")),
+      ...simple("osadaptivekey", t("Auto Menu/⌥", "자동 Menu/⌥"), t("Changes with the computer: Windows → Menu, Mac → right ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 메뉴 키, Mac → 오른쪽 ⌥ Option"), usage("C_MENU"), usage("RALT")),
       ...simple("transparent", "▽", t("Transparent: use the layer below", "투명: 아래 레이어 키 사용")),
       ...simple("none", "✕", t("Do nothing", "아무 동작 없음")),
       ...simple("capsword", "Caps Word", "Caps Word"),
