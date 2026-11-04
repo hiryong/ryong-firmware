@@ -11,7 +11,7 @@ const HEX: Record<string, number> = { LBKT: 0x7002f, RBKT: 0x70030, C_BRI_DEC: 0
 const usage = (k: string) => codes[k] ?? HEX[k];
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-type Tile = { label: string; title?: string; binding: BehaviorBinding; wide?: boolean };
+type Tile = { label: string; title?: string; binding: BehaviorBinding; wide?: boolean; shift?: string; group?: string };
 type Tab = { id: string; label: string; tiles: Tile[] };
 
 const BASIC: [string, string][] = [
@@ -33,6 +33,8 @@ const NUMPAD: [string, string][] = [["Num Lock", "KP_NUM"], ["P /", "KP_SLASH"],
 /* Shifted characters: Shift + the base key (what ZMK's EXCL, AT, … mean). */
 const SYMBOLS: [string, string][] = [["!", "N1"], ["@", "N2"], ["#", "N3"], ["$", "N4"], ["%", "N5"], ["^", "N6"], ["&", "N7"], ["*", "N8"], ["(", "N9"], [")", "N0"], ["_", "MINUS"], ["+", "EQUAL"],
   ["{", "LBKT"], ["}", "RBKT"], ["|", "BSLH"], [":", "SEMI"], ["\"", "SQT"], ["<", "COMMA"], [">", "DOT"], ["?", "FSLH"], ["~", "GRAVE"]];
+/* What Shift gives on each key, printed small above it like on a keycap (Shift + key types it). */
+const SHIFTED_OF: Record<string, string> = Object.fromEntries(SYMBOLS.map(([sym, k]) => [k, sym]));
 const MORE: [string, string][] = [["한/영", "LANG1"], ["한자", "LANG2"], ...Array.from({ length: 12 }, (_, i) => [`F${i + 13}`, `F${i + 13}`] as [string, string]),
   ["かな", "INT_KANA"], ["変換", "INT_HENKAN"], ["無変換", "INT_MUHENKAN"], ["¥", "INT_YEN"], ["ろ", "INT_RO"], ["Non-US #", "NUHS"], ["Non-US \\", "NUBS"],
   ["Caps (lock)", "LCAPS"], ["Power", "K_PWR"], ["Help", "K_HELP"], ["Undo", "K_UNDO"], ["Cut", "K_CUT"], ["Copy", "K_COPY"], ["Paste", "K_PASTE"], ["Find", "K_FIND"]];
@@ -54,12 +56,11 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
   const tabs = useMemo<Tab[]>(() => {
     const kp = id("keypress");
     const keys = (list: [string, string][]) => kp === undefined ? [] : list.filter(([, k]) => usage(k) !== undefined)
-      .map(([label, k]) => ({ label, title: k, binding: { behaviorId: kp, param1: usage(k)!, param2: 0 }, wide: label.length > 5 }));
+      .map(([label, k]) => ({ label, title: k, binding: { behaviorId: kp, param1: usage(k)!, param2: 0 }, wide: label.length > 5, shift: SHIFTED_OF[k] }));
     const simple = (name: string, label: string, title: string, p1 = 0, p2 = 0): Tile[] =>
       id(name) === undefined ? [] : [{ label, title, binding: { behaviorId: id(name), param1: p1, param2: p2 } }];
     const withMods = (k: string, mods: string[]) => usage(k) === undefined || kp === undefined ? undefined
       : mods.reduce((v, m) => (v | codes["__mod_" + m]) >>> 0, usage(k)!);
-    const symbols: Tile[] = SYMBOLS.flatMap(([label, k]) => { const v = withMods(k, ["LS"]); return v === undefined ? [] : [{ label, title: `Shift + ${k}`, binding: { behaviorId: kp!, param1: v, param2: 0 } }]; });
     // Common shortcuts, Windows (Ctrl) and Mac (Cmd) side by side.
     const SC: [string, string, string[]][] = [[t("Copy", "복사"), "C", []], [t("Paste", "붙여넣기"), "V", []], [t("Cut", "잘라내기"), "X", []], [t("Undo", "실행 취소"), "Z", []],
       [t("Redo", "다시 실행"), "Z", ["LS"]], [t("Select all", "모두 선택"), "A", []], [t("Save", "저장"), "S", []], [t("Find", "찾기"), "F", []], [t("New tab", "새 탭"), "T", []], [t("Close tab", "탭 닫기"), "W", []]];
@@ -130,9 +131,8 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       binding: c.binding, wide: true, key: c.key } as Tile & { key: string }));
     return [
       { id: "basic", label: t("Basic", "기본"), tiles: keys(BASIC) },
-      { id: "mods", label: t("Modifiers", "수정키"), tiles: keys(MODS) },
+      { id: "mods", label: t("Modifiers", "수정키"), tiles: [...keys(MODS), ...adaptive.map((x, i) => (i === 0 ? { ...x, group: "OS Adaptive" } : x))] },
       { id: "nav", label: t("Navigation", "이동·편집"), tiles: keys(NAV) },
-      { id: "symbols", label: t("Symbols", "기호"), tiles: symbols },
       { id: "numpad", label: t("Numpad", "숫자패드"), tiles: keys(NUMPAD) },
       { id: "media", label: t("Media", "미디어"), tiles: keys(MEDIA) },
       { id: "shortcuts", label: t("Shortcuts", "단축키"), tiles: shortcuts },
@@ -142,7 +142,6 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       ...(id("modtap") !== undefined || id("layertap") !== undefined ? [{ id: "holdtap", label: t("Tap · Hold", "탭·홀드"), tiles: [] as Tile[] }] : []),
       { id: "bt", label: "Bluetooth", tiles: [...bt, ...bt2] },
       { id: "lights", label: t("Lights", "조명"), tiles: lights },
-      { id: "adaptive", label: "OS Adaptive", tiles: adaptive },
       { id: "special", label: t("Special", "특수"), tiles: special },
       { id: "dynamic", label: t("Macro · Tap Dance", "매크로·탭댄스"), tiles: dynamic },
     ].filter(x => x.tiles.length || x.id === "holdtap");
@@ -167,13 +166,15 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       {detail ? <div className="ry-via-detail">{children}</div>
         : current.id === "holdtap" ? <HoldTapBuilder key={`${binding.behaviorId}:${binding.param1}:${binding.param2}`} keyPress={id("keypress")} modTap={id("modtap")} layerTap={id("layertap")} layers={layers} binding={binding} onChange={onChange} />
         : <div className="ry-via-grid" role="tabpanel" aria-label={current.label}>
-          {current.tiles.map((tile, i) => <button key={i} className={"ry-via-key" + size(tile.label)} title={tile.title} aria-pressed={same(tile.binding)}
+          {current.tiles.map((tile, i) => [tile.group && <div key={"g" + i} className="ry-via-group"><span>{tile.group}</span>
+              <small>{t("changes with the computer: Windows key / Mac key", "컴퓨터에 따라 바뀌어요: Windows 키 / Mac 키")}</small></div>,
+            <button key={i} className={"ry-via-key" + size(tile.label) + (tile.shift ? " has-shift" : "")} title={tile.title} aria-pressed={same(tile.binding)}
             onClick={async () => {
               setError(null);
               const key = (tile as Tile & { key?: string }).key;
               try { onChange(key && view ? await checkedRuntimeBinding(view, key) : tile.binding); }
               catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-            }}>{tile.label}</button>)}
+            }}>{tile.shift ? <><small>{tile.shift}</small><span>{tile.label}</span></> : tile.label}</button>])}
         </div>}
       {/* fixed-height status line: the panel never changes size */}
       <p className="ry-via-current" aria-live="polite">

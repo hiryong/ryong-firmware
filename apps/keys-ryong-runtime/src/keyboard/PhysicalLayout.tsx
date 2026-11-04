@@ -32,7 +32,8 @@ export function deserializeLayoutZoom(value: string): LayoutZoom {
   if (value === "auto") {
     return "auto";
   }
-  return parseFloat(value) || "auto";
+  const n = parseFloat(value);
+  return n >= 0.75 ? n : "auto"; // 25% / 50% were dropped: a tiny board in a big empty area
 }
 
 interface PhysicalLayoutProps {

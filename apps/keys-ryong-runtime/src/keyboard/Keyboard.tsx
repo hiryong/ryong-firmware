@@ -629,8 +629,6 @@ export default function Keyboard() {
             }}
           >
             <option value="auto">Auto</option>
-            <option value={0.25}>25%</option>
-            <option value={0.5}>50%</option>
             <option value={0.75}>75%</option>
             <option value={1}>100%</option>
             <option value={1.25}>125%</option>
