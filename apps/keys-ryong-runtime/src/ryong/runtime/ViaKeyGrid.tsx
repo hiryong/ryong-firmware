@@ -23,28 +23,25 @@ const BASIC: [string, string][] = [
 ];
 const MODS: [string, string][] = [["L Ctrl", "LCTRL"], ["L Shift", "LSHFT"], ["L Alt (⌥)", "LALT"], ["L Win (⌘)", "LGUI"], ["R Ctrl", "RCTRL"], ["R Shift", "RSHFT"], ["R Alt (⌥)", "RALT"], ["R Win (⌘)", "RGUI"]];
 const NAV: [string, string][] = [["↑", "UP"], ["↓", "DOWN"], ["←", "LEFT"], ["→", "RIGHT"], ["Home", "HOME"], ["End", "END"], ["PgUp", "PG_UP"], ["PgDn", "PG_DN"], ["Ins", "INS"], ["Del", "DEL"],
-  ["PrtSc", "PSCRN"], ["ScrLk", "SLCK"], ["Pause", "PAUSE_BREAK"], ["Menu", "C_MENU"], ["App", "K_APP"]];
-const MEDIA: [string, string][] = [["Vol +", "C_VOL_UP"], ["Vol −", "C_VOL_DN"], ["Mute", "C_MUTE"], ["Play", "C_PLAY_PAUSE"], ["Next", "C_NEXT"], ["Prev", "C_PREV"], ["Stop", "C_STOP"],
-  ["FF", "C_FF"], ["Rew", "C_RW"], ["Eject", "C_EJECT"], ["Bright +", "C_BRI_INC"], ["Bright −", "C_BRI_DEC"], ["Search", "C_AC_SEARCH"], ["Browser Home", "C_AC_HOME"],
-  ["Back", "C_AC_BACK"], ["Forward", "C_AC_FORWARD"], ["Refresh", "C_AC_REFRESH"], ["Calc", "C_AL_CALC"], ["Mail", "C_AL_MAIL"], ["Files", "C_AL_FILES"], ["Sleep", "C_SLEEP"]];
+  ["PrtSc", "PSCRN"], ["ScrLk", "SLCK"], ["Pause", "PAUSE_BREAK"], ["Menu", "K_APP"]];
+const MEDIA: [string, string][] = [["Vol +", "C_VOL_UP"], ["Vol −", "C_VOL_DN"], ["Mute", "C_MUTE"], ["Play", "C_PLAY_PAUSE"], ["Next", "C_NEXT"], ["Prev", "C_PREV"], 
+  ["Eject", "C_EJECT"], ["Bright +", "C_BRI_INC"], ["Bright −", "C_BRI_DEC"], ["Search", "C_AC_SEARCH"], ["Browser Home", "C_AC_HOME"],
+  ["Back", "C_AC_BACK"], ["Forward", "C_AC_FORWARD"], ["Refresh", "C_AC_REFRESH"], ["Calc", "C_AL_CALC"]];
 const NUMPAD: [string, string][] = [["Num Lock", "KP_NUM"], ["P /", "KP_SLASH"], ["P *", "KP_MULTIPLY"], ["P −", "KP_MINUS"], ["P 7", "KP_N7"], ["P 8", "KP_N8"], ["P 9", "KP_N9"], ["P +", "KP_PLUS"],
-  ["P 4", "KP_N4"], ["P 5", "KP_N5"], ["P 6", "KP_N6"], ["P =", "KP_EQUAL"], ["P 1", "KP_N1"], ["P 2", "KP_N2"], ["P 3", "KP_N3"], ["P Enter", "KP_ENTER"], ["P 0", "KP_N0"], ["P .", "KP_DOT"],
-  ["P ,", "KP_COMMA"], ["P (", "KP_LPAR"], ["P )", "KP_RPAR"]];
+  ["P 4", "KP_N4"], ["P 5", "KP_N5"], ["P 6", "KP_N6"], ["P 1", "KP_N1"], ["P 2", "KP_N2"], ["P 3", "KP_N3"], ["P Enter", "KP_ENTER"], ["P 0", "KP_N0"], ["P .", "KP_DOT"],
+]; // no P =, P ,, P ( ): not on a usual numpad
 /* Shifted characters: Shift + the base key (what ZMK's EXCL, AT, … mean). */
 const SYMBOLS: [string, string][] = [["!", "N1"], ["@", "N2"], ["#", "N3"], ["$", "N4"], ["%", "N5"], ["^", "N6"], ["&", "N7"], ["*", "N8"], ["(", "N9"], [")", "N0"], ["_", "MINUS"], ["+", "EQUAL"],
   ["{", "LBKT"], ["}", "RBKT"], ["|", "BSLH"], [":", "SEMI"], ["\"", "SQT"], ["<", "COMMA"], [">", "DOT"], ["?", "FSLH"], ["~", "GRAVE"]];
 /* Keys whose name alone is unclear: what they are, on hover. */
 const TITLES: Record<string, () => string> = {
-  LCAPS: () => t("Locking Caps Lock: for old keyboards whose Caps key latched mechanically. Computers today expect the normal Caps (in Basic); use this only if you know you need it.",
-    "Locking Caps Lock: 예전 키보드에서 Caps 키가 기계적으로 눌린 채 잠기던 방식용이에요. 요즘 컴퓨터는 기본 칸의 Caps를 써요. 필요한 경우에만 고르세요."),
+  K_APP: () => t("Menu (Application) key: opens the right-click menu on Windows", "메뉴(Application) 키: Windows에서 오른쪽 클릭 메뉴를 열어요"),
   LANG1: () => t("Korean / English switch (Hangul key)", "한/영 전환 (한글 키)"),
   LANG2: () => t("Hanja key", "한자 변환 키"),
 };
 /* What Shift gives on each key, printed small above it like on a keycap (Shift + key types it). */
 const SHIFTED_OF: Record<string, string> = Object.fromEntries(SYMBOLS.map(([sym, k]) => [k, sym]));
-const MORE: [string, string][] = [...Array.from({ length: 12 }, (_, i) => [`F${i + 13}`, `F${i + 13}`] as [string, string]),
-  ["かな", "INT_KANA"], ["変換", "INT_HENKAN"], ["無変換", "INT_MUHENKAN"], ["¥", "INT_YEN"], ["ろ", "INT_RO"], ["Non-US #", "NUHS"], ["Non-US \\", "NUBS"],
-  ["Locking Caps", "LCAPS"], ["Power", "K_PWR"], ["Help", "K_HELP"], ["Undo", "K_UNDO"], ["Cut", "K_CUT"], ["Copy", "K_COPY"], ["Paste", "K_PASTE"], ["Find", "K_FIND"]];
+const MORE: [string, string][] = Array.from({ length: 12 }, (_, i) => [`F${i + 13}`, `F${i + 13}`] as [string, string]);
 
 export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDetail, children }: {
   behaviors: GetBehaviorDetailsResponse[]; layers: { id: number; name: string }[];
@@ -101,7 +98,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       ...simple("osadaptivekey", "L Win/⌥", t("Changes with the OS: Windows → left Win, Mac → left ⌥ Option", "OS에 따라 바뀜: Windows → 왼쪽 Win, Mac → 왼쪽 ⌥ Option"), usage("LGUI"), usage("LALT")),
       ...simple("osadaptivekey", "R Alt/⌘", t("Changes with the OS: Windows → right Alt, Mac → right ⌘ Command", "OS에 따라 바뀜: Windows → 오른쪽 Alt, Mac → 오른쪽 ⌘ Command"), usage("RALT"), usage("RGUI")),
       ...simple("osadaptivekey", "R Win/⌥", t("Changes with the OS: Windows → right Win, Mac → right ⌥ Option", "OS에 따라 바뀜: Windows → 오른쪽 Win, Mac → 오른쪽 ⌥ Option"), usage("RGUI"), usage("RALT")),
-      ...simple("osadaptivekey", "Menu/⌥", t("Changes with the OS: Windows → Menu, Mac → right ⌥ Option", "OS에 따라 바뀜: Windows → 메뉴 키, Mac → 오른쪽 ⌥ Option"), usage("C_MENU"), usage("RALT")),
+      ...simple("osadaptivekey", "Menu/⌥", t("Changes with the OS: Windows → Menu, Mac → right ⌥ Option", "OS에 따라 바뀜: Windows → 메뉴 키, Mac → 오른쪽 ⌥ Option"), usage("K_APP"), usage("RALT")),
     ];
     const special = [
       ...simple("graveescape", "Esc · `", t("Esc, or ` with Shift/GUI", "Esc, Shift·GUI와 함께면 `")),
@@ -137,7 +134,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
     const dynamic: Tile[] = namedRuntimeBindings(view).map(c => ({ label: c.label, title: c.kind === "macro" ? t("Macro", "매크로") : t("Tap Dance", "탭댄스"),
       binding: c.binding, wide: true, key: c.key } as Tile & { key: string }));
     return [
-      { id: "basic", label: t("Basic", "기본"), tiles: [...keys(BASIC), ...keys(MORE).map((x, i) => (i === 0 ? { ...x, group: t("F13–24 · Language · others", "F13–24 · 언어 · 기타") } : x))] },
+      { id: "basic", label: t("Basic", "기본"), tiles: [...keys(BASIC), ...keys(MORE).map((x, i) => (i === 0 ? { ...x, group: "F13–F24" } : x))] },
       { id: "mods", label: t("Modifiers", "수정키"), tiles: [...keys(MODS), ...adaptive.map((x, i) => (i === 0 ? { ...x, group: "OS Adaptive" } : x))] },
       { id: "nav", label: t("Navigation", "이동·편집"), tiles: keys(NAV) },
       { id: "numpad", label: t("Numpad", "숫자패드"), tiles: keys(NUMPAD) },

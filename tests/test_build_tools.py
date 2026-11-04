@@ -39,7 +39,7 @@ class BuildTools(unittest.TestCase):
             subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_bt60.py'), str(dest), '--host-layout'], check=True)
             generated = (dest / 'config/bt60.keymap').read_text()
             base = generated.split('    base {', 1)[1].split('    raise {', 1)[0]
-            self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL', base)
+            self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host K_APP RALT &kp RCTRL', base)
             self.assertEqual(base.count('&ry_host'), 4)
             original = (ROOT / 'hardware/test-fixtures/bt60-v2/config/bt60.keymap').read_text()
             self.assertNotIn('    os {', generated)  # no Fn+Tab layer: the adaptive keys follow the computer
@@ -52,7 +52,7 @@ class BuildTools(unittest.TestCase):
             subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_bt60.py'), str(dest), '--host-layout', '--variant', 'oreo'], check=True)
             generated = (dest / 'config/bt60.keymap').read_text()
             base = generated.split('    base {', 1)[1].split('    raise {', 1)[0]
-            self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL', base)
+            self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host K_APP RALT &kp RCTRL', base)
             self.assertNotIn('    os {', generated)
             self.assertIn('&bl BL_TOG', generated)  # Oreo's backlight keys stay
 
@@ -62,7 +62,7 @@ class BuildTools(unittest.TestCase):
             subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_zmk.py'), str(dest), '--host-layout'], check=True, capture_output=True)
             generated = (dest / 'board/boards/ryong/ryong60/ryong60.keymap').read_text()
             base = generated.split('    base {', 1)[1].split('    raise {', 1)[0]
-            self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL', base)
+            self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host K_APP RALT &kp RCTRL', base)
             self.assertNotIn('    os {', generated)
             self.assertNotIn('&ry_host', (ROOT / 'hardware/ryong60/boards/ryong/ryong60/ryong60.keymap').read_text())
 

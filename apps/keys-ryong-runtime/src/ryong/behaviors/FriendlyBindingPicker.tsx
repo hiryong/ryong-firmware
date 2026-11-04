@@ -15,7 +15,7 @@ const NICE: Record<string, string> = {
   RET: "Enter", ESC: "Esc", BSPC: "Backspace", TAB: "Tab", SPACE: "Space", DEL: "Delete", INS: "Insert", CAPS: "Caps Lock",
   PSCRN: "Print Screen", HOME: "Home", END: "End", PG_UP: "Page Up", PG_DN: "Page Down", LEFT: "←", RIGHT: "→", UP: "↑", DOWN: "↓",
   MINUS: "-", EQUAL: "=", LBKT: "[", RBKT: "]", BSLH: "\\", SEMI: ";", SQT: "'", GRAVE: "`", COMMA: ",", DOT: ".", FSLH: "/",
-  C_VOL_UP: "Vol +", C_VOL_DN: "Vol −", C_MUTE: "Mute", C_PP: "Play/Pause", C_NEXT: "Next", C_PREV: "Prev", C_MENU: "Menu",
+  C_VOL_UP: "Vol +", C_VOL_DN: "Vol −", C_MUTE: "Mute", C_PP: "Play/Pause", C_NEXT: "Next", C_PREV: "Prev", C_MENU: "Menu (media)", K_APP: "Menu",
   LCTRL: "Ctrl", LSHFT: "Shift", LALT: "Alt (⌥)", LGUI: "Win (⌘)", RCTRL: "R Ctrl", RSHFT: "R Shift", RALT: "R Alt (⌥)", RGUI: "R Win (⌘)",
   LANG1: "한/영", LANG2: "한자",
 };

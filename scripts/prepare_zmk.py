@@ -43,5 +43,5 @@ if "--host-layout" in sys.argv[2:]:
     row = "&kp LCTRL &kp LALT &kp LGUI &kp SPACE &kp RGUI &kp RALT &kp RCTRL"
     if base.count(row) != 1:
         raise SystemExit("Re-audit Ryong60 modifier positions")
-    base = base.replace(row, "&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL")
+    base = base.replace(row, "&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host K_APP RALT &kp RCTRL")
     keymap.write_text(text[:start] + base + text[end:])

@@ -62,10 +62,10 @@ if "--host-layout" in sys.argv[2:]:
         base = base.replace("&kp LGUI", "&ry_host LGUI LALT").replace("&kp LALT", "&ry_host LALT LGUI")
     # Right of the space bar, Windows standard first: Alt, Menu → on Apple hosts Command, Option
     # (Mac order). Oreo's Mac-ordered right side maps to the same result.
-    right = {"cheeto": "&kp SPACE &kp RALT &kp C_MENU &kp RCTRL", "oreo": "&kp SPACE &kp RGUI &kp RALT &kp RCTRL"}[VARIANT]
+    right = {"cheeto": "&kp SPACE &kp RALT &kp K_APP &kp RCTRL", "oreo": "&kp SPACE &kp RGUI &kp RALT &kp RCTRL"}[VARIANT]
     if base.count(right) != 1:
         raise SystemExit("Re-audit BT60 right modifier positions")
-    base = base.replace(right, "&kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL")
+    base = base.replace(right, "&kp SPACE &ry_host RALT RGUI &ry_host K_APP RALT &kp RCTRL")
     # (The old "os" layer on Fn+Tab is gone: the OS-adaptive keys follow the computer.)
     keymap.write_text(text[:start] + base + text[end:])
 
