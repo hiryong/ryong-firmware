@@ -3,6 +3,7 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+const openTools = async () => { const d = page.locator("details.ry-tools"); if (await d.count() && !(await d.evaluate((e) => e.open))) await d.locator("summary").click(); };
 const { chromium } = await import(process.env.RYONG_PLAYWRIGHT);
 const root = path.resolve("dist-runtime");
 const output = path.resolve("ui-verification");
@@ -98,7 +99,7 @@ try {
   await page.getByRole("button", {name:"미리보기 저장",exact:true}).click();
   await page.getByText("미리보기를 이 브라우저에 저장했습니다.",{exact:true}).waitFor();
   const downloadEvent=page.waitForEvent("download");
-  await page.getByRole("button",{name:"동적 설정 백업",exact:true}).click();
+  await openTools(); await page.getByRole("button",{name:"동적 설정 백업",exact:true}).click();
   const download=await downloadEvent;
   const backup=await fs.readFile(await download.path(),"utf8");
   assert.equal(JSON.parse(backup).doc.tapDances[0].term,250);
@@ -107,7 +108,7 @@ try {
   if (await page.getByRole("button", { name: "연결 없이 미리보기", exact: true }).isVisible()) await page.getByRole("button", { name: "연결 없이 미리보기", exact: true }).click();
   await page.getByRole("button",{name:/^탭·홀드/}).click();
   assert.equal(await modtap.locator("input[type=number]").first().inputValue(),"285");
-  await page.getByLabel("동적 설정 백업 불러오기",{exact:true}).setInputFiles({name:"backup.json",mimeType:"application/json",buffer:Buffer.from(backup)});
+  await openTools(); await page.getByLabel("동적 설정 백업 불러오기",{exact:true}).setInputFiles({name:"backup.json",mimeType:"application/json",buffer:Buffer.from(backup)});
   await page.getByRole("button",{name:/^탭댄스/}).click();
   await page.getByRole("button",{name:/Double test/}).first().waitFor();
   await page.locator(".ry-workspace").evaluate(element=>element.scrollTo(0,0));
@@ -118,7 +119,7 @@ try {
   await page.reload();
   await page.getByRole("button",{name:"콤보",exact:true}).click();
   await page.getByRole("button",{name:"연결 없이 미리보기",exact:true}).click();
-  await page.getByRole("button",{name:"편집 내용 복원",exact:true}).click();
+  await openTools(); await page.getByRole("button",{name:"편집 내용 복원",exact:true}).click();
   await page.getByRole("button",{name:/^탭·홀드/}).click();
   assert.equal(await modtap.locator("input[type=number]").first().inputValue(),"299");
   assert.equal(JSON.parse(await page.evaluate(()=>localStorage.getItem("ryong-runtime-preview-v1"))).advanced.holds[0].tappingTermMs,285);

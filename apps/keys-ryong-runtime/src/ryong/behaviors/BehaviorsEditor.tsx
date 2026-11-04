@@ -581,8 +581,9 @@ const Editor = ({
 
       {loading && <p className="ry-muted">{t("Loading {f}…", "{f} 불러오는 중…", { f: kb.keymap })}</p>}
       {error && <p className="ry-note ry-danger">{error}</p>}
-      {runtime && !loading && <div className="ry-row">
-        <p className="ry-faint">{t("Existing firmware defaults remain active. This list edits additional runtime entries.", "기존 펌웨어 기본 동작은 유지됩니다. 이 목록에서는 추가 동적 설정을 편집합니다.")}</p>
+      {runtime && !loading && <details className="ry-tools">
+        <summary>{t("Backup · restore", "백업·복구")}</summary>
+        <div className="ry-tools-menu">
         <button className="ry-text" disabled={saving || !runtimeView} onClick={() => {
           try {
             const savedDraft = localStorage.getItem(draftKey);
@@ -607,12 +608,13 @@ const Editor = ({
           downloadText("ryong-interrupted-save.json",raw);
           if(record.beforeBackup && runtimeView){try{setDoc(importProfile(record.beforeBackup,runtimeView));setError(t("Previous settings loaded for review. Reload the keyboard first if its state changed, then import the exported backup. Save explicitly to restore.","이전 설정을 검토용으로 불러왔습니다. 장치 상태가 바뀌었다면 먼저 다시 불러오고 백업을 가져오세요. 복원은 저장 버튼을 눌러야 적용됩니다."));}catch(error){setError(String(error));}}
         }}>{t("Interrupted save recovery","중단된 저장 복구")}</button>
-      </div>}
+        </div>
+      </details>}
 
       {draftWarning && <p role="alert" className="ry-note">{draftWarning}</p>}
       {loaded && (
         <fieldset className="ry-workspace-fields" disabled={saving}>
-          <div className="ry-row" style={{ borderBottom: "1px solid var(--line)" }}>
+          {!(embedded && runtime) && <div className="ry-row" style={{ borderBottom: "1px solid var(--line)" }}>
             <div className="ry-tabs" hidden={embedded}>
               {SECTIONS.filter(s => !runtime || s.id === "combos" || s.id === "macros" || !!runtimeView?.snapshot.advanced).map((s) => (
                 <button key={s.id} className="ry-tab" aria-pressed={section === s.id} onClick={() => setSection(s.id)}>
@@ -625,7 +627,7 @@ const Editor = ({
               <Code style={{ width: 14, height: 14, display: "inline", marginRight: 6 }} />
               {showCode ? t("Hide code", "코드 숨기기") : t("Show code", "코드 보기")}
             </button>}
-          </div>
+          </div>}
 
           {scan && scan.found.length > 0 && (
             <div className="ry-card">
@@ -1254,7 +1256,7 @@ const Item = ({
         {open ? <ChevronDown /> : <ChevronRight />}
         <span>
           <span className="ry-card-t">{title || t("Untitled", "이름 없음")}</span>
-          <span className="ry-card-m">{summary}</span>
+          {!(title || "").includes("→") && summary.replace(/\s/g, "") !== (title || "").replace(/\s/g, "") && <span className="ry-card-m">{summary}</span>}
         </span>
       </button>
       <span className="ry-gap" style={{ gap: 2 }}>

@@ -172,7 +172,13 @@ dialog.ry-hub.is-wide .ry-hub-page { max-width: 1040px; }
 .ry-lead { color: var(--body); line-height: 1.65; }
 .ry-muted { color: var(--mute); }
 .ry-faint { color: var(--faint); font-size: 12px; }
-.ry-sec { display: flex; flex-direction: column; gap: 12px; }
+.ry-sec { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; align-items: stretch; }
+.ry-sec > .ry-item:not(.is-open) .ry-card-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ry-sec > * { grid-column: 1 / -1; }
+.ry-sec > .ry-item { grid-column: auto; }
+.ry-sec > .ry-item.is-open { grid-column: 1 / -1; }
+.ry-sec > .ry-add { justify-self: start; }
+.ry-sec > .ry-item > .ry-row { height: 100%; }
 .ry-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
 .ry-gap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ry-hr { height: 1px; background: var(--line); border: 0; margin: 0; }
@@ -1097,3 +1103,9 @@ span.ry-chip { display: inline-flex; align-items: center; justify-content: cente
 .ry-via-key.has-shift small { font-size: 10px; color: var(--soft); }
 .ry-via-group { flex-basis: 100%; display: flex; align-items: baseline; gap: 10px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink); }
 .ry-via-group small { color: var(--soft); font-size: 11px; }
+
+.ry-tools { align-self: flex-end; position: relative; margin-left: auto; }
+.ry-tools > summary { list-style: none; cursor: pointer; font-size: 13px; color: var(--soft); padding: 6px 12px; border: 1px solid var(--line-strong); border-radius: 9999px; }
+.ry-tools > summary::-webkit-details-marker { display: none; }
+.ry-tools-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-width: 200px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 10px; background: #0b0b0b; }
+.ry-tools-menu > .ry-text { text-align: left; padding: 8px 10px; border-radius: 6px; }

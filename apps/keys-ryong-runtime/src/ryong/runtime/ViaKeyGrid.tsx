@@ -19,7 +19,7 @@ const BASIC: [string, string][] = [
   ["`", "GRAVE"], ["1", "N1"], ["2", "N2"], ["3", "N3"], ["4", "N4"], ["5", "N5"], ["6", "N6"], ["7", "N7"], ["8", "N8"], ["9", "N9"], ["0", "N0"], ["-", "MINUS"], ["=", "EQUAL"], ["Bksp", "BSPC"],
   ["Tab", "TAB"], ["Q", "Q"], ["W", "W"], ["E", "E"], ["R", "R"], ["T", "T"], ["Y", "Y"], ["U", "U"], ["I", "I"], ["O", "O"], ["P", "P"], ["[", "LBKT"], ["]", "RBKT"], ["\\", "BSLH"],
   ["Caps", "CAPS"], ["A", "A"], ["S", "S"], ["D", "D"], ["F", "F"], ["G", "G"], ["H", "H"], ["J", "J"], ["K", "K"], ["L", "L"], [";", "SEMI"], ["'", "SQT"], ["Enter", "RET"],
-  ["Z", "Z"], ["X", "X"], ["C", "C"], ["V", "V"], ["B", "B"], ["N", "N"], ["M", "M"], [",", "COMMA"], [".", "DOT"], ["/", "FSLH"], ["Space", "SPACE"],
+  ["Z", "Z"], ["X", "X"], ["C", "C"], ["V", "V"], ["B", "B"], ["N", "N"], ["M", "M"], [",", "COMMA"], [".", "DOT"], ["/", "FSLH"], ["Space", "SPACE"], ["한/영", "LANG1"], ["한자", "LANG2"],
 ];
 const MODS: [string, string][] = [["L Ctrl", "LCTRL"], ["L Shift", "LSHFT"], ["L Alt (⌥)", "LALT"], ["L Win (⌘)", "LGUI"], ["R Ctrl", "RCTRL"], ["R Shift", "RSHFT"], ["R Alt (⌥)", "RALT"], ["R Win (⌘)", "RGUI"]];
 const NAV: [string, string][] = [["↑", "UP"], ["↓", "DOWN"], ["←", "LEFT"], ["→", "RIGHT"], ["Home", "HOME"], ["End", "END"], ["PgUp", "PG_UP"], ["PgDn", "PG_DN"], ["Ins", "INS"], ["Del", "DEL"],
@@ -33,11 +33,18 @@ const NUMPAD: [string, string][] = [["Num Lock", "KP_NUM"], ["P /", "KP_SLASH"],
 /* Shifted characters: Shift + the base key (what ZMK's EXCL, AT, … mean). */
 const SYMBOLS: [string, string][] = [["!", "N1"], ["@", "N2"], ["#", "N3"], ["$", "N4"], ["%", "N5"], ["^", "N6"], ["&", "N7"], ["*", "N8"], ["(", "N9"], [")", "N0"], ["_", "MINUS"], ["+", "EQUAL"],
   ["{", "LBKT"], ["}", "RBKT"], ["|", "BSLH"], [":", "SEMI"], ["\"", "SQT"], ["<", "COMMA"], [">", "DOT"], ["?", "FSLH"], ["~", "GRAVE"]];
+/* Keys whose name alone is unclear: what they are, on hover. */
+const TITLES: Record<string, () => string> = {
+  LCAPS: () => t("Locking Caps Lock: for old keyboards whose Caps key latched mechanically. Computers today expect the normal Caps (in Basic); use this only if you know you need it.",
+    "Locking Caps Lock: 예전 키보드에서 Caps 키가 기계적으로 눌린 채 잠기던 방식용이에요. 요즘 컴퓨터는 기본 칸의 Caps를 써요. 필요한 경우에만 고르세요."),
+  LANG1: () => t("Korean / English switch (Hangul key)", "한/영 전환 (한글 키)"),
+  LANG2: () => t("Hanja key", "한자 변환 키"),
+};
 /* What Shift gives on each key, printed small above it like on a keycap (Shift + key types it). */
 const SHIFTED_OF: Record<string, string> = Object.fromEntries(SYMBOLS.map(([sym, k]) => [k, sym]));
-const MORE: [string, string][] = [["한/영", "LANG1"], ["한자", "LANG2"], ...Array.from({ length: 12 }, (_, i) => [`F${i + 13}`, `F${i + 13}`] as [string, string]),
+const MORE: [string, string][] = [...Array.from({ length: 12 }, (_, i) => [`F${i + 13}`, `F${i + 13}`] as [string, string]),
   ["かな", "INT_KANA"], ["変換", "INT_HENKAN"], ["無変換", "INT_MUHENKAN"], ["¥", "INT_YEN"], ["ろ", "INT_RO"], ["Non-US #", "NUHS"], ["Non-US \\", "NUBS"],
-  ["Caps (lock)", "LCAPS"], ["Power", "K_PWR"], ["Help", "K_HELP"], ["Undo", "K_UNDO"], ["Cut", "K_CUT"], ["Copy", "K_COPY"], ["Paste", "K_PASTE"], ["Find", "K_FIND"]];
+  ["Locking Caps", "LCAPS"], ["Power", "K_PWR"], ["Help", "K_HELP"], ["Undo", "K_UNDO"], ["Cut", "K_CUT"], ["Copy", "K_COPY"], ["Paste", "K_PASTE"], ["Find", "K_FIND"]];
 
 export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDetail, children }: {
   behaviors: GetBehaviorDetailsResponse[]; layers: { id: number; name: string }[];
@@ -56,7 +63,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
   const tabs = useMemo<Tab[]>(() => {
     const kp = id("keypress");
     const keys = (list: [string, string][]) => kp === undefined ? [] : list.filter(([, k]) => usage(k) !== undefined)
-      .map(([label, k]) => ({ label, title: k, binding: { behaviorId: kp, param1: usage(k)!, param2: 0 }, wide: label.length > 5, shift: SHIFTED_OF[k] }));
+      .map(([label, k]) => ({ label, title: TITLES[k]?.() ?? k, binding: { behaviorId: kp, param1: usage(k)!, param2: 0 }, wide: label.length > 5, shift: SHIFTED_OF[k] }));
     const simple = (name: string, label: string, title: string, p1 = 0, p2 = 0): Tile[] =>
       id(name) === undefined ? [] : [{ label, title, binding: { behaviorId: id(name), param1: p1, param2: p2 } }];
     const withMods = (k: string, mods: string[]) => usage(k) === undefined || kp === undefined ? undefined
