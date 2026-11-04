@@ -19,7 +19,7 @@ const BASIC: [string, string][] = [
   ["`", "GRAVE"], ["1", "N1"], ["2", "N2"], ["3", "N3"], ["4", "N4"], ["5", "N5"], ["6", "N6"], ["7", "N7"], ["8", "N8"], ["9", "N9"], ["0", "N0"], ["-", "MINUS"], ["=", "EQUAL"], ["Bksp", "BSPC"],
   ["Tab", "TAB"], ["Q", "Q"], ["W", "W"], ["E", "E"], ["R", "R"], ["T", "T"], ["Y", "Y"], ["U", "U"], ["I", "I"], ["O", "O"], ["P", "P"], ["[", "LBKT"], ["]", "RBKT"], ["\\", "BSLH"],
   ["Caps", "CAPS"], ["A", "A"], ["S", "S"], ["D", "D"], ["F", "F"], ["G", "G"], ["H", "H"], ["J", "J"], ["K", "K"], ["L", "L"], [";", "SEMI"], ["'", "SQT"], ["Enter", "RET"],
-  ["Z", "Z"], ["X", "X"], ["C", "C"], ["V", "V"], ["B", "B"], ["N", "N"], ["M", "M"], [",", "COMMA"], [".", "DOT"], ["/", "FSLH"], ["Space", "SPACE"], ["한/영", "LANG1"], ["한자", "LANG2"],
+  ["Z", "Z"], ["X", "X"], ["C", "C"], ["V", "V"], ["B", "B"], ["N", "N"], ["M", "M"], [",", "COMMA"], [".", "DOT"], ["/", "FSLH"], ["Space", "SPACE"],
 ];
 const MODS: [string, string][] = [["L Ctrl", "LCTRL"], ["L Shift", "LSHFT"], ["L Alt (⌥)", "LALT"], ["L Win (⌘)", "LGUI"], ["R Ctrl", "RCTRL"], ["R Shift", "RSHFT"], ["R Alt (⌥)", "RALT"], ["R Win (⌘)", "RGUI"]];
 const NAV: [string, string][] = [["↑", "UP"], ["↓", "DOWN"], ["←", "LEFT"], ["→", "RIGHT"], ["Home", "HOME"], ["End", "END"], ["PgUp", "PG_UP"], ["PgDn", "PG_DN"], ["Ins", "INS"], ["Del", "DEL"],
@@ -41,7 +41,7 @@ const TITLES: Record<string, () => string> = {
 };
 /* What Shift gives on each key, printed small above it like on a keycap (Shift + key types it). */
 const SHIFTED_OF: Record<string, string> = Object.fromEntries(SYMBOLS.map(([sym, k]) => [k, sym]));
-const MORE: [string, string][] = Array.from({ length: 12 }, (_, i) => [`F${i + 13}`, `F${i + 13}`] as [string, string]);
+const MORE: [string, string][] = [["한/영", "LANG1"], ["한자", "LANG2"], ...Array.from({ length: 12 }, (_, i) => [`F${i + 13}`, `F${i + 13}`] as [string, string])];
 
 export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDetail, children }: {
   behaviors: GetBehaviorDetailsResponse[]; layers: { id: number; name: string }[];
@@ -134,7 +134,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
     const dynamic: Tile[] = namedRuntimeBindings(view).map(c => ({ label: c.label, title: c.kind === "macro" ? t("Macro", "매크로") : t("Tap Dance", "탭댄스"),
       binding: c.binding, wide: true, key: c.key } as Tile & { key: string }));
     return [
-      { id: "basic", label: t("Basic", "기본"), tiles: [...keys(BASIC), ...keys(MORE).map((x, i) => (i === 0 ? { ...x, group: "F13–F24" } : x))] },
+      { id: "basic", label: t("Basic", "기본"), tiles: [...keys(BASIC), ...keys(MORE).map((x, i) => (i === 0 ? { ...x, group: t("Others", "기타") } : x))] },
       { id: "mods", label: t("Modifiers", "수정키"), tiles: [...keys(MODS), ...adaptive.map((x, i) => (i === 0 ? { ...x, group: "OS Adaptive" } : x))] },
       { id: "nav", label: t("Navigation", "이동·편집"), tiles: keys(NAV) },
       { id: "numpad", label: t("Numpad", "숫자패드"), tiles: keys(NUMPAD) },
