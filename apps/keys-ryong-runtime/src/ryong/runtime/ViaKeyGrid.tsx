@@ -90,8 +90,11 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
     const special = [
       ...simple("graveescape", "Esc · `", t("Esc, or ` with Shift/GUI", "Esc, Shift·GUI와 함께면 `")),
       ...simple("backspacedelete", "Bksp · Del", t("Backspace, or Delete with Shift", "Backspace, Shift와 함께면 Delete")),
-      ...simple("osadaptivekey", t("OS Alt/Cmd", "OS Alt/Cmd"), t("Alt on Windows, Command on Apple", "Windows는 Alt, Apple은 Command"), usage("LALT"), usage("LGUI")),
-      ...simple("osadaptivekey", t("OS Win/Opt", "OS Win/Opt"), t("Win on Windows, Option on Apple", "Windows는 Win, Apple은 Option"), usage("LGUI"), usage("LALT")),
+      ...simple("osadaptivekey", t("L OS Alt/Cmd", "왼 OS Alt/Cmd"), t("Left of the space bar: Alt on Windows, Command on Apple", "스페이스 왼쪽용: Windows는 왼쪽 Alt, Apple은 왼쪽 Command"), usage("LALT"), usage("LGUI")),
+      ...simple("osadaptivekey", t("L OS Win/Opt", "왼 OS Win/Opt"), t("Left of the space bar: Win on Windows, Option on Apple", "스페이스 왼쪽용: Windows는 왼쪽 Win, Apple은 왼쪽 Option"), usage("LGUI"), usage("LALT")),
+      ...simple("osadaptivekey", t("R OS Alt/Cmd", "오른 OS Alt/Cmd"), t("Right of the space bar: Alt on Windows, Command on Apple", "스페이스 오른쪽용: Windows는 오른쪽 Alt, Apple은 오른쪽 Command"), usage("RALT"), usage("RGUI")),
+      ...simple("osadaptivekey", t("R OS Win/Opt", "오른 OS Win/Opt"), t("Right of the space bar: Win on Windows, Option on Apple", "스페이스 오른쪽용: Windows는 오른쪽 Win, Apple은 오른쪽 Option"), usage("RGUI"), usage("RALT")),
+      ...simple("osadaptivekey", t("R OS Menu/Opt", "오른 OS Menu/Opt"), t("Right of the space bar: Menu on Windows, Option on Apple", "스페이스 오른쪽용: Windows는 메뉴 키, Apple은 오른쪽 Option"), usage("C_MENU"), usage("RALT")),
       ...simple("transparent", "▽", t("Transparent: use the layer below", "투명: 아래 레이어 키 사용")),
       ...simple("none", "✕", t("Do nothing", "아무 동작 없음")),
       ...simple("capsword", "Caps Word", "Caps Word"),
