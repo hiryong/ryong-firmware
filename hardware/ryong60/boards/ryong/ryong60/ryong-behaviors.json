@@ -14,6 +14,174 @@
       "binding": {
         "b": "studio_unlock"
       }
+    },
+    {
+      "id": "ry_combo_f1",
+      "name": "1 + Q → F1",
+      "keys": [
+        1,
+        15
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F1"
+      }
+    },
+    {
+      "id": "ry_combo_f2",
+      "name": "2 + W → F2",
+      "keys": [
+        2,
+        16
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F2"
+      }
+    },
+    {
+      "id": "ry_combo_f3",
+      "name": "3 + E → F3",
+      "keys": [
+        3,
+        17
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F3"
+      }
+    },
+    {
+      "id": "ry_combo_f4",
+      "name": "4 + R → F4",
+      "keys": [
+        4,
+        18
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F4"
+      }
+    },
+    {
+      "id": "ry_combo_f5",
+      "name": "5 + T → F5",
+      "keys": [
+        5,
+        19
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F5"
+      }
+    },
+    {
+      "id": "ry_combo_f6",
+      "name": "6 + Y → F6",
+      "keys": [
+        6,
+        20
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F6"
+      }
+    },
+    {
+      "id": "ry_combo_f7",
+      "name": "7 + U → F7",
+      "keys": [
+        7,
+        21
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F7"
+      }
+    },
+    {
+      "id": "ry_combo_f8",
+      "name": "8 + I → F8",
+      "keys": [
+        8,
+        22
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F8"
+      }
+    },
+    {
+      "id": "ry_combo_f9",
+      "name": "9 + O → F9",
+      "keys": [
+        9,
+        23
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F9"
+      }
+    },
+    {
+      "id": "ry_combo_f10",
+      "name": "0 + P → F10",
+      "keys": [
+        10,
+        24
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F10"
+      }
+    },
+    {
+      "id": "ry_combo_f11",
+      "name": "- + [ → F11",
+      "keys": [
+        11,
+        25
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F11"
+      }
+    },
+    {
+      "id": "ry_combo_f12",
+      "name": "= + ] → F12",
+      "keys": [
+        12,
+        26
+      ],
+      "layers": [],
+      "timeout": 40,
+      "binding": {
+        "b": "kp",
+        "key": "F12"
+      }
     }
   ],
   "macros": [],

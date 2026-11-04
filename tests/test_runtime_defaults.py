@@ -13,11 +13,13 @@ FIX = ROOT / "hardware/test-fixtures/bt60-v2/config"
 class RuntimeDefaults(unittest.TestCase):
     def test_bt60_fixture(self):
         out, combos, macros = rd.convert((FIX / "ryong-behaviors.dtsi").read_text(), rd.json_names(FIX / "ryong-behaviors.json"))
-        self.assertEqual((combos, macros), (1, 0))  # the old BT_Profile macros are gone: slot keys are &bt_slot
+        self.assertEqual((combos, macros), (13, 0))  # unlock + 1+Q=F1 … =+]=F12; the old BT_Profile macros are gone
         self.assertIn("/delete-node/ combos;", out)
         self.assertIn('compatible = "cormoran,runtime-combo-defaults";', out)
         self.assertIn('display-name = "Studio Unlock (Esc + Backspace)";', out)
         self.assertIn("bindings = <&studio_unlock>;", out)
+        self.assertIn("key-positions = <1 15>;", out)
+        self.assertIn("bindings = <&kp F12>;", out)
 
     def test_macro(self):
         src = """/ {

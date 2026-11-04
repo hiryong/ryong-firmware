@@ -21,7 +21,7 @@ import values from "../runtime/keycode-values.json";
 import { LAYOUTS } from "../behaviors/layouts";
 
 const codes = values as Record<string, number>;
-const STORAGE = "ryong.virtualKeyboard.v2"; // v2: firmware combo/macros as runtime defaults
+const STORAGE = "ryong.virtualKeyboard.v3"; // v3: no os layer, Backspace/Delete, F1–F12 combos
 export const VIRTUAL_NAME = "Ryong60 (virtual)";
 
 type Binding = { behaviorId: number; param1: number; param2: number };
@@ -78,6 +78,7 @@ const BEHAVIORS: { id: number; name: string; metadata: object[] }[] = [
   { id: 25, name: "BT_PROFILE2", metadata: [] },
   { id: 26, name: "BT_PROFILE3", metadata: [] },
   { id: 27, name: "BLE Update", metadata: [] },
+  { id: 28, name: "Backspace/Delete", metadata: [] },
 ];
 /* Runtime defaults seeded from the firmware's own combos/macros (scripts/runtime_defaults.py). */
 const btProfileMacros = (): Macro[] => [0, 1, 2, 3].map((n) => ({ slot: n, name: `BT_PROFILE${n}`,
@@ -104,6 +105,7 @@ function parse(row: string): Binding[] {
       case "&studio_unlock": b(17); break;
       case "&soft_off": b(18); break;
       case "&gresc": b(19); break;
+      case "&bspc_del": b(28); break;
       case "&ry_host": b(22, key(next()), key(next())); break;
       default: {
         const m = /^&BT_Profile(\d)$/.exec(tok);
@@ -115,20 +117,19 @@ function parse(row: string): Binding[] {
 }
 const T5 = (n: number) => Array(n).fill("&trans").join(" ");
 const DEFAULT_LAYERS: [string, string][] = [
-  ["base", `&gresc &kp N1 &kp N2 &kp N3 &kp N4 &kp N5 &kp N6 &kp N7 &kp N8 &kp N9 &kp N0 &kp MINUS &kp EQUAL &kp BSPC
+  ["base", `&gresc &kp N1 &kp N2 &kp N3 &kp N4 &kp N5 &kp N6 &kp N7 &kp N8 &kp N9 &kp N0 &kp MINUS &kp EQUAL &bspc_del
     &kp TAB &kp Q &kp W &kp E &kp R &kp T &kp Y &kp U &kp I &kp O &kp P &kp LBKT &kp RBKT &kp BSLH
     &kp CAPS &kp A &kp S &kp D &kp F &kp G &kp H &kp J &kp K &kp L &kp SEMI &kp SQT &kp RET
     &kp LSHFT &kp Z &kp X &kp C &kp V &kp B &kp N &kp M &kp COMMA &kp DOT &kp FSLH &kp RSHFT
-    &kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL &mo 2`],
-  ["os", `${T5(41)} ${T5(12)} &trans &ry_host LALT LGUI &ry_host LGUI LALT &trans &ry_host RGUI RALT &ry_host RALT C_MENU &trans &trans`],
+    &kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host C_MENU RALT &kp RCTRL &mo 1`],
   ["raise", `&kp GRAVE &kp F1 &kp F2 &kp F3 &kp F4 &kp F5 &kp F6 &kp F7 &kp F8 &kp F9 &kp F10 &kp F11 &kp F12 &kp DEL
-    &tog 1 &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &out OUT_TOG &trans &trans &kp INS &trans &kp PSCRN &trans &trans &studio_unlock
-    &kp CAPS ${T5(11)} &bootloader
-    ${T5(10)} &kp UP &mo 3
+    &trans &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &out OUT_TOG &trans &trans &kp INS &trans &kp PSCRN &trans &trans &studio_unlock
+    &kp CAPS &trans &trans &bt BT_CLR ${T5(8)} &bootloader
+    ${T5(10)} &kp UP &mo 2
     &soft_off &trans &trans &trans &kp LEFT &kp DOWN &kp RIGHT &trans`],
   ["media", `&kp TILDE &kp C_BRI_DEC &kp C_BRI_INC &kp C_AC_DESKTOP_SHOW_ALL_WINDOWS &kp C_AC_SEARCH &trans &trans &kp C_PREV &kp C_PLAY_PAUSE &kp C_NEXT &kp C_MUTE &kp C_VOL_DN &kp C_VOL_UP &trans
     ${T5(14)}
-    &trans &bt BT_CLR_ALL &trans &bt BT_CLR ${T5(9)}
+    ${T5(13)}
     ${T5(10)} &kp PG_UP &trans
     &trans &trans &trans &trans &kp HOME &kp PG_DN &kp END &trans`],
 ];
@@ -141,7 +142,10 @@ function factory(): State {
     ({ bonded, connected, name, host, detected, override: O.Os.OS_UNKNOWN, gen });
   return {
     layers, nextLayerId: layers.length,
-    combos: [C.Combo.fromPartial({ index: 0, name: "Studio Unlock (Esc + Backspace)", keyPositions: [0, 13], behavior: { behaviorId: 17 }, layerMask: 0, enabled: true, timeoutMs: 80, source: C.ComboSource.COMBO_SOURCE_DEFAULT })],
+    combos: [C.Combo.fromPartial({ index: 0, name: "Studio Unlock (Esc + Backspace)", keyPositions: [0, 13], behavior: { behaviorId: 17 }, layerMask: 0, enabled: true, timeoutMs: 80, source: C.ComboSource.COMBO_SOURCE_DEFAULT }),
+      // 1+Q = F1 … =+] = F12 (firmware defaults, ryong-behaviors.json)
+      ...Array.from({ length: 12 }, (_, i) => C.Combo.fromPartial({ index: i + 1, name: `${"1234567890-="[i]} + ${"QWERTYUIOP[]"[i]} → F${i + 1}`,
+        keyPositions: [i + 1, i + 15], behavior: { behaviorId: 1, param1: key("F" + (i + 1)) }, layerMask: 0, enabled: true, timeoutMs: 40, source: C.ComboSource.COMBO_SOURCE_DEFAULT }))],
     comboTimeout: 50,
     macros: btProfileMacros(),
     tapMs: 30,
@@ -324,10 +328,10 @@ class VirtualDevice {
     const commit = (persist: boolean) => { if (persist) { this.flash.combos = clone(r.combos); this.flash.comboTimeout = r.comboTimeout; this.persist(); } };
     if (q.listCombos) return C.Response.fromPartial({ listCombos: { combos: clone(r.combos) } });
     if (q.getCombo) { const c = r.combos.find(x => x.index === q.getCombo!.index); return c ? C.Response.fromPartial({ getCombo: { combo: c } }) : C.Response.fromPartial({ error: { message: "no combo" } }); }
-    if (q.getGlobalSettings) return C.Response.fromPartial({ getGlobalSettings: { settings: { maxCombo: 8, timeoutMs: r.comboTimeout, slowRelease: false, requirePriorIdleMs: 0 } } });
+    if (q.getGlobalSettings) return C.Response.fromPartial({ getGlobalSettings: { settings: { maxCombo: 16, timeoutMs: r.comboTimeout, slowRelease: false, requirePriorIdleMs: 0 } } });
     if (q.setCombo) {
       const s = q.setCombo as unknown as Record<string, unknown> & { index: number; keyPositions: number[]; persist?: boolean };
-      if (s.index >= 8 || s.keyPositions.length < 2 || s.keyPositions.length > 4) return C.Response.fromPartial({ error: { message: "combo bounds" } });
+      if (s.index >= 16 || s.keyPositions.length < 2 || s.keyPositions.length > 4) return C.Response.fromPartial({ error: { message: "combo bounds" } });
       const old = r.combos.find(x => x.index === s.index);
       const next = C.Combo.fromPartial({ ...(old ?? {}), ...(s as object), name: old?.name ?? "", enabled: true, source: C.ComboSource.COMBO_SOURCE_RUNTIME });
       r.combos = r.combos.filter(x => x.index !== s.index).concat([next]).sort((a, b) => a.index - b.index);

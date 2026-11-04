@@ -89,6 +89,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
     ];
     const special = [
       ...simple("graveescape", "Esc · `", t("Esc, or ` with Shift/GUI", "Esc, Shift·GUI와 함께면 `")),
+      ...simple("backspacedelete", "Bksp · Del", t("Backspace, or Delete with Shift", "Backspace, Shift와 함께면 Delete")),
       ...simple("osadaptivekey", t("OS Alt/Cmd", "OS Alt/Cmd"), t("Alt on Windows, Command on Apple", "Windows는 Alt, Apple은 Command"), usage("LALT"), usage("LGUI")),
       ...simple("osadaptivekey", t("OS Win/Opt", "OS Win/Opt"), t("Win on Windows, Option on Apple", "Windows는 Win, Apple은 Option"), usage("LGUI"), usage("LALT")),
       ...simple("transparent", "▽", t("Transparent: use the layer below", "투명: 아래 레이어 키 사용")),

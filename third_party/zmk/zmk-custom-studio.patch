@@ -582,6 +582,20 @@ index 962180e706d6952061e255551d89096faf5038c0..2fb714998062df18981ea9269f698bea
  };
  
  #if IS_ENABLED(CONFIG_ZMK_USB_BOOT)
+diff --git a/app/include/zmk/keymap.h b/app/include/zmk/keymap.h
+index 26fd2d16022a2bb79d01355456601308e9ee0608..c3af22f90a907a55924ebc1aa5e50df4d8ce8c03 100644
+--- a/app/include/zmk/keymap.h
++++ b/app/include/zmk/keymap.h
+@@ -83,6 +83,9 @@ int zmk_keymap_save_changes(void);
+ int zmk_keymap_discard_changes(void);
+ int zmk_keymap_reset_settings(void);
+ 
++/* Ryong: after settings_load(): clears a keymap stored for an older stock layer layout. */
++void zmk_keymap_settings_loaded(void);
++
+ int zmk_keymap_position_state_changed(uint8_t source, uint32_t position, bool pressed,
+                                       int64_t timestamp);
+ 
 diff --git a/app/include/zmk/split/bluetooth/uuid.h b/app/include/zmk/split/bluetooth/uuid.h
 index c9a63efa7022366357f77a075b7b5eeaefedeb9a..069bb4dbfaa855bd0ca285885edff9c52b55b75f 100644
 --- a/app/include/zmk/split/bluetooth/uuid.h
@@ -2420,22 +2434,151 @@ index c7d9b861d4ae9df67e264126be033baf281c3124..eca58c97b7af02b5153622490548d8d1
  
  K_THREAD_STACK_DEFINE(hog_q_stack, CONFIG_ZMK_BLE_THREAD_STACK_SIZE);
  
+diff --git a/app/src/keymap.c b/app/src/keymap.c
+index 547d6612f50072169516ad0872c251b4d57c2371..e358b9289adb0b0cc2cb2c5ee09cfba39652a279 100644
+--- a/app/src/keymap.c
++++ b/app/src/keymap.c
+@@ -646,6 +646,9 @@ static int keymap_track_changed_bindings(const char *key, size_t len, settings_r
+             LOG_WRN("Invalid key_position number: %s with endptr %s", next, endptr);
+             return -EINVAL;
+         }
++        if (layer >= ZMK_KEYMAP_LAYERS_LEN || key_position >= ZMK_KEYMAP_LEN) {
++            return 0; /* Ryong: left over from a firmware with more layers (removed separately) */
++        }
+ 
+         WRITE_BIT((*state)[layer][key_position / 8], key_position % 8, 1);
+     }
+@@ -689,8 +692,90 @@ int zmk_keymap_reset_settings(void) {
+     return 0;
+ }
+ 
++/*
++ * Ryong: a stored keymap is kept by layer number, so it only fits the layer layout of the firmware
++ * that saved it. Format 2 removed the "os" layer (the layers after it moved down by one): a keymap
++ * stored by older firmware is cleared once and the new stock keymap applies. Bump the format
++ * whenever stock layers are removed or reordered. Called once after settings_load().
++ */
++#define RY_KEYMAP_FORMAT 2
++#define RY_ORPHAN_LAYERS 4
++
++struct ry_orphans {
++    uint8_t names;
++    uint8_t bindings[RY_ORPHAN_LAYERS][PENDING_ARRAY_SIZE];
++};
++
++static int ry_format_cb(const char *key, size_t len, settings_read_cb read_cb, void *cb_arg,
++                        void *param) {
++    ARG_UNUSED(key);
++    if (len == 1) {
++        (void)read_cb(cb_arg, param, 1);
++    }
++    return 0;
++}
++
++static int ry_orphans_cb(const char *key, size_t len, settings_read_cb read_cb, void *cb_arg,
++                         void *param) {
++    ARG_UNUSED(len);
++    ARG_UNUSED(read_cb);
++    ARG_UNUSED(cb_arg);
++    struct ry_orphans *o = param;
++    const char *next;
++    char *end;
++    if (!key) {
++        return 0;
++    }
++    if (settings_name_steq(key, "l_n", &next) && next) {
++        unsigned long l = strtoul(next, &end, 10);
++        if (*end == '\0' && l >= ZMK_KEYMAP_LAYERS_LEN && l < ZMK_KEYMAP_LAYERS_LEN + RY_ORPHAN_LAYERS) {
++            o->names |= BIT(l - ZMK_KEYMAP_LAYERS_LEN);
++        }
++    } else if (settings_name_steq(key, "l", &next) && next) {
++        unsigned long l = strtoul(next, &end, 10);
++        if (*end != '/') {
++            return 0;
++        }
++        unsigned long k = strtoul(end + 1, &end, 10);
++        if (*end == '\0' && l >= ZMK_KEYMAP_LAYERS_LEN && l < ZMK_KEYMAP_LAYERS_LEN + RY_ORPHAN_LAYERS &&
++            k < ZMK_KEYMAP_LEN) {
++            WRITE_BIT(o->bindings[l - ZMK_KEYMAP_LAYERS_LEN][k / 8], k % 8, 1);
++        }
++    }
++    return 0;
++}
++
++void zmk_keymap_settings_loaded(void) {
++    uint8_t format = 0;
++    settings_load_subtree_direct("ryk/format", ry_format_cb, &format);
++    if (format == RY_KEYMAP_FORMAT) {
++        return;
++    }
++    LOG_WRN("Keymap stored for another layer layout (format %u): using the stock keymap", format);
++    struct ry_orphans orphans = {0};
++    settings_load_subtree_direct("keymap", ry_orphans_cb, &orphans);
++    for (int i = 0; i < RY_ORPHAN_LAYERS; i++) {
++        char name[20];
++        if (orphans.names & BIT(i)) {
++            sprintf(name, LAYER_NAME_SETTINGS_KEY, ZMK_KEYMAP_LAYERS_LEN + i);
++            settings_delete(name);
++        }
++        for (int k = 0; k < ZMK_KEYMAP_LEN; k++) {
++            if (orphans.bindings[i][k / 8] & BIT(k % 8)) {
++                sprintf(name, LAYER_BINDING_SETTINGS_KEY, ZMK_KEYMAP_LAYERS_LEN + i, k);
++                settings_delete(name);
++            }
++        }
++    }
++    zmk_keymap_reset_settings();
++    format = RY_KEYMAP_FORMAT;
++    (void)settings_save_one("ryk/format", &format, sizeof(format));
++}
++
+ #else
+ 
++void zmk_keymap_settings_loaded(void) {}
++
+ int zmk_keymap_save_changes(void) { return -ENOTSUP; }
+ 
+ int zmk_keymap_discard_changes(void) { return -ENOTSUP; }
+@@ -857,6 +942,7 @@ static int keymap_handle_set(const char *name, size_t len, settings_read_cb read
+ 
+         if (layer >= ZMK_KEYMAP_LAYERS_LEN) {
+             LOG_WRN("Found layer name for invalid layer ID %d", layer);
++            return 0; /* Ryong: a layer the firmware no longer has (never write past the table) */
+         }
+ 
+         int ret = read_cb(cb_arg, zmk_keymap_layer_names[layer],
+@@ -936,6 +1022,13 @@ static int keymap_handle_set(const char *name, size_t len, settings_read_cb read
+ 
+         memcpy(keymap_layer_orders, settings_layer_orders,
+                MIN(len, ARRAY_SIZE(settings_layer_orders)));
++        /* Ryong: an order stored by firmware with more layers may name layers that are gone */
++        for (int i = 0; i < ZMK_KEYMAP_LAYERS_LEN; i++) {
++            if (keymap_layer_orders[i] != ZMK_KEYMAP_LAYER_ID_INVAL &&
++                keymap_layer_orders[i] >= ZMK_KEYMAP_LAYERS_LEN) {
++                keymap_layer_orders[i] = ZMK_KEYMAP_LAYER_ID_INVAL;
++            }
++        }
+     }
+ #endif // IS_ENABLED(CONFIG_ZMK_KEYMAP_LAYER_REORDERING)
+ 
 diff --git a/app/src/main.c b/app/src/main.c
-index 0f77382addb243d2fc878e0497366e202e000f55..6a075f76dfeb44410ea87a1b62e236f17c976823 100644
+index 0f77382addb243d2fc878e0497366e202e000f55..8e314e170cf7c367e3b9ae69965a5ba3434eb8dc 100644
 --- a/app/src/main.c
 +++ b/app/src/main.c
-@@ -8,6 +8,7 @@
+@@ -8,6 +8,8 @@
  #include <zephyr/device.h>
  #include <zephyr/devicetree.h>
  #include <zephyr/settings/settings.h>
 +#include <zmk/ble.h>
++#include <zmk/keymap.h>
  
  #include <zephyr/logging/log.h>
  LOG_MODULE_REGISTER(zmk, CONFIG_ZMK_LOG_LEVEL);
-@@ -25,6 +26,9 @@ int main(void) {
+@@ -25,6 +27,10 @@ int main(void) {
  #if IS_ENABLED(CONFIG_SETTINGS)
      settings_subsys_init();
      settings_load();
++    zmk_keymap_settings_loaded();
 +#if IS_ENABLED(CONFIG_ZMK_BLE) && !IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
 +    zmk_ble_settings_loaded();
 +#endif

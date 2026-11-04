@@ -125,6 +125,8 @@ export function legendFor(
       return { main: "Caps Word" };
     case "Key Repeat":
       return { main: "Repeat" };
+    case "Backspace/Delete":
+      return { main: "Bksp", sub: "Del" };
     case "Grave/Escape":
       return { main: "Esc", sub: "`" };
     case "Mouse Key Press":

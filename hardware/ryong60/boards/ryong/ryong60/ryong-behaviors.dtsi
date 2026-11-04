@@ -19,5 +19,65 @@
             key-positions = <0 13>;
             bindings = <&studio_unlock>;
         };
+        ry_combo_f1 {
+            timeout-ms = <40>;
+            key-positions = <1 15>;
+            bindings = <&kp F1>;
+        };
+        ry_combo_f2 {
+            timeout-ms = <40>;
+            key-positions = <2 16>;
+            bindings = <&kp F2>;
+        };
+        ry_combo_f3 {
+            timeout-ms = <40>;
+            key-positions = <3 17>;
+            bindings = <&kp F3>;
+        };
+        ry_combo_f4 {
+            timeout-ms = <40>;
+            key-positions = <4 18>;
+            bindings = <&kp F4>;
+        };
+        ry_combo_f5 {
+            timeout-ms = <40>;
+            key-positions = <5 19>;
+            bindings = <&kp F5>;
+        };
+        ry_combo_f6 {
+            timeout-ms = <40>;
+            key-positions = <6 20>;
+            bindings = <&kp F6>;
+        };
+        ry_combo_f7 {
+            timeout-ms = <40>;
+            key-positions = <7 21>;
+            bindings = <&kp F7>;
+        };
+        ry_combo_f8 {
+            timeout-ms = <40>;
+            key-positions = <8 22>;
+            bindings = <&kp F8>;
+        };
+        ry_combo_f9 {
+            timeout-ms = <40>;
+            key-positions = <9 23>;
+            bindings = <&kp F9>;
+        };
+        ry_combo_f10 {
+            timeout-ms = <40>;
+            key-positions = <10 24>;
+            bindings = <&kp F10>;
+        };
+        ry_combo_f11 {
+            timeout-ms = <40>;
+            key-positions = <11 25>;
+            bindings = <&kp F11>;
+        };
+        ry_combo_f12 {
+            timeout-ms = <40>;
+            key-positions = <12 26>;
+            bindings = <&kp F12>;
+        };
     };
 };

@@ -80,7 +80,7 @@ let ctx = await open({ width: 1440, height: 900 }, { fresh: true });
 await step("connect and unlock", async () => {
   await connect();
   const f = await flash();
-  assert.equal(f.layers.length, 4);
+  assert.equal(f.layers.length, 3); // base, raise, media (no os layer)
   await page.screenshot({ path: `${output}/01-keymap.png` });
 });
 
@@ -141,16 +141,16 @@ await step("keymap: undo and redo", async () => {
 
 await step("keymap: add a layer, save, remove it", async () => {
   await page.getByRole("button", { name: "레이어 추가" }).click();
-  await page.waitForFunction(() => window.__ryongVirtual.ram.layers.length === 5, null, { timeout: 3000 });
-  await page.locator("button:has([aria-label=Save])").click();
-  await page.waitForFunction(() => window.__ryongVirtual.flash.layers.length === 5, null, { timeout: 3000 });
-  const layerList = page.getByRole("listbox", { name: "Keymap Layer" });
-  assert.equal(await layerList.getByRole("option").count(), 5);
-  await layerList.getByRole("option").nth(4).click();
-  await page.getByRole("button", { name: "레이어 삭제" }).click();
   await page.waitForFunction(() => window.__ryongVirtual.ram.layers.length === 4, null, { timeout: 3000 });
   await page.locator("button:has([aria-label=Save])").click();
   await page.waitForFunction(() => window.__ryongVirtual.flash.layers.length === 4, null, { timeout: 3000 });
+  const layerList = page.getByRole("listbox", { name: "Keymap Layer" });
+  assert.equal(await layerList.getByRole("option").count(), 4);
+  await layerList.getByRole("option").nth(3).click();
+  await page.getByRole("button", { name: "레이어 삭제" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.ram.layers.length === 3, null, { timeout: 3000 });
+  await page.locator("button:has([aria-label=Save])").click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.layers.length === 3, null, { timeout: 3000 });
   await page.getByRole("option", { name: "base" }).click();
 });
 
@@ -373,7 +373,7 @@ await step("combo: delete", async () => {
   await tab("콤보");
   const live = async () => (await flash()).combos.filter((c) => c.enabled).length;
   const n = await live();
-  await page.getByRole("button", { name: "Combo 2 삭제" }).click();
+  await page.getByRole("button", { name: /^Combo \d+ 삭제$/ }).last().click();
   await saveBehaviors();
   assert.equal(await live(), n - 1);
 });
