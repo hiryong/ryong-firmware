@@ -36,6 +36,8 @@ import { useSub } from "../../usePubSub";
 import { WakePicker } from "../PowerInfo";
 import { KeyPress } from "../UnlockAnim";
 import { TapHoldSettings } from "./TapHoldSettings";
+import { KeyPick } from "./KeyPick";
+import { assignKey, bindingAt, keysWith } from "../runtime/assignKey";
 import { BehaviorLab } from "./BehaviorLab";
 import { FriendlyBindingPicker, friendlyLabel } from "./FriendlyBindingPicker";
 import type { MacroItem } from "./labEngine";
@@ -363,6 +365,40 @@ const Editor = ({
 
   const rewake = !!loaded?.board && wakeNow !== null && wakeNow !== loaded.board.wake;
   /* the combo as it is on the keyboard right now (the real-key test needs that) */
+  const [pickOut, setPickOut] = useState<string | null>(null); // combo whose action picker is open
+  /* tap dance → the key it goes on (picked in its card) */
+  const [danceKey, setDanceKey] = useState<Record<string, { layer: number; pos: number }>>({});
+  const [danceMsg, setDanceMsg] = useState<Record<string, string>>({});
+  const keyLabelAt = (layer: number, pos: number) => {
+    if (!runtimeView) return undefined;
+    const b = bindingAt(runtimeView, layer, pos);
+    return b ? friendlyLabel(b, doc, layers) : undefined;
+  };
+  const danceIndex = (id: string) => id.startsWith("runtime_dance_") ? Number(id.slice(14)) : undefined;
+  /** Saves first when needed (a new tap dance gets its number then), then puts it on the key. */
+  const putDanceOnKey = async (tdId: string, target: { layer: number; pos: number }) => {
+    if (!runtimeConn || !runtimeView) return;
+    setDanceMsg((m) => ({ ...m, [tdId]: "" }));
+    try {
+      let view = runtimeView, index = danceIndex(tdId);
+      if (dirty || index === undefined) {
+        const at = doc.tapDances.findIndex((x) => x.id === tdId);
+        const r = await save();
+        if (!r) return;
+        view = r.view;
+        const id = r.nextDoc.tapDances[at]?.id;
+        index = id ? danceIndex(id) : undefined;
+        if (id && id !== tdId) setDanceKey((m) => ({ ...m, [id]: target }));
+      }
+      if (index === undefined || view.catalog.rtd === undefined) throw new Error(t("This tap dance has no number yet.", "이 탭댄스에 아직 번호가 없어요."));
+      await assignKey(runtimeConn, view, target.layer, target.pos, { behaviorId: view.catalog.rtd, param1: index, param2: 0 });
+      const snapshot = await view.session.refreshKeymap(view.snapshot);
+      setRuntimeView({ ...view, snapshot });
+      setDanceMsg((m) => ({ ...m, ["runtime_dance_" + index]: t("Put on the key and saved.", "키에 넣고 저장했어요.") }));
+    } catch (e) {
+      setDanceMsg((m) => ({ ...m, [tdId]: e instanceof Error ? e.message : String(e) }));
+    }
+  };
   const savedCombo = (c: { id: string }) => {
     try { return JSON.stringify((JSON.parse(loaded!.savedJson).combos ?? []).find((x: { id: string }) => x.id === c.id)) === JSON.stringify(c); } catch { return false; }
   };
@@ -412,7 +448,7 @@ const Editor = ({
     setKb(k);
   };
 
-  const save = async () => {
+  const save = async (): Promise<{ view: RuntimeView; nextDoc: BehaviorDoc } | undefined> => {
     if (!loaded) return;
     setSaving(true);
     setError(null);
@@ -455,7 +491,7 @@ const Editor = ({
         localStorage.removeItem(draftKey);
         setSaved(preview ? "preview" : "runtime");
         if (!preview) onRuntimeSaved?.();
-        return;
+        return { view, nextDoc };
       }
       const files = [
         { path: jsonPath, content: JSON.stringify(doc, null, 2) + "\n" },
@@ -680,6 +716,16 @@ const Editor = ({
                         : undefined
                     }
                   >
+                    <Field label={t("Combo", "콤보")} hint={t("Choose the keys on the keyboard below, then click the box after = to choose what they do.", "아래 키보드에서 함께 누를 키를 고르고, = 오른쪽 칸을 눌러 동작을 고르세요.")}>
+                      <ComboKeys keys={comboKeys} value={c.keys} onChange={(keys) => update("combos", c.id, { keys })}
+                        output={c.binding.b === "studio_unlock"
+                          ? <span className="ry-combo-out is-fixed">{bindingLabel(c.binding, doc, layers)}</span>
+                          : <button type="button" className="ry-combo-out" aria-expanded={pickOut === c.id} aria-label={t("Choose what the combo does", "콤보 동작 고르기")}
+                              onClick={() => setPickOut(pickOut === c.id ? null : c.id)}>{friendlyLabel(c.binding, doc, layers)}</button>} />
+                      {pickOut === c.id && c.binding.b !== "studio_unlock" && <div className="ry-combo-outpick">
+                        <FriendlyBindingPicker value={c.binding} onChange={(binding) => { update("combos", c.id, { binding }); setPickOut(null); }} doc={doc} layerNames={layers} />
+                      </div>}
+                    </Field>
                     {c.keys.length >= 2 && c.keys.length <= 4 && (
                       <BehaviorLab lab={{ kind: "combo", timeout: c.timeout, comboLabel: friendlyLabel(c.binding, doc, layers),
                         keyLabels: c.keys.map((p) => comboKeys[p]?.[4] ?? String(p)) }}
@@ -687,16 +733,6 @@ const Editor = ({
                     )}
                     <Field label={t("Name", "이름")}>
                       <input type="text" value={c.name} onChange={(e) => update("combos", c.id, { name: e.target.value })} />
-                    </Field>
-                    <Field label={t("Keys to press together", "함께 누를 키") + (c.keys.length ? t(" · {n} chosen", " · {n}개 선택", { n: c.keys.length }) : "")}>
-                      <ComboKeys keys={comboKeys} value={c.keys} onChange={(keys) => update("combos", c.id, { keys })} />
-                    </Field>
-                    <Field label={t("Does", "동작")}>
-                      {c.binding.b === "studio_unlock" ? (
-                        <span className="ry-code" style={{ alignSelf: "flex-start", width: "fit-content" }}>{bindingLabel(c.binding, doc, layers)}</span>
-                      ) : (
-                        <FriendlyBindingPicker value={c.binding} onChange={(binding) => update("combos", c.id, { binding })} doc={doc} layerNames={layers} />
-                      )}
                     </Field>
                     <Field label={t("Works on", "적용 레이어")}>
                       <div className="ry-gap">
@@ -762,7 +798,7 @@ const Editor = ({
                   </Item>
                 ))}
 
-              {section === "tapDances" && runtime && <p className="ry-note">{t("One global interval; use the same value on every card. One to three actions. Assign the returned ID through Studio.", "판정 시간은 전체 공통입니다. 모든 카드에 같은 값을 입력하세요. 동작은 최대 3개이며 저장 후 ID를 Studio에서 지정합니다.")}</p>}
+              {section === "tapDances" && runtime && <p className="ry-faint">{t("Pick the key in each card: one tap keeps what the key did, more taps do the actions you choose. The timing is shared by every tap dance.", "카드에서 키를 고르세요. 한 번 누르면 그 키 그대로, 여러 번 누르면 고른 동작을 해요. 판정 시간은 모든 탭댄스가 같이 써요.")}</p>}
               {section === "tapDances" &&
                 doc.tapDances.map((td) => (
                   <Item
@@ -774,8 +810,31 @@ const Editor = ({
                     onDelete={() => remove("tapDances", td.id)}
                     onCopy={() => duplicate("tapDances", td.id)}
                   >
+                    {runtime && runtimeConn && runtimeView?.catalog.rtd !== undefined && (() => {
+                      const idx = danceIndex(td.id);
+                      const on = idx === undefined ? [] : keysWith(runtimeView, runtimeView.catalog.rtd!, idx);
+                      const target = danceKey[td.id] ?? on[0];
+                      const layer = target?.layer ?? 0;
+                      const placed = !!target && on.some((k) => k.layer === target.layer && k.pos === target.pos);
+                      return <Field label={t("Key", "키")} hint={on.length
+                        ? t("On {where}.", "지금 {where}에 들어 있어요.", { where: on.map((k) => `${layers[k.layer] ?? k.layer} · ${comboKeys[k.pos]?.[4] ?? k.pos}`).join(", ") })
+                        : t("Not on a key yet. Pick one below.", "아직 어느 키에도 없어요. 아래에서 키를 고르세요.")}>
+                        <KeyPick keys={comboKeys} layers={layers} layer={layer} pos={target?.pos} labelAt={keyLabelAt}
+                          onLayer={(l) => setDanceKey((m) => ({ ...m, [td.id]: { layer: l, pos: target?.pos ?? -1 } }))}
+                          onPick={(pos) => {
+                            setDanceKey((m) => ({ ...m, [td.id]: { layer, pos } }));
+                            const cur = bindingAt(runtimeView, layer, pos);
+                            if (cur && !(cur.b === "ref" && cur.id === td.id)) update("tapDances", td.id, { bindings: [cur, ...td.bindings.slice(1)] });
+                          }} />
+                        <div className="ry-row">
+                          <span className="ry-faint" aria-live="polite">{danceMsg[td.id] ?? ""}</span>
+                          <button type="button" className="ry-primary" disabled={!target || target.pos < 0 || placed || saving}
+                            onClick={() => target && void putDanceOnKey(td.id, target)}>
+                            {placed ? t("On this key", "이 키에 들어 있음") : dirty || idx === undefined ? t("Save and put on the key", "저장하고 키에 넣기") : t("Put on the key", "키에 넣기")}</button>
+                        </div>
+                      </Field>;
+                    })()}
                     <Field label={t("Name", "이름")} hint={t("Name in the behavior list.", "동작 목록에 보이는 이름.")}>
-                      {runtime && td.id.startsWith("runtime_dance_") && <p className="ry-note">Studio · Runtime Tap Dance · ID {td.id.slice(14)}</p>}
                       <input type="text" value={td.name} onChange={(e) => update("tapDances", td.id, { name: e.target.value })} />
                     </Field>
                     <Field label={t("Taps", "탭")}>
@@ -832,7 +891,7 @@ const Editor = ({
                       liveLabels={liveLabels}
                     />
                   )}
-                  {runtime ? <TapHoldSettings doc={doc} setDoc={setDoc} /> : <>
+                  {runtime ? <TapHoldSettings doc={doc} setDoc={setDoc} assign={runtimeConn && runtimeView ? { keys: comboKeys, layers, view: runtimeView, conn: runtimeConn, labelAt: keyLabelAt, onView: setRuntimeView } : undefined} /> : <>
                   <h3 className="ry-h2" style={{ marginTop: 8 }}>{t("Behavior options", "동작 옵션")}</h3>
                   <SettingsEditor doc={doc} setDoc={setDoc} kb={kb} skip={loaded.board ? ["soft_off"] : []} /></>}
                 </>
@@ -1302,7 +1361,7 @@ const Num = ({ value, onChange, min, max }: { value: number; onChange: (n: numbe
   />
 );
 
-const ComboKeys = ({ keys, value, onChange }: { keys: KeyRect[]; value: number[]; onChange: (v: number[]) => void }) => {
+const ComboKeys = ({ keys, value, onChange, output }: { keys: KeyRect[]; value: number[]; onChange: (v: number[]) => void; output?: React.ReactNode }) => {
   const w = Math.max(...keys.map(([x, , kw]) => x + kw), 100);
   const h = Math.max(...keys.map(([, y, , kh]) => y + kh), 100);
   const MAX = 4; // runtime combos allow up to four keys
@@ -1319,7 +1378,8 @@ const ComboKeys = ({ keys, value, onChange }: { keys: KeyRect[]; value: number[]
             </span>
           </span>
         )) : <span className="ry-faint">{t("Click keys below to add them.", "아래 키보드에서 함께 누를 키를 눌러 추가하세요.")}</span>}
-        {value.length > 0 && <button type="button" className="ry-text" onClick={() => onChange([])}>{t("Clear all", "모두 지우기")}</button>}
+        {output && <><b className="ry-eq-op" aria-hidden="true">=</b>{output}</>}
+        {value.length > 0 && <button type="button" className="ry-text" onClick={() => onChange([])}>{t("Clear keys", "키 모두 지우기")}</button>}
       </div>
       <p className="ry-faint" style={{ margin: 0 }}>{full ? t("Up to {n} keys. Remove one to choose another.", "최대 {n}개까지예요. 하나를 빼면 다른 키를 고를 수 있어요.", { n: MAX })
         : t("Click a chosen key again to remove it.", "선택한 키를 다시 누르면 빠져요.")}</p>

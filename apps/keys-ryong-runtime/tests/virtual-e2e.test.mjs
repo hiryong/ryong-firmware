@@ -178,6 +178,7 @@ await step("combo: create A+S(+D, then remove D) = 4 using picker tiles", async 
   await item.getByTitle("위치 31", { exact: true }).click();
   await item.getByRole("button", { name: "D 빼기" }).click();
   assert.equal(await item.locator(".ry-combo-chip").count(), 2);
+  await item.getByRole("button", { name: "콤보 동작 고르기" }).click(); // the box after "="
   await item.getByRole("tab", { name: "문자·숫자" }).click();
   await item.locator(".ry-fb-tile", { hasText: /^4$/ }).click();
   await saveBehaviors();
@@ -203,9 +204,10 @@ await step("combo: try it with the real keys (what the keyboard sends) → 4", a
 
 await step("combo: assign by pressing a key on the computer keyboard", async () => {
   const item = page.locator(".ry-item.is-open");
+  await item.getByRole("button", { name: "콤보 동작 고르기" }).click();
   await item.getByRole("button", { name: "키보드로 직접 누르기" }).click();
   await page.keyboard.press("Digit5");
-  await item.locator(".ry-fb-cap", { hasText: /^5$/ }).waitFor({ timeout: 2000 });
+  await item.getByRole("button", { name: "콤보 동작 고르기" }).filter({ hasText: /^5$/ }).waitFor({ timeout: 2000 });
   await saveBehaviors();
   const c = (await flash()).combos.find((x) => x.keyPositions.includes(29) && x.keyPositions.includes(30));
   assert.equal(usage(c.behavior.param1), 0x22, "stored action is 5");
@@ -298,7 +300,37 @@ await step("tap dance lab: double tap → second action", async () => {
   await page.waitForFunction(() => document.querySelector(".ry-item.is-open .ry-lab-typed kbd:last-child")?.textContent === "A", null, { timeout: 3000 });
 });
 
+await step("tap dance: pick the key in its card and put it there", async () => {
+  const item = page.locator(".ry-item.is-open");
+  const keys = item.locator(".ry-combokeys button");
+  const labels = await keys.evaluateAll((bs) => bs.map((b) => b.textContent.trim()));
+  const q = labels.indexOf("W");
+  assert.ok(q >= 0, "W on the key map: " + labels.slice(0, 20).join(","));
+  await keys.nth(q).click();
+  await item.getByRole("button", { name: /키에 넣기/ }).click();
+  await item.getByText("키에 넣고 저장했어요.").waitFor({ timeout: 8000 });
+  const f = await flash();
+  const b = f.layers[0].bindings[q];
+  assert.equal(b.behaviorId, 21, "Runtime Tap Dance on W");
+  assert.equal(b.param1, f.dances.length - 1);
+});
+
 /* hold-tap */
+await step("tap·hold: put Shift-hold on F from the tap·hold tab", async () => {
+  await tab("탭·홀드");
+  const card = page.getByLabel("키에 넣기", { exact: true });
+  const keys = card.locator(".ry-combokeys button");
+  const fpos = await keys.evaluateAll((bs) => bs.findIndex((b) => b.textContent.trim() === "F"));
+  await keys.nth(fpos).click();
+  await card.getByRole("group", { name: "길게 누르면" }).getByRole("button", { name: "Ctrl", exact: true }).click();
+  await card.getByRole("button", { name: "키에 넣기" }).click();
+  await card.getByText("키에 넣고 저장했어요.").waitFor({ timeout: 8000 });
+  const b = (await flash()).layers[0].bindings[fpos];
+  assert.equal(b.behaviorId, 9, "Mod-Tap");
+  assert.equal(b.param1 & 0xffff, 0xe0, "hold = Ctrl");
+  assert.equal(b.param2 & 0xffff, 0x09, "tap = F");
+});
+
 await step("tap·hold: preset hold time applies to Mod-Tap and Layer-Tap together", async () => {
   await tab("탭·홀드");
   await page.waitForTimeout(500);

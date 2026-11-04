@@ -279,7 +279,6 @@ export function BehaviorLab(props: { lab: Lab; real?: { saved: boolean } }) {
     onPointerUp: () => press(k, false), onPointerCancel: () => press(k, false), onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
   });
   if (lab.kind === "combo" && props.real) return <section className="ry-lab" aria-label={t("How it works", "어떻게 동작하나요")}>
-    <Equations lab={lab} />
     <RealComboTry keys={lab.keyLabels} out={lab.comboLabel} timeout={lab.timeout} saved={props.real.saved} />
   </section>;
   return <section className="ry-lab" aria-label={t("How it works", "어떻게 동작하나요")}>

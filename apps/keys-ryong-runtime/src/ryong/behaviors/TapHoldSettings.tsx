@@ -5,6 +5,12 @@ import { useState } from "react";
 import type { BehaviorDoc, Setting } from "./model";
 import { SETTING_SPECS } from "./model";
 import { BehaviorLab } from "./BehaviorLab";
+import { KeyPick } from "./KeyPick";
+import type { KeyRect } from "./layouts";
+import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
+import type { RuntimeView } from "../runtime/modelBridge";
+import { assignKey, wireAt } from "../runtime/assignKey";
+import values from "../runtime/keycode-values.json";
 import { t } from "../i18n";
 
 const KINDS = ["mt", "lt"] as const;
@@ -27,7 +33,53 @@ const FLAVOR_CHOICES = [
 type Props = Record<string, number | string>;
 const def = (p: string) => SETTING_SPECS.mt.props[p]?.def;
 
-export function TapHoldSettings({ doc, setDoc }: { doc: BehaviorDoc; setDoc: React.Dispatch<React.SetStateAction<BehaviorDoc>> }) {
+type Assign = { keys: KeyRect[]; layers: string[]; view: RuntimeView; conn: RpcConnection;
+  labelAt: (layer: number, pos: number) => string | undefined; onView: (view: RuntimeView) => void };
+
+const codes = values as Record<string, number>;
+const HOLD_MODS: [string, string][] = [["Ctrl", "LCTRL"], ["Shift", "LSHFT"], ["Alt / Option", "LALT"], ["Win / Cmd", "LGUI"]];
+
+/** Pick a key, keep what it types on a tap, choose what holding it does: written to the keymap at once. */
+function PutOnKey({ a }: { a: Assign }) {
+  const [layer, setLayer] = useState(0);
+  const [pos, setPos] = useState<number | undefined>();
+  const [hold, setHold] = useState<string>("m" + codes.LSHFT);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { mt, lt, kp } = a.view.catalog;
+  const wire = pos === undefined ? undefined : wireAt(a.view, layer, pos);
+  // the key it types on a tap: a plain key, or the tap key of a tap·hold already there
+  const tap = !wire ? undefined : wire.behaviorId === kp ? wire.param1 : (wire.behaviorId === mt || wire.behaviorId === lt) ? wire.param2 : undefined;
+  const isLayer = hold.startsWith("l"), val = Number(hold.slice(1));
+  const next = tap === undefined ? undefined : isLayer ? (lt === undefined ? undefined : { behaviorId: lt, param1: val, param2: tap }) : (mt === undefined ? undefined : { behaviorId: mt, param1: val, param2: tap });
+  const same = !!next && !!wire && next.behaviorId === wire.behaviorId && next.param1 === wire.param1 && next.param2 === wire.param2;
+  return <section className="ry-card ry-setcard" aria-label={t("Put on a key", "키에 넣기")}>
+    <div className="ry-setrow-t">{t("Put on a key", "키에 넣기")}</div>
+    <p className="ry-faint">{t("Pick the key: a tap keeps what it types, holding it does what you choose below.", "키를 고르세요. 짧게 누르면 원래 키 그대로, 길게 누르면 아래에서 고른 동작을 해요.")}</p>
+    <KeyPick keys={a.keys} layers={a.layers} layer={layer} pos={pos} labelAt={a.labelAt} onLayer={(l) => { setLayer(l); setMsg(""); }} onPick={(p) => { setPos(p); setMsg(""); }} />
+    {pos !== undefined && tap === undefined && <p className="ry-note">{t("This key does not type a plain key, so it cannot be a tap·hold.", "이 키는 일반 글자 키가 아니라서 탭·홀드로 만들 수 없어요.")}</p>}
+    <div className="ry-gap" role="group" aria-label={t("Hold", "길게 누르면")}>
+      <span className="ry-label">{t("Hold", "길게 누르면")}</span>
+      {mt !== undefined && HOLD_MODS.map(([label, k]) => <button key={k} type="button" className="ry-chip" aria-pressed={hold === "m" + codes[k]} onClick={() => setHold("m" + codes[k])}>{label}</button>)}
+      {lt !== undefined && a.layers.map((n, i) => i > 0 && <button key={"l" + i} type="button" className="ry-chip" aria-pressed={hold === "l" + i} onClick={() => setHold("l" + i)}>{t("Layer {n}", "{n} 레이어", { n: n || i })}</button>)}
+    </div>
+    <div className="ry-row">
+      <span className="ry-faint" aria-live="polite">{msg}</span>
+      <button type="button" className="ry-primary" disabled={!next || same || busy} onClick={async () => {
+        if (!next || pos === undefined) return;
+        setBusy(true); setMsg("");
+        try {
+          await assignKey(a.conn, a.view, layer, pos, next);
+          a.onView({ ...a.view, snapshot: await a.view.session.refreshKeymap(a.view.snapshot) });
+          setMsg(t("Put on the key and saved.", "키에 넣고 저장했어요."));
+        } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); }
+        finally { setBusy(false); }
+      }}>{same ? t("On this key", "이 키에 들어 있음") : t("Put on the key", "키에 넣기")}</button>
+    </div>
+  </section>;
+}
+
+export function TapHoldSettings({ doc, setDoc, assign }: { doc: BehaviorDoc; setDoc: React.Dispatch<React.SetStateAction<BehaviorDoc>>; assign?: Assign }) {
   const present = KINDS.filter((k) => (doc.settings ?? []).some((s) => s.behavior === k));
   const props = (k: string): Props => (doc.settings ?? []).find((s) => s.behavior === k)?.props ?? {};
   const val = (k: string, p: string) => props(k)[p] ?? def(p);
@@ -58,6 +110,7 @@ export function TapHoldSettings({ doc, setDoc }: { doc: BehaviorDoc; setDoc: Rea
 
   if (!present.length) return <p className="ry-faint">{t("This firmware has no adjustable tap·hold keys.", "이 펌웨어에는 조절할 수 있는 탭·홀드 키가 없어요.")}</p>;
   return <div className="ry-taphold">
+    {assign && <PutOnKey a={assign} />}
     <section className="ry-card ry-setcard">
       <h3 className="ry-h2">{t("How long is a hold?", "얼마나 누르면 홀드일까요?")}</h3>
       <p className="ry-faint">{t("A tap·hold key types its key when tapped, and acts as a modifier or a layer when held. This applies to every such key.",

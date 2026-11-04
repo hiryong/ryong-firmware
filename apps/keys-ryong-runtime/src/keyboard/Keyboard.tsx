@@ -223,6 +223,16 @@ export default function Keyboard() {
   const conn = useContext(ConnectionContext);
   const undoRedo = useContext(UndoRedoContext);
 
+  // Another tab put something on a key (tap dance, tap·hold): show the keyboard's keymap again.
+  useEffect(() => {
+    const c = conn.conn;
+    if (!c) return;
+    const reload = () => { void call_rpc(c, { keymap: { getKeymap: true } }).then((r) => { if (r.keymap?.getKeymap) setKeymap(r.keymap.getKeymap); }).catch(() => {}); };
+    window.addEventListener("ryong:keymap-changed", reload);
+    return () => window.removeEventListener("ryong:keymap-changed", reload);
+  }, [conn.conn, setKeymap]);
+
+
   useEffect(() => {
     setSelectedLayerIndex(0);
     setSelectedKeyPosition(undefined);

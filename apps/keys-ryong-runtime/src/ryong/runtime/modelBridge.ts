@@ -83,7 +83,7 @@ function keyBinding(usage: number): Binding {
   return { b: "kp", key: key[0], mods: selected };
 }
 
-function decode(binding: C.BehaviorBinding | undefined, view: RuntimeView): Binding {
+export function decode(binding: C.BehaviorBinding | undefined, view: RuntimeView): Binding {
   if (!binding) throw new Error("Missing device binding.");
   const kind = Object.entries(view.catalog).find(([, id]) => id === binding.behaviorId)?.[0];
   if (kind === "kp" || kind === "sk") return { ...keyBinding(binding.param1), b: kind } as Binding;

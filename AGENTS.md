@@ -1,7 +1,9 @@
 # Ryong Firmware — development instructions
 
 ## CRITICAL — absolute read-only source repository
-The existing production app at `hiryong/keys-ryong` is **NEVER to be modified** by this project. The owner explicitly forbids all writes, including file edits, pull requests, branches, tags, actions, releases, settings, and deployments. The GitHub API may grant write permission, but that is NOT authorization. Read only from pinned commit `5e7b2239746002ec2c07faaead31b10cf3848622`. All development and copies must live in `hiryong/ryong-firmware` or another independently authorized repository. Never target keys.ryong.com production deployment.
+The existing production app at `hiryong/keys-ryong` is **NEVER to be modified** by this project. The owner explicitly forbids all writes, including file edits, pull requests, branches, tags, actions, releases, settings, and deployments. The GitHub API may grant write permission, but that is NOT authorization. Read only from pinned commit `5e7b2239746002ec2c07faaead31b10cf3848622`. All development and copies must live in `hiryong/ryong-firmware` or another independently authorized repository.
+
+**Update 2026-11-04 (owner's decision):** keys.ryong.com now serves this repository's web app (`apps/keys-ryong-runtime`, Pages project `ryong-keys`, deployed by `.github/workflows/keys-deploy.yml`). The original site's Pages project and keysbeta.ryong.com were removed. The original repository `hiryong/keys-ryong` stays read-only (the owner deletes it himself). Changes to keys.ryong.com go live on push: test before pushing (`tests/virtual-e2e.test.mjs` and the other app tests).
 
 
 ## Product scope
