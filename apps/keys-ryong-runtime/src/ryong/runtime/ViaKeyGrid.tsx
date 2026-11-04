@@ -90,11 +90,11 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
     ];
     // OS Adaptive: the key changes with the computer ("Windows key/Mac key"). Fixed modifiers are in 수정키.
     const adaptive: Tile[] = [
-      ...simple("osadaptivekey", "L Alt/⌘", t("Changes with the computer: Windows → left Alt, Mac → left ⌘ Command", "컴퓨터에 따라 바뀜: Windows → 왼쪽 Alt, Mac → 왼쪽 ⌘ Command"), usage("LALT"), usage("LGUI")),
-      ...simple("osadaptivekey", "L Win/⌥", t("Changes with the computer: Windows → left Win, Mac → left ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 왼쪽 Win, Mac → 왼쪽 ⌥ Option"), usage("LGUI"), usage("LALT")),
-      ...simple("osadaptivekey", "R Alt/⌘", t("Changes with the computer: Windows → right Alt, Mac → right ⌘ Command", "컴퓨터에 따라 바뀜: Windows → 오른쪽 Alt, Mac → 오른쪽 ⌘ Command"), usage("RALT"), usage("RGUI")),
-      ...simple("osadaptivekey", "R Win/⌥", t("Changes with the computer: Windows → right Win, Mac → right ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 오른쪽 Win, Mac → 오른쪽 ⌥ Option"), usage("RGUI"), usage("RALT")),
-      ...simple("osadaptivekey", "Menu/⌥", t("Changes with the computer: Windows → Menu, Mac → right ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 메뉴 키, Mac → 오른쪽 ⌥ Option"), usage("C_MENU"), usage("RALT")),
+      ...simple("osadaptivekey", "L Alt/⌘", t("Changes with the OS: Windows → left Alt, Mac → left ⌘ Command", "OS에 따라 바뀜: Windows → 왼쪽 Alt, Mac → 왼쪽 ⌘ Command"), usage("LALT"), usage("LGUI")),
+      ...simple("osadaptivekey", "L Win/⌥", t("Changes with the OS: Windows → left Win, Mac → left ⌥ Option", "OS에 따라 바뀜: Windows → 왼쪽 Win, Mac → 왼쪽 ⌥ Option"), usage("LGUI"), usage("LALT")),
+      ...simple("osadaptivekey", "R Alt/⌘", t("Changes with the OS: Windows → right Alt, Mac → right ⌘ Command", "OS에 따라 바뀜: Windows → 오른쪽 Alt, Mac → 오른쪽 ⌘ Command"), usage("RALT"), usage("RGUI")),
+      ...simple("osadaptivekey", "R Win/⌥", t("Changes with the OS: Windows → right Win, Mac → right ⌥ Option", "OS에 따라 바뀜: Windows → 오른쪽 Win, Mac → 오른쪽 ⌥ Option"), usage("RGUI"), usage("RALT")),
+      ...simple("osadaptivekey", "Menu/⌥", t("Changes with the OS: Windows → Menu, Mac → right ⌥ Option", "OS에 따라 바뀜: Windows → 메뉴 키, Mac → 오른쪽 ⌥ Option"), usage("C_MENU"), usage("RALT")),
     ];
     const special = [
       ...simple("graveescape", "Esc · `", t("Esc, or ` with Shift/GUI", "Esc, Shift·GUI와 함께면 `")),
@@ -167,7 +167,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
         : current.id === "holdtap" ? <HoldTapBuilder key={`${binding.behaviorId}:${binding.param1}:${binding.param2}`} keyPress={id("keypress")} modTap={id("modtap")} layerTap={id("layertap")} layers={layers} binding={binding} onChange={onChange} />
         : <div className="ry-via-grid" role="tabpanel" aria-label={current.label}>
           {current.tiles.map((tile, i) => [tile.group && <div key={"g" + i} className="ry-via-group"><span>{tile.group}</span>
-              <small>{t("changes with the computer: Windows key / Mac key", "컴퓨터에 따라 바뀌어요: Windows 키 / Mac 키")}</small></div>,
+              <small>{t("changes with the OS: Windows key / Mac key", "OS에 따라 바뀌어요: Windows 키 / Mac 키")}</small></div>,
             <button key={i} className={"ry-via-key" + size(tile.label) + (tile.shift ? " has-shift" : "")} title={tile.title} aria-pressed={same(tile.binding)}
             onClick={async () => {
               setError(null);
