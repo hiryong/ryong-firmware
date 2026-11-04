@@ -100,3 +100,35 @@ static const struct behavior_driver_api api = {
 };
 #define INSTANCE(n) BEHAVIOR_DT_INST_DEFINE(n, NULL, NULL, NULL, NULL, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, &api);
 DT_INST_FOREACH_STATUS_OKAY(INSTANCE)
+
+/*
+ * OS Modifier (ryong,host-mod): one parameter, the Windows-standard key; an Apple host gets its
+ * counterpart (Alt <-> Command). One parameter so it can be the hold of a hold-tap ("OS Mod-Tap":
+ * tap a key, hold Alt on Windows / Command on a Mac). Shares the latch above, so the key released is
+ * the key pressed even if the detected OS changes meanwhile.
+ */
+#undef DT_DRV_COMPAT
+#define DT_DRV_COMPAT ryong_host_mod
+#if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
+static int mod_pressed(struct zmk_behavior_binding *binding, struct zmk_behavior_binding_event event) {
+    struct zmk_behavior_binding pair = {.param1 = binding->param1, .param2 = ry_layout_apple_of(binding->param1)};
+    return pressed(&pair, event);
+}
+#if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
+static const struct behavior_parameter_value_metadata mod_values[] = {{
+    .display_name = "Key (Windows standard)", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_HID_USAGE,
+}};
+static const struct behavior_parameter_metadata_set mod_set[] = {{
+    .param1_values = mod_values, .param1_values_len = ARRAY_SIZE(mod_values),
+}};
+static const struct behavior_parameter_metadata mod_metadata = {.sets = mod_set, .sets_len = ARRAY_SIZE(mod_set)};
+#endif
+static const struct behavior_driver_api mod_api = {
+    .binding_pressed = mod_pressed, .binding_released = released,
+#if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
+    .parameter_metadata = &mod_metadata,
+#endif
+};
+#define MOD_INSTANCE(n) BEHAVIOR_DT_INST_DEFINE(n, NULL, NULL, NULL, NULL, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, &mod_api);
+DT_INST_FOREACH_STATUS_OKAY(MOD_INSTANCE)
+#endif

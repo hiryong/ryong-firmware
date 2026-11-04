@@ -17,6 +17,16 @@ bool ry_layout_press(struct ry_layout_state *s, unsigned position, uint32_t wind
     s->pressed[position] = *usage;
     return true;
 }
+uint32_t ry_layout_apple_of(uint32_t windows) {
+    uint32_t base = windows & 0x00ffffff, mods = windows & 0xff000000;
+    switch (base) {
+    case 0x700e2: return mods | 0x700e3; /* L Alt -> L Command */
+    case 0x700e3: return mods | 0x700e2; /* L Win -> L Option */
+    case 0x700e6: return mods | 0x700e7; /* R Alt -> R Command */
+    case 0x700e7: return mods | 0x700e6; /* R Win -> R Option */
+    default: return windows;
+    }
+}
 bool ry_layout_release(struct ry_layout_state *s, unsigned position, uint32_t *usage) {
     if (position >= RY_LAYOUT_POSITIONS || !s->pressed[position]) return false;
     *usage = s->pressed[position];

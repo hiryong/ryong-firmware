@@ -20,5 +20,8 @@ int main(void) {
     assert(!ry_layout_release(&s, 1, &usage));
     assert(!ry_layout_press(&s, 96, 1, 2, &usage));
     assert(!ry_layout_press(&s, 2, 0, 2, &usage));
+    assert(ry_layout_apple_of(0x700e2) == 0x700e3 && ry_layout_apple_of(0x700e3) == 0x700e2);
+    assert(ry_layout_apple_of(0x700e6) == 0x700e7 && ry_layout_apple_of(0x700e7) == 0x700e6);
+    assert(ry_layout_apple_of(0x700e0) == 0x700e0 && ry_layout_apple_of(0x70004) == 0x70004);
     puts("Adaptive physical key: debounce, held-key latching, endpoint fallback, bounds passed");
 }

@@ -97,6 +97,11 @@ export function legendFor(
       return { main: layerName(keymap, p1), sub: "SL" };
     case "Layer-Tap":
       return { main: keyName(p2, wide), icon: keyIcon(p2), sub: layerName(keymap, p1) }; // tap: the key, hold: the layer (a dual legend)
+    case "OS Mod-Tap": { // tap: the key; hold: Windows key / Mac key
+      const win = keyName(p1, false).replace(/^(GUI|Meta|⌘)$/, "Win").replace("AltGr", "Alt");
+      const mac = { Alt: "⌘", Win: "⌥" }[win] ?? win;
+      return { main: keyName(p2, wide), icon: keyIcon(p2), sub: `${win}/${mac}` };
+    }
     case "Mod-Tap":
       return { main: keyName(p2, wide), icon: keyIcon(p2), sub: keyName(p1, false) }; // tap: the key, hold: the modifier
     case "Sticky Key":

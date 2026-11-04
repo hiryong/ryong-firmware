@@ -1,0 +1,5 @@
+description: Modifier that follows the host OS - the Windows-standard key, or its Apple counterpart (Alt <-> Command)
+compatible: "ryong,host-mod"
+include: one_param.yaml
+binding-cells:
+  - param1

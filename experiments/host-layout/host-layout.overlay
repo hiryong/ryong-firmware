@@ -1,1 +1,11 @@
-/ { behaviors { ry_host: ry_host { compatible = "ryong,host-key"; #binding-cells = <2>; display-name = "OS Adaptive Key"; }; }; };
+/ { behaviors {
+    ry_host: ry_host { compatible = "ryong,host-key"; #binding-cells = <2>; display-name = "OS Adaptive Key"; };
+    /* hold of the OS Mod-Tap below: Windows key, or its Mac counterpart (Alt <-> Command) */
+    ry_host_mod: ry_host_mod { compatible = "ryong,host-mod"; #binding-cells = <1>; display-name = "OS Modifier"; };
+    /* tap = a key, hold = an OS Adaptive modifier. Runtime timing slot 2, kept equal to Mod-Tap by the site. */
+    ry_mt_os: ry_mt_os {
+        compatible = "zmk,behavior-runtime-hold-tap"; runtime-slot = <2>; #binding-cells = <2>;
+        bindings = <&ry_host_mod>, <&kp>; tapping-term-ms = <200>; flavor = "hold-preferred";
+        display-name = "OS Mod-Tap";
+    };
+}; };

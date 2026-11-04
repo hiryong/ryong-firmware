@@ -22,7 +22,7 @@ const aliases: Record<string, string[]> = {
   tog: ["togglelayer"], to: ["tolayer"], sl: ["stickylayer"],
   none: ["none"], trans: ["transparent"], caps_word: ["capsword"],
   key_repeat: ["keyrepeat"], studio_unlock: ["studiounlock"],
-  mt: ["modtap"], lt: ["layertap"], rtd: ["runtimetapdance"],
+  mt: ["modtap"], lt: ["layertap"], osmt: ["osmodtap"], rtd: ["runtimetapdance"],
   ref: ["runtimemacro"], bt: ["bluetooth"], out: ["outputselection"],
   sys_reset: ["reset"], bootloader: ["bootloader"],
 };

@@ -130,13 +130,12 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
     const dynamic: Tile[] = namedRuntimeBindings(view).map(c => ({ label: c.label, title: c.kind === "macro" ? t("Macro", "매크로") : t("Tap Dance", "탭댄스"),
       binding: c.binding, wide: true, key: c.key } as Tile & { key: string }));
     return [
-      { id: "basic", label: t("Basic", "기본"), tiles: keys(BASIC) },
+      { id: "basic", label: t("Basic", "기본"), tiles: [...keys(BASIC), ...keys(MORE).map((x, i) => (i === 0 ? { ...x, group: t("F13–24 · Language · others", "F13–24 · 언어 · 기타") } : x))] },
       { id: "mods", label: t("Modifiers", "수정키"), tiles: [...keys(MODS), ...adaptive.map((x, i) => (i === 0 ? { ...x, group: "OS Adaptive" } : x))] },
       { id: "nav", label: t("Navigation", "이동·편집"), tiles: keys(NAV) },
       { id: "numpad", label: t("Numpad", "숫자패드"), tiles: keys(NUMPAD) },
       { id: "media", label: t("Media", "미디어"), tiles: keys(MEDIA) },
       { id: "shortcuts", label: t("Shortcuts", "단축키"), tiles: shortcuts },
-      { id: "more", label: t("F13–24 · Language", "F13–24·언어"), tiles: keys(MORE) },
       { id: "layers", label: t("Layers", "레이어"), tiles: layerTiles },
       // Built in the panel below (tap key + hold modifier/layer), not a fixed tile list.
       ...(id("modtap") !== undefined || id("layertap") !== undefined ? [{ id: "holdtap", label: t("Tap · Hold", "탭·홀드"), tiles: [] as Tile[] }] : []),
@@ -164,10 +163,10 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
     </nav>
     <div className="ry-via-body">
       {detail ? <div className="ry-via-detail">{children}</div>
-        : current.id === "holdtap" ? <HoldTapBuilder key={`${binding.behaviorId}:${binding.param1}:${binding.param2}`} keyPress={id("keypress")} modTap={id("modtap")} layerTap={id("layertap")} layers={layers} binding={binding} onChange={onChange} />
+        : current.id === "holdtap" ? <HoldTapBuilder key={`${binding.behaviorId}:${binding.param1}:${binding.param2}`} keyPress={id("keypress")} modTap={id("modtap")} layerTap={id("layertap")} osModTap={id("osmodtap")} layers={layers} binding={binding} onChange={onChange} />
         : <div className="ry-via-grid" role="tabpanel" aria-label={current.label}>
           {current.tiles.map((tile, i) => [tile.group && <div key={"g" + i} className="ry-via-group"><span>{tile.group}</span>
-              <small>{t("changes with the OS: Windows key / Mac key", "OS에 따라 바뀌어요: Windows 키 / Mac 키")}</small></div>,
+              {tile.group === "OS Adaptive" && <small>{t("changes with the OS: Windows key / Mac key", "OS에 따라 바뀌어요: Windows 키 / Mac 키")}</small>}</div>,
             <button key={i} className={"ry-via-key" + size(tile.label) + (tile.shift ? " has-shift" : "")} title={tile.title} aria-pressed={same(tile.binding)}
             onClick={async () => {
               setError(null);
@@ -190,29 +189,35 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
 const TAP_KEYS: [string, string][] = ([...BASIC, ...NAV, ["Bksp", "BSPC"], ["Del", "DEL"], ["Esc", "ESC"], ["Tab", "TAB"], ["Enter", "RET"], ["Space", "SPACE"], ["한/영", "LANG1"], ["한자", "LANG2"], ...MODS] as [string, string][])
   .filter(([, k], i, all) => usage(k) !== undefined && all.findIndex(([, x]) => x === k) === i);
 
-function HoldTapBuilder({ keyPress, modTap, layerTap, layers, binding, onChange }: {
-  keyPress?: number; modTap?: number; layerTap?: number; layers: { id: number; name: string }[];
+/* OS Adaptive holds (OS Mod-Tap): the Windows-standard key; a Mac gets Alt <-> Command swapped. */
+const OS_HOLDS: [string, string][] = [["Alt/⌘", "LALT"], ["Win/⌥", "LGUI"], ["R Alt/⌘", "RALT"], ["R Win/⌥", "RGUI"]];
+function HoldTapBuilder({ keyPress, modTap, layerTap, osModTap, layers, binding, onChange }: {
+  keyPress?: number; modTap?: number; layerTap?: number; osModTap?: number; layers: { id: number; name: string }[];
   binding: BehaviorBinding; onChange: (binding: BehaviorBinding) => void;
 }) {
   // One "hold" list (modifiers and layers together): which ZMK behavior that needs is our job.
   const isLt = layerTap !== undefined && binding.behaviorId === layerTap;
   const isMt = modTap !== undefined && binding.behaviorId === modTap;
+  const isOs = osModTap !== undefined && binding.behaviorId === osModTap;
   // Tap = the key that is already there (F stays F when tapped), unless it is already a tap·hold.
   const own = keyPress !== undefined && binding.behaviorId === keyPress && TAP_KEYS.some(([, k]) => usage(k) === binding.param1) ? binding.param1 : undefined;
-  const [tap, setTap] = useState<number>(isLt || isMt ? binding.param2 : own ?? usage("F")!);
-  const [hold, setHold] = useState<string>(isMt ? `m${binding.param1}` : isLt ? `l${binding.param1}` : modTap !== undefined ? `m${usage("LSHFT")}` : "l1");
+  const [tap, setTap] = useState<number>(isLt || isMt || isOs ? binding.param2 : own ?? usage("F")!);
+  const [hold, setHold] = useState<string>(isMt ? `m${binding.param1}` : isOs ? `o${binding.param1}` : isLt ? `l${binding.param1}` : modTap !== undefined ? `m${usage("LSHFT")}` : "l1");
   const tapName = TAP_KEYS.find(([, k]) => usage(k) === tap)?.[0] ?? "?";
   const holdIsLayer = hold.startsWith("l");
   const holdVal = Number(hold.slice(1));
-  const holdName = holdIsLayer ? (layers[holdVal]?.name || t("Layer {n}", "레이어 {n}", { n: holdVal })) : MODS.find(([, k]) => usage(k) === holdVal)?.[0] ?? "?";
-  const next: BehaviorBinding | undefined = holdIsLayer ? (layerTap === undefined ? undefined : { behaviorId: layerTap, param1: holdVal, param2: tap })
-    : (modTap === undefined ? undefined : { behaviorId: modTap, param1: holdVal, param2: tap });
+  const holdIsOs = hold.startsWith("o");
+  const holdName = holdIsLayer ? (layers[holdVal]?.name || t("Layer {n}", "레이어 {n}", { n: holdVal }))
+    : holdIsOs ? `OS Adaptive ${OS_HOLDS.find(([, k]) => usage(k) === holdVal)?.[0] ?? "?"}` : MODS.find(([, k]) => usage(k) === holdVal)?.[0] ?? "?";
+  const idFor = (h: string) => h.startsWith("l") ? layerTap : h.startsWith("o") ? osModTap : modTap;
+  const nid = idFor(hold);
+  const next: BehaviorBinding | undefined = nid === undefined ? undefined : { behaviorId: nid, param1: holdVal, param2: tap };
   const applied = !!next && next.behaviorId === binding.behaviorId && next.param1 === binding.param1 && next.param2 === binding.param2;
   // Applied the moment something is picked, like every other tile (the keymap's Save stores it).
   const put = (nextTap: number, nextHold: string) => {
     setTap(nextTap); setHold(nextHold);
-    const isL = nextHold.startsWith("l"), v = Number(nextHold.slice(1));
-    const id = isL ? layerTap : modTap;
+    const v = Number(nextHold.slice(1));
+    const id = idFor(nextHold);
     if (id !== undefined) onChange({ behaviorId: id, param1: v, param2: nextTap });
   };
   void next;
@@ -232,6 +237,12 @@ function HoldTapBuilder({ keyPress, modTap, layerTap, layers, binding, onChange 
         {layerTap !== undefined && layers.map((l, i) => i > 0 && <button key={l.id} type="button" className="ry-chip" aria-pressed={applied && hold === `l${i}`}
           onClick={() => put(tap, `l${i}`)}>{t("{n} layer", "{n} 레이어", { n: l.name || i })}</button>)}
       </div>
+      {osModTap !== undefined && <>
+        <span className="ry-ht-l">OS Adaptive</span>
+        <div className="ry-ht-v" role="group" aria-label={t("Hold, OS Adaptive", "길게 누르면 (OS Adaptive)")}>
+          {OS_HOLDS.map(([label, k]) => <button key={k} type="button" className="ry-chip" aria-pressed={applied && hold === `o${usage(k)}`}
+            title={t("Windows key / Mac key, changes with the OS", "Windows 키 / Mac 키, OS에 따라 바뀌어요")} onClick={() => put(tap, `o${usage(k)}`)}>{label}</button>)}
+        </div></>}
     </div>
     <p className="ry-faint">{applied
       ? t("On this key: tap {tap} · hold {hold}. Hold time is set in the Tap · Hold tab.", "이 키: 짧게 {tap} · 길게 {hold}. 판정 시간은 위쪽 탭·홀드 탭에서 바꿔요.", { tap: tapName, hold: holdName })

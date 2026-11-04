@@ -71,9 +71,9 @@ export function holdItemsOf(view: RuntimeView): HoldItem[] {
 }
 /** The key a tap types: a plain key, or the tap key of a tap·hold already there. */
 export function tapUsageAt(view: RuntimeView, layer: number, pos: number): number | undefined {
-  const w = wireAt(view, layer, pos), { kp, mt, lt } = view.catalog;
+  const w = wireAt(view, layer, pos), { kp, mt, lt, osmt } = view.catalog;
   if (!w) return undefined;
   if (w.behaviorId === kp) return w.param1;
-  if (w.behaviorId === mt || w.behaviorId === lt) return w.param2;
+  if (w.behaviorId === mt || w.behaviorId === lt || (osmt !== undefined && w.behaviorId === osmt)) return w.param2;
   return undefined;
 }
