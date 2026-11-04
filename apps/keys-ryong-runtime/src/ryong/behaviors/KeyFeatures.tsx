@@ -230,6 +230,7 @@ const i18nHint = (text: string) => text ? <p className="ry-faint">{text}</p> : n
 
 /* ------------------------------------------------------------------ tap·hold */
 
+const OS_MODS: [string, string][] = [["Alt/⌘", "LALT"], ["Win/⌥", "LGUI"], ["R Alt/⌘", "RALT"], ["R Win/⌥", "RGUI"]];
 const MODS: [string, string][] = [["Ctrl", "LCTRL"], ["Shift", "LSHFT"], ["Alt (⌥)", "LALT"], ["Win (⌘)", "LGUI"]];
 type HoldDraft = { from?: Spot; spot?: Spot; tap: Binding | null; hold: string | null };
 const HOLD_TERMS = [
@@ -246,14 +247,14 @@ const FLAVOR_TEXT: Record<string, [() => string, () => string]> = {
 
 export function TapHoldPanel(p: KeyFeatureProps) {
   const { view, doc, layers, keys } = p;
-  const { kp, mt, lt } = view.catalog;
+  const { kp, mt, lt, osmt } = view.catalog;
   const [draft, setDraft] = useState<HoldDraft | null>(null);
   const [mapLayer, setMapLayer] = useState(0);
   const [pickTap, setPickTap] = useState(false);
   const { busy, msg, run, clear } = useRun();
   const label = (b: Binding) => friendlyLabel(b, doc, layers);
   const usageLabel = (u: number) => { try { return label(decode({ behaviorId: kp!, param1: u, param2: 0 }, view)); } catch { return "?"; } };
-  const holdLabel = (h: string) => h.startsWith("l") ? t("{l} layer", "{l} 레이어", { l: layerName(layers, Number(h.slice(1))) })
+  const holdLabel = (h: string) => h.startsWith("o") ? `OS Adaptive ${OS_MODS.find(([, k]) => "o" + codes[k] === h)?.[0] ?? "?"}` : h.startsWith("l") ? t("{l} layer", "{l} 레이어", { l: layerName(layers, Number(h.slice(1))) })
     : MODS.find(([, k]) => "m" + codes[k] === h)?.[0] ?? usageLabel(Number(h.slice(1)));
 
   // the registered tap·holds: every Mod-Tap / Layer-Tap key in the keymap
@@ -261,6 +262,7 @@ export function TapHoldPanel(p: KeyFeatureProps) {
   view.snapshot.keymap?.layers.forEach((l, layer) => l.bindings.forEach((b, pos) => {
     if (mt !== undefined && b.behaviorId === mt) items.push({ spot: { layer, pos }, hold: "m" + b.param1, tap: b.param2 });
     else if (lt !== undefined && b.behaviorId === lt) items.push({ spot: { layer, pos }, hold: "l" + b.param1, tap: b.param2 });
+    else if (osmt !== undefined && b.behaviorId === osmt) items.push({ spot: { layer, pos }, hold: "o" + b.param1, tap: b.param2 });
   }));
 
   const tapOf = (s: Spot): Binding | null => {
@@ -283,8 +285,8 @@ export function TapHoldPanel(p: KeyFeatureProps) {
   const register = () => run(async () => {
     if (!draft?.spot || !draft.tap || !draft.hold || kp === undefined) throw new Error(t("Choose the key and both actions.", "키와 두 동작을 모두 고르세요."));
     const tapUsage = wireOf(draft.tap, view, doc).param1;
-    const isLayer = draft.hold.startsWith("l"), v = Number(draft.hold.slice(1));
-    const id = isLayer ? lt : mt;
+    const v = Number(draft.hold.slice(1));
+    const id = draft.hold.startsWith("l") ? lt : draft.hold.startsWith("o") ? osmt : mt;
     if (id === undefined) throw new Error(t("This firmware cannot do that hold.", "이 펌웨어는 그 '길게' 동작을 지원하지 않아요."));
     const writes: (Spot & { wire: Wire })[] = [{ ...draft.spot, wire: { behaviorId: id, param1: v, param2: tapUsage } }];
     if (draft.from && !same(draft.from, draft.spot)) {
@@ -306,7 +308,8 @@ export function TapHoldPanel(p: KeyFeatureProps) {
   };
 
   // shared timing: the firmware keeps one set per kind (Mod-Tap, Layer-Tap); shown and saved as one
-  const kinds = (doc.settings ?? []).filter((s) => s.behavior === "mt" || s.behavior === "lt");
+  const isHold = (b: string) => b === "mt" || b === "lt" || b.startsWith("holdtap_");
+  const kinds = (doc.settings ?? []).filter((s) => isHold(s.behavior));
   const [shown, setShown] = useState<Record<string, number | string>>({}); // what was just clicked, until saved
   const lead = { ...(kinds[0]?.props ?? {}), ...shown };
   const term = Number(lead["tapping-term-ms"] ?? 200), flavor = String(lead.flavor ?? "balanced");
@@ -314,14 +317,14 @@ export function TapHoldPanel(p: KeyFeatureProps) {
   const setTiming = (patch: Record<string, number | string>, done: string) => {
     setShown((x) => ({ ...x, ...patch }));
     return run(async () => {
-      try { await p.commit({ ...doc, settings: (doc.settings ?? []).map((s) => (s.behavior === "mt" || s.behavior === "lt" ? { ...s, props: { ...lead, ...patch } } : s)) }); }
+      try { await p.commit({ ...doc, settings: (doc.settings ?? []).map((s) => (isHold(s.behavior) ? { ...s, props: { ...lead, ...patch } } : s)) }); }
       finally { setShown({}); }
       return done;
     });
   };
   const [ownTerm, setOwnTerm] = useState<string | null>(null);
 
-  if (kp === undefined || (mt === undefined && lt === undefined)) return <p className="ry-note">{t("This firmware has no tap·hold.", "이 펌웨어에는 탭·홀드가 없어요.")}</p>;
+  if (kp === undefined || (mt === undefined && lt === undefined && osmt === undefined)) return <p className="ry-note">{t("This firmware has no tap·hold.", "이 펌웨어에는 탭·홀드가 없어요.")}</p>;
   const k = draft?.tap ? label(draft.tap) : "F";
   const h = draft?.hold ? holdLabel(draft.hold) : "Ctrl";
   return <div className="ry-kx">
@@ -381,6 +384,7 @@ export function TapHoldPanel(p: KeyFeatureProps) {
           <div className="ry-chips" role="group" aria-label={t("Hold", "길게 누르면")}>
             {mt !== undefined && MODS.map(([name, code]) => <button key={code} type="button" className="ry-chip" aria-pressed={draft.hold === "m" + codes[code]} onClick={() => setDraft({ ...draft, hold: "m" + codes[code] })}>{name}</button>)}
             {lt !== undefined && layers.map((_, i) => i > 0 && <button key={"l" + i} type="button" className="ry-chip" aria-pressed={draft.hold === "l" + i} onClick={() => setDraft({ ...draft, hold: "l" + i })}>{t("{l} layer", "{l} 레이어", { l: layerName(layers, i) })}</button>)}
+            {osmt !== undefined && OS_MODS.map(([name, code]) => <button key={"o" + code} type="button" className="ry-chip" title={t("OS Adaptive: Windows key / Mac key", "OS Adaptive: Windows 키 / Mac 키")} aria-pressed={draft.hold === "o" + codes[code]} onClick={() => setDraft({ ...draft, hold: "o" + codes[code] })}>OS {name}</button>)}
           </div>
         </div>
       </div>

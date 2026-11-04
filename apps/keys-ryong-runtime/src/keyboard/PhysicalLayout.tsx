@@ -109,7 +109,10 @@ export const PhysicalLayout = ({
         );
         setScale(newScale);
       } else {
-        setScale(props.zoom || 1);
+        // keys.ryong.com: a chosen zoom never makes the board bigger than its area (no scrolling,
+        // nothing under the layer panel); it only grows as far as the space allows.
+        const fit = Math.min(parent.clientWidth / element.clientWidth, parent.clientHeight / element.clientHeight);
+        setScale(Math.min(props.zoom || 1, fit > 0 && Number.isFinite(fit) ? fit : props.zoom || 1));
       }
     };
 

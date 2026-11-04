@@ -45,7 +45,7 @@ async function open(viewport, { fresh } = {}) {
   const ctx = await browser.newContext({ viewport, hasTouch: viewport.width < 600, isMobile: viewport.width < 600 });
   await ctx.addInitScript((fresh) => {
     localStorage.setItem("ryong.lang", "ko");
-    if (fresh && !sessionStorage.getItem("e2e.started")) { localStorage.removeItem("ryong.virtualKeyboard.v3"); sessionStorage.setItem("e2e.started", "1"); }
+    if (fresh && !sessionStorage.getItem("e2e.started")) { localStorage.removeItem("ryong.virtualKeyboard.v4"); sessionStorage.setItem("e2e.started", "1"); }
   }, !!fresh);
   page = await ctx.newPage();
   errors = [];
@@ -255,6 +255,15 @@ await step("keymap: put the macro on Z from the 매크로·탭댄스 tab", async
   await page.locator("button:has([aria-label=Save])").click();
   await page.waitForFunction(() => window.__ryongVirtual.flash.layers[0].bindings[42].behaviorId !== 1, null, { timeout: 3000 });
   assert.ok((await key(42).innerText()).includes(globalThis.createdMacro));
+});
+
+await step("keymap: tap·hold with an OS Adaptive hold (OS Mod-Tap) on J", async () => {
+  await tab("키맵");
+  await key(35).click(); // J
+  await page.getByRole("tab", { name: "탭·홀드" }).click();
+  await page.getByRole("group", { name: "길게 누르면 (OS Adaptive)" }).getByRole("button", { name: "Alt/⌘", exact: true }).click();
+  await page.locator("button:has([aria-label=Save])").click();
+  await page.waitForFunction(() => { const b = window.__ryongVirtual.flash.layers[0].bindings[35]; return b.behaviorId === 31 && (b.param1 & 0xffff) === 0xe2 && (b.param2 & 0xffff) === 0x0d; }, null, { timeout: 3000 });
 });
 
 await step("keymap: backlight and underglow keys in the 조명 tab", async () => {

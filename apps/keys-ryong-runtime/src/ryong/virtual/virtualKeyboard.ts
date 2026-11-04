@@ -21,7 +21,7 @@ import values from "../runtime/keycode-values.json";
 import { LAYOUTS } from "../behaviors/layouts";
 
 const codes = values as Record<string, number>;
-const STORAGE = "ryong.virtualKeyboard.v3"; // v3: no os layer, Backspace/Delete, F1–F12 combos
+const STORAGE = "ryong.virtualKeyboard.v4"; // v3: no os layer, Backspace/Delete, F1–F12 combos
 export const VIRTUAL_NAME = "Ryong60 (virtual)";
 
 type Binding = { behaviorId: number; param1: number; param2: number };
@@ -81,6 +81,7 @@ const BEHAVIORS: { id: number; name: string; metadata: object[] }[] = [
   { id: 28, name: "Backspace/Delete", metadata: [] },
   { id: 29, name: "Backlight", metadata: [] },
   { id: 30, name: "Underglow", metadata: [] },
+  { id: 31, name: "OS Mod-Tap", metadata: [{ param1: [P("Hold", { hidUsage: HID })], param2: [P("Tap", { hidUsage: HID })] }] },
 ];
 /* Runtime defaults seeded from the firmware's own combos/macros (scripts/runtime_defaults.py). */
 const btProfileMacros = (): Macro[] => [0, 1, 2, 3].map((n) => ({ slot: n, name: `BT_PROFILE${n}`,
@@ -154,7 +155,8 @@ function factory(): State {
     dances: [{ index: 0, name: "Q/Esc", config: T.Config.fromPartial({ singleBinding: { behaviorId: 1, param1: key("Q") }, doubleBinding: { behaviorId: 1, param1: key("ESC") } }) }],
     nextDance: 1, interval: 200,
     holds: [{ slot: 0, behaviorId: 9, tappingTermMs: 200, quickTapMs: -1, requirePriorIdleMs: -1, flavor: 0 },
-            { slot: 1, behaviorId: 10, tappingTermMs: 200, quickTapMs: -1, requirePriorIdleMs: -1, flavor: 2 }],
+            { slot: 1, behaviorId: 10, tappingTermMs: 200, quickTapMs: -1, requirePriorIdleMs: -1, flavor: 2 },
+            { slot: 2, behaviorId: 31, tappingTermMs: 200, quickTapMs: -1, requirePriorIdleMs: -1, flavor: 0 }],
     slots: [slot(true, true, "맥북", "mac", O.Os.OS_MACOS, 1), slot(true, false, "회사 PC", "pc", O.Os.OS_WINDOWS, 1),
             slot(false, false, "", "", O.Os.OS_UNKNOWN, 0), slot(true, false, "", "iphone", O.Os.OS_IOS, 1), slot(false, false, "", "", O.Os.OS_UNKNOWN, 0)],
     active: 0, usb: true,
