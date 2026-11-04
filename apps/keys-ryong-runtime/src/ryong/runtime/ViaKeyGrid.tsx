@@ -203,24 +203,33 @@ function HoldTapBuilder({ keyPress, modTap, layerTap, layers, binding, onChange 
   const next: BehaviorBinding | undefined = holdIsLayer ? (layerTap === undefined ? undefined : { behaviorId: layerTap, param1: holdVal, param2: tap })
     : (modTap === undefined ? undefined : { behaviorId: modTap, param1: holdVal, param2: tap });
   const applied = !!next && next.behaviorId === binding.behaviorId && next.param1 === binding.param1 && next.param2 === binding.param2;
+  // Applied the moment something is picked, like every other tile (the keymap's Save stores it).
+  const put = (nextTap: number, nextHold: string) => {
+    setTap(nextTap); setHold(nextHold);
+    const isL = nextHold.startsWith("l"), v = Number(nextHold.slice(1));
+    const id = isL ? layerTap : modTap;
+    if (id !== undefined) onChange({ behaviorId: id, param1: v, param2: nextTap });
+  };
+  void next;
   return <div className="ry-via-detail ry-holdtap" role="tabpanel" aria-label={t("Tap · Hold", "탭·홀드")}>
-    <p className="ry-faint">{t("One key, two jobs. E.g. F: tap types F, hold works as Shift (or switches to a layer while held).",
-      "키 하나에 두 역할. 예: F를 짧게 누르면 F, 길게 누르면 Shift (또는 누르는 동안 다른 레이어). 판단 시간은 탭·홀드 탭에서 바꿔요.")}</p>
-    <label className="ry-field">{t("Tap", "짧게 누르면")}
-      <select value={tap} onChange={(e) => setTap(Number(e.target.value))}>
-        {TAP_KEYS.map(([label, k]) => <option key={k} value={usage(k)}>{label}</option>)}
-      </select></label>
-    <label className="ry-field">{t("Hold", "길게 누르면")}
-      <select value={hold} onChange={(e) => setHold(e.target.value)}>
-        {modTap !== undefined && <optgroup label={t("Modifier", "수정키")}>
-          {MODS.map(([label, k]) => <option key={k} value={`m${usage(k)}`}>{label}</option>)}</optgroup>}
-        {layerTap !== undefined && <optgroup label={t("Layer (while held)", "레이어 (누르는 동안)")}>
-          {layers.map((l, i) => <option key={l.id} value={`l${i}`}>{l.name || t("Layer {n}", "레이어 {n}", { n: i })}</option>)}</optgroup>}
-      </select></label>
-    <div className="ry-row">
-      <span>{t("Tap {tap} · hold {hold}", "짧게 {tap} · 길게 {hold}", { tap: tapName, hold: holdName })}</span>
-      <button className="ry-primary" disabled={!next || applied} onClick={() => next && onChange(next)}>
-        {applied ? t("Assigned", "적용됨") : t("Assign to this key", "이 키에 적용")}</button>
+    <div className="ry-ht-grid">
+      <span className="ry-ht-l">{t("Tap", "짧게 누르면")}</span>
+      <div className="ry-ht-v">
+        <select aria-label={t("Tap", "짧게 누르면")} value={tap} onChange={(e) => put(Number(e.target.value), hold)}>
+          {TAP_KEYS.map(([label, k]) => <option key={k} value={usage(k)}>{label}</option>)}
+        </select>
+        <span className="ry-faint">{t("types this key", "이 키가 입력돼요")}</span>
+      </div>
+      <span className="ry-ht-l">{t("Hold", "길게 누르면")}</span>
+      <div className="ry-ht-v" role="group" aria-label={t("Hold", "길게 누르면")}>
+        {modTap !== undefined && MODS.map(([label, k]) => <button key={k} type="button" className="ry-chip" aria-pressed={applied && hold === `m${usage(k)}`}
+          onClick={() => put(tap, `m${usage(k)}`)}>{label}</button>)}
+        {layerTap !== undefined && layers.map((l, i) => i > 0 && <button key={l.id} type="button" className="ry-chip" aria-pressed={applied && hold === `l${i}`}
+          onClick={() => put(tap, `l${i}`)}>{t("{n} layer", "{n} 레이어", { n: l.name || i })}</button>)}
+      </div>
     </div>
+    <p className="ry-faint">{applied
+      ? t("On this key: tap {tap} · hold {hold}. Hold time is set in the Tap · Hold tab.", "이 키: 짧게 {tap} · 길게 {hold}. 판정 시간은 위쪽 탭·홀드 탭에서 바꿔요.", { tap: tapName, hold: holdName })
+      : t("Pick what holding does; the key keeps typing {tap} on a tap.", "길게 누를 때 할 동작을 고르면 바로 들어가요. 짧게 누르면 {tap} 그대로예요.", { tap: tapName })}</p>
   </div>;
 }

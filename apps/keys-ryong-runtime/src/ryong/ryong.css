@@ -1013,10 +1013,13 @@ header .ry-tabs { flex-wrap: nowrap; white-space: nowrap; }
 .ry-combo-chipcap button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .ry-combokeys button:disabled { opacity: 0.35; cursor: not-allowed; }
 @media (pointer: coarse) { .ry-combo-chipcap button { width: 28px; height: 28px; top: -10px; right: -10px; } }
-.ry-holdtap { gap: 12px; max-width: 520px; }
-.ry-holdtap .ry-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
-.ry-holdtap select { min-height: 40px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: #000; color: var(--ink); font: inherit; }
-.ry-holdtap .ry-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ry-holdtap { gap: 10px; }
+.ry-ht-grid { display: grid; grid-template-columns: max-content 1fr; gap: 10px 16px; align-items: center; }
+.ry-ht-l { color: var(--soft); font-size: 13px; }
+.ry-ht-v { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.ry-holdtap select { min-height: 34px; min-width: 120px; }
+.ry-holdtap .ry-faint { margin: 0; }
+@media (max-width: 600px) { .ry-ht-grid { grid-template-columns: 1fr; gap: 6px; } }
 .ry-taphold { display: flex; flex-direction: column; gap: 12px; max-width: 640px; }
 .ry-taphold .ry-setcard { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
 .ry-taphold .ry-chips { justify-content: flex-start; }

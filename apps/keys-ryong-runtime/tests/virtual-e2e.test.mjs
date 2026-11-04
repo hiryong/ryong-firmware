@@ -271,13 +271,11 @@ await step("keymap: tap·hold keeps the key for tap, hold = layer or modifier", 
   await tab("키맵");
   await key(32).click(); // F
   await page.getByRole("tab", { name: "탭·홀드" }).click();
-  assert.equal(await page.getByLabel("짧게 누르면").locator("option:checked").innerText(), "F", "tap defaults to the key itself");
-  await page.getByLabel("길게 누르면").selectOption({ label: await page.getByLabel("길게 누르면").locator("optgroup").last().locator("option").nth(1).innerText() });
-  await page.getByRole("button", { name: "이 키에 적용" }).click();
+  assert.equal(await page.getByLabel("짧게 누르면", { exact: true }).locator("option:checked").innerText(), "F", "tap defaults to the key itself");
+  await page.getByRole("group", { name: "길게 누르면" }).getByRole("button", { name: "raise 레이어" }).click();
   await key(33).click(); // G
   await page.getByRole("tab", { name: "탭·홀드" }).click();
-  await page.getByLabel("길게 누르면").selectOption({ label: "L Shift" });
-  await page.getByRole("button", { name: "이 키에 적용" }).click();
+  await page.getByRole("group", { name: "길게 누르면" }).getByRole("button", { name: "L Shift" }).click();
   await page.locator("button:has([aria-label=Save])").click();
   await page.waitForFunction(() => { const b = window.__ryongVirtual.flash.layers[0].bindings; return b[32].behaviorId === 10 && b[32].param1 === 1 && b[33].behaviorId === 9; }, null, { timeout: 3000 });
 });
