@@ -79,6 +79,8 @@ const BEHAVIORS: { id: number; name: string; metadata: object[] }[] = [
   { id: 26, name: "BT_PROFILE3", metadata: [] },
   { id: 27, name: "BLE Update", metadata: [] },
   { id: 28, name: "Backspace/Delete", metadata: [] },
+  { id: 29, name: "Backlight", metadata: [] },
+  { id: 30, name: "Underglow", metadata: [] },
 ];
 /* Runtime defaults seeded from the firmware's own combos/macros (scripts/runtime_defaults.py). */
 const btProfileMacros = (): Macro[] => [0, 1, 2, 3].map((n) => ({ slot: n, name: `BT_PROFILE${n}`,

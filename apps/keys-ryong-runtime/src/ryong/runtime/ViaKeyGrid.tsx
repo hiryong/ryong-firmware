@@ -102,6 +102,24 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       ...simple("softoff", t("Power off", "전원 끄기"), "Soft Off"),
       ...simple("bleupdate", t("BT update", "BT 업데이트"), t("Restart into Bluetooth firmware update mode (development)", "Bluetooth 펌웨어 업데이트 모드로 다시 시작 (개발용)")),
     ];
+    // Lights: only what this keyboard's firmware has (ZMK &bl / &rgb_ug commands, dt-bindings/zmk/*.h).
+    const lights: Tile[] = [
+      ...simple("backlight", t("BL on/off", "백라이트 켜기/끄기"), t("Backlight on/off", "백라이트 켜기/끄기"), 2),
+      ...simple("backlight", t("BL +", "백라이트 밝게"), t("Backlight brighter", "백라이트 밝게"), 3),
+      ...simple("backlight", t("BL −", "백라이트 어둡게"), t("Backlight dimmer", "백라이트 어둡게"), 4),
+      ...simple("backlight", t("BL step", "백라이트 단계"), t("Backlight: next brightness step", "백라이트 밝기 단계 돌리기"), 5),
+      ...simple("underglow", t("RGB on/off", "언더글로우 켜기/끄기"), t("Underglow on/off", "언더글로우 켜기/끄기"), 0),
+      ...simple("underglow", t("RGB +", "언더글로우 밝게"), t("Underglow brighter", "언더글로우 밝게"), 7),
+      ...simple("underglow", t("RGB −", "언더글로우 어둡게"), t("Underglow dimmer", "언더글로우 어둡게"), 8),
+      ...simple("underglow", t("Effect ▶", "효과 다음"), t("Underglow: next effect", "언더글로우 효과 다음"), 11),
+      ...simple("underglow", t("Effect ◀", "효과 이전"), t("Underglow: previous effect", "언더글로우 효과 이전"), 12),
+      ...simple("underglow", t("Hue +", "색 +"), t("Underglow: hue up", "언더글로우 색상 +"), 3),
+      ...simple("underglow", t("Hue −", "색 −"), t("Underglow: hue down", "언더글로우 색상 −"), 4),
+      ...simple("underglow", t("Sat +", "채도 +"), t("Underglow: saturation up", "언더글로우 채도 +"), 5),
+      ...simple("underglow", t("Sat −", "채도 −"), t("Underglow: saturation down", "언더글로우 채도 −"), 6),
+      ...simple("underglow", t("Speed +", "속도 +"), t("Underglow: effect faster", "언더글로우 속도 +"), 9),
+      ...simple("underglow", t("Speed −", "속도 −"), t("Underglow: effect slower", "언더글로우 속도 −"), 10),
+    ].map((x) => ({ ...x, wide: true }));
     const dynamic: Tile[] = namedRuntimeBindings(view).map(c => ({ label: c.label, title: c.kind === "macro" ? t("Macro", "매크로") : t("Tap Dance", "탭댄스"),
       binding: c.binding, wide: true, key: c.key } as Tile & { key: string }));
     return [
@@ -117,6 +135,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       // Built in the panel below (tap key + hold modifier/layer), not a fixed tile list.
       ...(id("modtap") !== undefined || id("layertap") !== undefined ? [{ id: "holdtap", label: t("Tap · Hold", "탭·홀드"), tiles: [] as Tile[] }] : []),
       { id: "bt", label: "Bluetooth", tiles: [...bt, ...bt2] },
+      { id: "lights", label: t("Lights", "조명"), tiles: lights },
       { id: "special", label: t("Special", "특수"), tiles: special },
       { id: "dynamic", label: t("Macro · Tap Dance", "매크로·탭댄스"), tiles: dynamic },
     ].filter(x => x.tiles.length || x.id === "holdtap");

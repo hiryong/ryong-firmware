@@ -125,6 +125,10 @@ export function legendFor(
       return { main: "Caps Word" };
     case "Key Repeat":
       return { main: "Repeat" };
+    case "Backlight":
+      return { main: (["BL On", "BL Off", "BL", "BL +", "BL −", "BL Step", "BL Set"] as const)[p1] ?? "BL", sub: p1 === 2 ? "On/Off" : undefined };
+    case "Underglow":
+      return { main: (["RGB", "RGB On", "RGB Off", "Hue +", "Hue −", "Sat +", "Sat −", "RGB +", "RGB −", "Spd +", "Spd −", "Eff ▶", "Eff ◀", "Eff", "Color"] as const)[p1] ?? "RGB", sub: p1 === 0 ? "On/Off" : undefined };
     case "Backspace/Delete":
       return { main: "Bksp", sub: "Del" };
     case "Grave/Escape":

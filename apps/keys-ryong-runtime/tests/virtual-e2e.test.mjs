@@ -45,7 +45,7 @@ async function open(viewport, { fresh } = {}) {
   const ctx = await browser.newContext({ viewport, hasTouch: viewport.width < 600, isMobile: viewport.width < 600 });
   await ctx.addInitScript((fresh) => {
     localStorage.setItem("ryong.lang", "ko");
-    if (fresh && !sessionStorage.getItem("e2e.started")) { localStorage.removeItem("ryong.virtualKeyboard.v2"); sessionStorage.setItem("e2e.started", "1"); }
+    if (fresh && !sessionStorage.getItem("e2e.started")) { localStorage.removeItem("ryong.virtualKeyboard.v3"); sessionStorage.setItem("e2e.started", "1"); }
   }, !!fresh);
   page = await ctx.newPage();
   errors = [];
@@ -255,6 +255,16 @@ await step("keymap: put the macro on Z from the 매크로·탭댄스 tab", async
   await page.locator("button:has([aria-label=Save])").click();
   await page.waitForFunction(() => window.__ryongVirtual.flash.layers[0].bindings[42].behaviorId !== 1, null, { timeout: 3000 });
   assert.ok((await key(42).innerText()).includes(globalThis.createdMacro));
+});
+
+await step("keymap: backlight and underglow keys in the 조명 tab", async () => {
+  await tab("키맵");
+  await key(44).click(); // C
+  await page.getByRole("tab", { name: "조명" }).click();
+  await page.locator(".ry-via-key", { hasText: "백라이트 밝게" }).first().click();
+  await page.locator("button:has([aria-label=Save])").click();
+  await page.waitForFunction(() => { const b = window.__ryongVirtual.flash.layers[0].bindings[44]; return b.behaviorId === 29 && b.param1 === 3; }, null, { timeout: 3000 });
+  assert.ok(await page.locator(".ry-via-key", { hasText: "언더글로우 켜기/끄기" }).count() > 0, "underglow tiles too");
 });
 
 await step("keymap: tap·hold keeps the key for tap, hold = layer or modifier", async () => {
