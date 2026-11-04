@@ -100,6 +100,9 @@ export function decode(binding: C.BehaviorBinding | undefined, view: RuntimeView
   throw new Error("A device behavior is not yet supported by the runtime editor: " + binding.behaviorId);
 }
 
+/** A binding as the keyboard stores it (for putting it on a key). */
+export function wireOf(binding: Binding, view: RuntimeView, doc: BehaviorDoc): C.BehaviorBinding { return encode(binding, view, doc).wire; }
+
 function encode(binding: Binding, view: RuntimeView, doc: BehaviorDoc): { wire: C.BehaviorBinding; macroName?: string; danceName?: string } {
   const behaviorId = binding.b === "ref" && doc.tapDances.some(d=>d.id===binding.id) ? view.catalog.rtd : view.catalog[binding.b];
   if (!behaviorId) throw new Error("Runtime behavior is not supported: " + binding.b);

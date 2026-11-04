@@ -35,9 +35,7 @@ import { baseKeyName, baseLabels, findInKeymap, KeyLabel, keysAt, positionsAt, P
 import { useSub } from "../../usePubSub";
 import { WakePicker } from "../PowerInfo";
 import { KeyPress } from "../UnlockAnim";
-import { TapHoldSettings } from "./TapHoldSettings";
-import { KeyPick } from "./KeyPick";
-import { assignKey, bindingAt, keysWith } from "../runtime/assignKey";
+import { TapDancePanel, TapHoldPanel } from "./KeyFeatures";
 import { BehaviorLab } from "./BehaviorLab";
 import { FriendlyBindingPicker, friendlyLabel } from "./FriendlyBindingPicker";
 import type { MacroItem } from "./labEngine";
@@ -366,39 +364,6 @@ const Editor = ({
   const rewake = !!loaded?.board && wakeNow !== null && wakeNow !== loaded.board.wake;
   /* the combo as it is on the keyboard right now (the real-key test needs that) */
   const [pickOut, setPickOut] = useState<string | null>(null); // combo whose action picker is open
-  /* tap dance → the key it goes on (picked in its card) */
-  const [danceKey, setDanceKey] = useState<Record<string, { layer: number; pos: number }>>({});
-  const [danceMsg, setDanceMsg] = useState<Record<string, string>>({});
-  const keyLabelAt = (layer: number, pos: number) => {
-    if (!runtimeView) return undefined;
-    const b = bindingAt(runtimeView, layer, pos);
-    return b ? friendlyLabel(b, doc, layers) : undefined;
-  };
-  const danceIndex = (id: string) => id.startsWith("runtime_dance_") ? Number(id.slice(14)) : undefined;
-  /** Saves first when needed (a new tap dance gets its number then), then puts it on the key. */
-  const putDanceOnKey = async (tdId: string, target: { layer: number; pos: number }) => {
-    if (!runtimeConn || !runtimeView) return;
-    setDanceMsg((m) => ({ ...m, [tdId]: "" }));
-    try {
-      let view = runtimeView, index = danceIndex(tdId);
-      if (dirty || index === undefined) {
-        const at = doc.tapDances.findIndex((x) => x.id === tdId);
-        const r = await save();
-        if (!r) return;
-        view = r.view;
-        const id = r.nextDoc.tapDances[at]?.id;
-        index = id ? danceIndex(id) : undefined;
-        if (id && id !== tdId) setDanceKey((m) => ({ ...m, [id]: target }));
-      }
-      if (index === undefined || view.catalog.rtd === undefined) throw new Error(t("This tap dance has no number yet.", "이 탭댄스에 아직 번호가 없어요."));
-      await assignKey(runtimeConn, view, target.layer, target.pos, { behaviorId: view.catalog.rtd, param1: index, param2: 0 });
-      const snapshot = await view.session.refreshKeymap(view.snapshot);
-      setRuntimeView({ ...view, snapshot });
-      setDanceMsg((m) => ({ ...m, ["runtime_dance_" + index]: t("Put on the key and saved.", "키에 넣고 저장했어요.") }));
-    } catch (e) {
-      setDanceMsg((m) => ({ ...m, [tdId]: e instanceof Error ? e.message : String(e) }));
-    }
-  };
   const savedCombo = (c: { id: string }) => {
     try { return JSON.stringify((JSON.parse(loaded!.savedJson).combos ?? []).find((x: { id: string }) => x.id === c.id)) === JSON.stringify(c); } catch { return false; }
   };
@@ -448,15 +413,16 @@ const Editor = ({
     setKb(k);
   };
 
-  const save = async (): Promise<{ view: RuntimeView; nextDoc: BehaviorDoc } | undefined> => {
+  const save = async (over?: BehaviorDoc, rethrow = false): Promise<{ view: RuntimeView; nextDoc: BehaviorDoc } | undefined> => {
     if (!loaded) return;
+    const d = over ?? doc;
     setSaving(true);
     setError(null);
     setSaveError(null);
     try {
       if (runtime) {
         if (!runtimeView) throw new Error("Runtime device has not loaded.");
-        const desired = compileDocument(doc, runtimeView);
+        const desired = compileDocument(d, runtimeView);
         const journalKey = "ryong-runtime-pending:" + (preview ? "preview" : runtimeConn!.label);
         const before = await runtimeView.session.refreshKeymap(runtimeView.snapshot);
         const result = await runtimeView.session.save(before, desired, {
@@ -483,7 +449,7 @@ const Editor = ({
         const nextDoc = viewDocument(view);
         // New items get their keyboard id on save; keep the same card open so the person stays where they were.
         if (openId) for (const k of ["combos", "macros", "tapDances"] as const) {
-          const i = doc[k].findIndex((x) => x.id === openId);
+          const i = d[k].findIndex((x) => x.id === openId);
           if (i >= 0) { setOpenId(nextDoc[k][i]?.id ?? null); break; }
         }
         setRuntimeView(view); setDoc(nextDoc);
@@ -517,11 +483,18 @@ const Editor = ({
       setWakeNow(null);
       setSaved(url);
     } catch (e) {
+      if (rethrow) throw e;
       setSaveError((e as Error).message);
     } finally {
       setSaving(false);
     }
   };
+  const commitDoc = async (next: BehaviorDoc) => {
+    const r = await save(next, true);
+    if (!r) throw new Error(t("Couldn't save.", "저장하지 못했어요."));
+    return r;
+  };
+  const featureProps = runtimeView ? { view: runtimeView, conn: runtimeConn, doc, layers, keys: comboKeys, commit: commitDoc, onView: setRuntimeView } : null;
 
   // ---------- list editing helpers ----------
   const update = <K extends Section>(key: K, id: string, patch: Partial<BehaviorDoc[K][number]>) =>
@@ -695,7 +668,7 @@ const Editor = ({
             <pre className="ry-pre">{dtsi}</pre>
           ) : (
             <div className="ry-sec">
-              {!(runtime && section === "settings") && <p className="ry-muted">{SECTIONS.find((s) => s.id === section)!.hint()}</p>}
+              {!(runtime && (section === "settings" || section === "tapDances")) && <p className="ry-muted">{SECTIONS.find((s) => s.id === section)!.hint()}</p>}
 
               {section === "combos" &&
                 doc.combos.map((c) => (
@@ -798,8 +771,8 @@ const Editor = ({
                   </Item>
                 ))}
 
-              {section === "tapDances" && runtime && <p className="ry-faint">{t("Pick the key in each card: one tap keeps what the key did, more taps do the actions you choose. The timing is shared by every tap dance.", "카드에서 키를 고르세요. 한 번 누르면 그 키 그대로, 여러 번 누르면 고른 동작을 해요. 판정 시간은 모든 탭댄스가 같이 써요.")}</p>}
-              {section === "tapDances" &&
+              {section === "tapDances" && runtime && featureProps && <TapDancePanel {...featureProps} />}
+              {section === "tapDances" && !runtime &&
                 doc.tapDances.map((td) => (
                   <Item
                     key={td.id}
@@ -810,30 +783,6 @@ const Editor = ({
                     onDelete={() => remove("tapDances", td.id)}
                     onCopy={() => duplicate("tapDances", td.id)}
                   >
-                    {runtime && runtimeConn && runtimeView?.catalog.rtd !== undefined && (() => {
-                      const idx = danceIndex(td.id);
-                      const on = idx === undefined ? [] : keysWith(runtimeView, runtimeView.catalog.rtd!, idx);
-                      const target = danceKey[td.id] ?? on[0];
-                      const layer = target?.layer ?? 0;
-                      const placed = !!target && on.some((k) => k.layer === target.layer && k.pos === target.pos);
-                      return <Field label={t("Key", "키")} hint={on.length
-                        ? t("On {where}.", "지금 {where}에 들어 있어요.", { where: on.map((k) => `${layers[k.layer] ?? k.layer} · ${comboKeys[k.pos]?.[4] ?? k.pos}`).join(", ") })
-                        : t("Not on a key yet. Pick one below.", "아직 어느 키에도 없어요. 아래에서 키를 고르세요.")}>
-                        <KeyPick keys={comboKeys} layers={layers} layer={layer} pos={target?.pos} labelAt={keyLabelAt}
-                          onLayer={(l) => setDanceKey((m) => ({ ...m, [td.id]: { layer: l, pos: target?.pos ?? -1 } }))}
-                          onPick={(pos) => {
-                            setDanceKey((m) => ({ ...m, [td.id]: { layer, pos } }));
-                            const cur = bindingAt(runtimeView, layer, pos);
-                            if (cur && !(cur.b === "ref" && cur.id === td.id)) update("tapDances", td.id, { bindings: [cur, ...td.bindings.slice(1)] });
-                          }} />
-                        <div className="ry-row">
-                          <span className="ry-faint" aria-live="polite">{danceMsg[td.id] ?? ""}</span>
-                          <button type="button" className="ry-primary" disabled={!target || target.pos < 0 || placed || saving}
-                            onClick={() => target && void putDanceOnKey(td.id, target)}>
-                            {placed ? t("On this key", "이 키에 들어 있음") : dirty || idx === undefined ? t("Save and put on the key", "저장하고 키에 넣기") : t("Put on the key", "키에 넣기")}</button>
-                        </div>
-                      </Field>;
-                    })()}
                     <Field label={t("Name", "이름")} hint={t("Name in the behavior list.", "동작 목록에 보이는 이름.")}>
                       <input type="text" value={td.name} onChange={(e) => update("tapDances", td.id, { name: e.target.value })} />
                     </Field>
@@ -891,13 +840,13 @@ const Editor = ({
                       liveLabels={liveLabels}
                     />
                   )}
-                  {runtime ? <TapHoldSettings doc={doc} setDoc={setDoc} assign={runtimeConn && runtimeView ? { keys: comboKeys, layers, view: runtimeView, conn: runtimeConn, labelAt: keyLabelAt, onView: setRuntimeView } : undefined} /> : <>
+                  {runtime ? (featureProps && <TapHoldPanel {...featureProps} />) : <>
                   <h3 className="ry-h2" style={{ marginTop: 8 }}>{t("Behavior options", "동작 옵션")}</h3>
                   <SettingsEditor doc={doc} setDoc={setDoc} kb={kb} skip={loaded.board ? ["soft_off"] : []} /></>}
                 </>
               )}
 
-              {section !== "settings" && (
+              {section !== "settings" && !(runtime && section === "tapDances") && (
                 <button className="ry-ghost ry-add" onClick={() => add(section)}>
                   <Plus /> {SECTIONS.find((s) => s.id === section)!.one()}
                 </button>
@@ -964,7 +913,7 @@ const Editor = ({
                     {t("Discard", "변경 취소")}
                   </button>
                 )}
-                <button className="ry-primary" disabled={!dirty || issues.length > 0 || saving || (!!runtimeConn && runtimeLock !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED)} onClick={save}>
+                <button className="ry-primary" disabled={!dirty || issues.length > 0 || saving || (!!runtimeConn && runtimeLock !== LockState.ZMK_STUDIO_CORE_LOCK_STATE_UNLOCKED)} onClick={() => void save()}>
                   {saving ? t("Saving…", "저장 중…") : runtime ? (preview ? t("Save preview", "미리보기 저장") : t("Save to keyboard", "키보드에 저장")) : t("Save & build firmware", "저장하고 펌웨어 빌드")}
                 </button>
               </div>

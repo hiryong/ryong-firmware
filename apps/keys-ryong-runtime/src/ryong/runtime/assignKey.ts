@@ -40,3 +40,40 @@ export async function assignKey(conn: RpcConnection, view: RuntimeView, layer: n
   if (!saved?.ok) throw new Error(t("The keyboard could not save the keymap.", "키보드가 키맵을 저장하지 못했어요."));
   window.dispatchEvent(new Event("ryong:keymap-changed"));
 }
+
+/** Several keys at once, one keymap save. Skips keys that already hold the binding. */
+export async function assignKeys(conn: RpcConnection, view: RuntimeView, writes: { layer: number; pos: number; wire: Wire }[]) {
+  const todo = writes.filter((w) => { const cur = wireAt(view, w.layer, w.pos); return !cur || cur.behaviorId !== w.wire.behaviorId || cur.param1 !== w.wire.param1 || cur.param2 !== w.wire.param2; });
+  if (!todo.length) return false;
+  const dirty = (await call_rpc(conn, { keymap: { checkUnsavedChanges: true } })).keymap?.checkUnsavedChanges;
+  if (dirty) throw new Error(t("Save or discard the keymap edits first.", "키맵 탭의 저장 안 된 변경을 먼저 저장하거나 취소하세요."));
+  for (const w of todo) {
+    const layerId = view.snapshot.keymap?.layers[w.layer]?.id;
+    if (layerId === undefined) throw new Error(t("Unknown layer.", "레이어를 찾을 수 없어요."));
+    const set = (await call_rpc(conn, { keymap: { setLayerBinding: { layerId, keyPosition: w.pos, binding: w.wire } } })).keymap?.setLayerBinding;
+    if (set !== 0) throw new Error(t("The keyboard did not accept the key.", "키보드가 이 키 설정을 받지 않았어요."));
+  }
+  const saved = (await call_rpc(conn, { keymap: { saveChanges: true } })).keymap?.saveChanges;
+  if (!saved?.ok) throw new Error(t("The keyboard could not save the keymap.", "키보드가 키맵을 저장하지 못했어요."));
+  window.dispatchEvent(new Event("ryong:keymap-changed"));
+  return true;
+}
+
+/** Tap·hold keys in the keymap (Mod-Tap / Layer-Tap). */
+export type HoldItem = { uid: string; layer: number; pos?: number; hold: string; from?: { layer: number; pos: number } };
+export function holdItemsOf(view: RuntimeView): HoldItem[] {
+  const { mt, lt } = view.catalog, out: HoldItem[] = [];
+  view.snapshot.keymap?.layers.forEach((l, layer) => l.bindings.forEach((b, pos) => {
+    if (mt !== undefined && b.behaviorId === mt) out.push({ uid: `${layer}:${pos}`, layer, pos, hold: "m" + b.param1, from: { layer, pos } });
+    else if (lt !== undefined && b.behaviorId === lt) out.push({ uid: `${layer}:${pos}`, layer, pos, hold: "l" + b.param1, from: { layer, pos } });
+  }));
+  return out;
+}
+/** The key a tap types: a plain key, or the tap key of a tap·hold already there. */
+export function tapUsageAt(view: RuntimeView, layer: number, pos: number): number | undefined {
+  const w = wireAt(view, layer, pos), { kp, mt, lt } = view.catalog;
+  if (!w) return undefined;
+  if (w.behaviorId === kp) return w.param1;
+  if (w.behaviorId === mt || w.behaviorId === lt) return w.param2;
+  return undefined;
+}

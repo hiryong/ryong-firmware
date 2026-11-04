@@ -272,80 +272,101 @@ await step("keymap: tap·hold keeps the key for tap, hold = layer or modifier", 
   await page.waitForFunction(() => { const b = window.__ryongVirtual.flash.layers[0].bindings; return b[32].behaviorId === 10 && b[32].param1 === 1 && b[33].behaviorId === 9; }, null, { timeout: 3000 });
 });
 
-await step("tap dance: new dance with 1× A, 2× B and save", async () => {
+const pickLetter = async (scope, k) => {
+  const fb = scope.locator(".ry-kx-pick").first();
+  await fb.getByRole("tab", { name: "문자·숫자" }).click();
+  await fb.locator(".ry-fb-tile", { hasText: new RegExp(`^${k}$`) }).click();
+};
+const mapKey = async (scope, label) => {
+  const keys = scope.locator(".ry-combokeys button");
+  const i = await keys.evaluateAll((bs, l) => bs.findIndex((b) => b.textContent.trim() === l), label);
+  assert.ok(i >= 0, label + " on the key map");
+  await keys.nth(i).click();
+  return i;
+};
+
+await step("tap dance: add on W (1× stays W, 2× = B) and register", async () => {
   await tab("탭댄스");
   const before = (await flash()).dances.length;
-  await page.getByRole("button", { name: "새 탭댄스" }).click();
-  const item = page.locator(".ry-item.is-open");
-  const pickers = item.locator(".ry-fb");
-  for (const [i, k] of [[0, "A"], [1, "B"]]) {
-    await pickers.nth(i).getByRole("button", { name: "목록에서 고르기" }).click();
-    await pickers.nth(i).getByRole("tab", { name: "문자·숫자" }).click();
-    await pickers.nth(i).locator(".ry-fb-tile", { hasText: new RegExp(`^${k}$`) }).click();
-  }
-  await saveBehaviors();
+  await page.getByRole("button", { name: "탭댄스 추가" }).click();
+  const ed = page.getByRole("region", { name: "새 탭댄스" });
+  const w = await mapKey(ed, "W");
+  assert.equal((await ed.getByRole("button", { name: "1번 누르면 할 동작" }).innerText()).trim(), "W", "1× starts as the key itself");
+  await ed.getByRole("button", { name: "2번 누르면 할 동작" }).click();
+  await pickLetter(ed, "B");
+  await page.screenshot({ path: `${output}/05-tapdance-editor.png`, fullPage: true });
+  await ed.getByRole("button", { name: "키에 등록" }).click();
+  await page.getByText("W 키에 등록했어요.", { exact: false }).waitFor({ timeout: 8000 });
   const f = await flash();
   assert.equal(f.dances.length, before + 1);
   const d = f.dances[f.dances.length - 1];
-  assert.equal(usage(d.config.singleBinding.param1), 0x04);
-  assert.equal(usage(d.config.doubleBinding.param1), 0x05);
+  assert.equal(usage(d.config.singleBinding.param1), 0x1a, "1× W");
+  assert.equal(usage(d.config.doubleBinding.param1), 0x05, "2× B");
+  assert.equal(f.layers[0].bindings[w].behaviorId, 21, "Runtime Tap Dance on W");
+  globalThis.wPos = w;
+  await page.getByRole("button", { name: "W 편집" }).waitFor();
+  await page.screenshot({ path: `${output}/05-tapdance-list.png`, fullPage: true });
 });
 
-await step("tap dance lab: double tap → second action", async () => {
-  const lab = page.locator(".ry-item.is-open .ry-lab").first();
-  await lab.scrollIntoViewIfNeeded();
-  for (let i = 0; i < 2; i++) { await page.keyboard.down("f"); await page.waitForTimeout(40); await page.keyboard.up("f"); await page.waitForTimeout(40); }
-  await page.waitForFunction(() => document.querySelector(".ry-item.is-open .ry-lab-typed kbd:last-child")?.textContent === "B", null, { timeout: 3000 });
-  await page.keyboard.down("f"); await page.waitForTimeout(30); await page.keyboard.up("f");
-  await page.waitForFunction(() => document.querySelector(".ry-item.is-open .ry-lab-typed kbd:last-child")?.textContent === "A", null, { timeout: 3000 });
-});
-
-await step("tap dance: pick the key in its card and put it there", async () => {
-  const item = page.locator(".ry-item.is-open");
-  const keys = item.locator(".ry-combokeys button");
-  const labels = await keys.evaluateAll((bs) => bs.map((b) => b.textContent.trim()));
-  const q = labels.indexOf("W");
-  assert.ok(q >= 0, "W on the key map: " + labels.slice(0, 20).join(","));
-  await keys.nth(q).click();
-  await item.getByRole("button", { name: /키에 넣기/ }).click();
-  await item.getByText("키에 넣고 저장했어요.").waitFor({ timeout: 8000 });
-  const f = await flash();
-  const b = f.layers[0].bindings[q];
-  assert.equal(b.behaviorId, 21, "Runtime Tap Dance on W");
-  assert.equal(b.param1, f.dances.length - 1);
+await step("tap dance: edit W, add 3× = C", async () => {
+  await page.getByRole("button", { name: "W 편집" }).click();
+  const ed = page.getByRole("region", { name: "탭댄스 편집" });
+  await ed.getByRole("button", { name: "+ 3번 누름 추가" }).click();
+  await ed.getByRole("button", { name: "3번 누르면 할 동작" }).click();
+  await pickLetter(ed, "C");
+  await ed.getByRole("button", { name: "키에 등록" }).click();
+  await page.getByText("W 키에 등록했어요.", { exact: false }).waitFor({ timeout: 8000 });
+  const d = (await flash()).dances.at(-1);
+  assert.equal(usage(d.config.tripleBinding.param1), 0x06, "3× C");
 });
 
 /* hold-tap */
-await step("tap·hold: put Shift-hold on F from the tap·hold tab", async () => {
+await step("tap·hold: add on H (tap H, hold Ctrl) and register", async () => {
   await tab("탭·홀드");
-  const card = page.getByLabel("키에 넣기", { exact: true });
-  const keys = card.locator(".ry-combokeys button");
-  const fpos = await keys.evaluateAll((bs) => bs.findIndex((b) => b.textContent.trim() === "F"));
-  await keys.nth(fpos).click();
-  await card.getByRole("group", { name: "길게 누르면" }).getByRole("button", { name: "Ctrl", exact: true }).click();
-  await card.getByRole("button", { name: "키에 넣기" }).click();
-  await card.getByText("키에 넣고 저장했어요.").waitFor({ timeout: 8000 });
-  const b = (await flash()).layers[0].bindings[fpos];
+  await page.getByRole("button", { name: "탭·홀드 추가" }).click();
+  const ed = page.getByRole("region", { name: "새 탭·홀드" });
+  const h = await mapKey(ed, "H");
+  assert.equal((await ed.getByRole("button", { name: "짧게 누르면 입력할 키" }).innerText()).trim(), "H");
+  await ed.getByRole("group", { name: "길게 누르면" }).getByRole("button", { name: "Ctrl", exact: true }).click();
+  await page.screenshot({ path: `${output}/06-taphold-editor.png`, fullPage: true });
+  await ed.getByRole("button", { name: "키에 등록" }).click();
+  await page.getByText("등록했어요: H", { exact: false }).waitFor({ timeout: 8000 });
+  const b = (await flash()).layers[0].bindings[h];
   assert.equal(b.behaviorId, 9, "Mod-Tap");
   assert.equal(b.param1 & 0xffff, 0xe0, "hold = Ctrl");
-  assert.equal(b.param2 & 0xffff, 0x09, "tap = F");
+  assert.equal(b.param2 & 0xffff, 0x0b, "tap = H");
+  globalThis.hPos = h;
+  await page.getByRole("button", { name: "H 편집" }).waitFor();
+  await page.screenshot({ path: `${output}/06-taphold-list.png`, fullPage: true });
 });
 
-await step("tap·hold: preset hold time applies to Mod-Tap and Layer-Tap together", async () => {
-  await tab("탭·홀드");
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${output}/05-settings.png`, fullPage: true });
+await step("tap·hold: hold time preset and decision, saved for every tap·hold", async () => {
   await page.getByRole("button", { name: /여유 있게/ }).click();
-  await saveBehaviors();
-  const f = await flash();
-  assert.ok(f.holds.length >= 2 && f.holds.every((h) => h.tappingTermMs === 280), "all tap·hold keys 280 ms");
+  await page.getByText("판정 시간을 280ms로 저장했어요.").waitFor({ timeout: 8000 });
+  assert.ok((await flash()).holds.every((h) => h.tappingTermMs === 280), "280 ms");
+  await page.getByText("누른 채 다른 키를 누르면 (고급)").click();
+  await page.getByRole("radio", { name: /균형/ }).check();
+  await page.getByText("저장했어요.", { exact: true }).waitFor({ timeout: 8000 });
+  assert.ok((await flash()).holds.every((h) => h.flavor === 1), "balanced");
 });
 
-await step("tap·hold: decision in plain words, stored for both", async () => {
-  await page.getByRole("radio", { name: /균형/ }).check();
-  await page.getByRole("radio", { name: /균형/ }).waitFor();
-  await saveBehaviors();
-  assert.ok((await flash()).holds.every((h) => h.flavor === 1), "balanced = 1 for both");
+await step("tap·hold: remove H, the key types H again", async () => {
+  await page.getByRole("button", { name: "H 지우기" }).click();
+  await page.getByText("지웠어요.").waitFor({ timeout: 8000 });
+  const b = (await flash()).layers[0].bindings[globalThis.hPos];
+  assert.equal(b.behaviorId, 1, "Key Press");
+  assert.equal(b.param1 & 0xffff, 0x0b);
+});
+
+await step("tap dance: remove W, the key types W again", async () => {
+  await tab("탭댄스");
+  const n = (await flash()).dances.length;
+  await page.getByRole("button", { name: "W 지우기" }).click();
+  await page.getByText("지웠어요.").waitFor({ timeout: 8000 });
+  const f = await flash();
+  assert.equal(f.dances.length, n - 1);
+  assert.equal(f.layers[0].bindings[globalThis.wPos].behaviorId, 1);
+  assert.equal(f.layers[0].bindings[globalThis.wPos].param1 & 0xffff, 0x1a);
 });
 
 await step("combo: delete", async () => {

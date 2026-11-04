@@ -1049,3 +1049,43 @@ span.ry-chip { display: inline-flex; align-items: center; justify-content: cente
 .ry-combo-out:hover, .ry-combo-out[aria-expanded="true"] { border-style: solid; border-color: var(--ink); }
 .ry-combo-out.is-fixed { display: inline-flex; align-items: center; cursor: default; border-style: solid; }
 .ry-combo-outpick { margin-top: 10px; }
+
+/* Tap dance / tap·hold (KeyFeatures.tsx) */
+.ry-kx { display: flex; flex-direction: column; gap: 18px; max-width: 920px; }
+.ry-kx-concept { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: #0b0b0b; display: flex; flex-direction: column; gap: 10px; }
+.ry-kx-concept p { margin: 0; line-height: 1.6; }
+.ry-kx-demo { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
+.ry-kx-demo > span { display: inline-flex; align-items: center; gap: 6px; }
+.ry-kx-demo i { font-style: normal; color: var(--muted, #888); }
+.ry-kx-demo b { font-weight: 600; }
+.ry-kx-demo small { font-size: 12px; color: var(--muted, #888); }
+.ry-kx-cap { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 8px; border-radius: 7px; border: 1px solid var(--line-strong); background: linear-gradient(#232323, #151515); box-shadow: inset 0 -2px 0 rgba(0,0,0,.55); color: var(--ink); font: 500 13px/1 inherit; font-family: inherit; }
+.ry-kx-cap.is-wide { min-width: 52px; height: 44px; font-size: 15px; }
+.ry-kx-holdbar { display: inline-block; min-width: 34px; padding: 2px 6px; border-radius: 4px; background: repeating-linear-gradient(90deg, var(--ink) 0 6px, transparent 6px 9px); color: transparent !important; height: 6px; vertical-align: middle; }
+.ry-kx-demo small.ry-kx-holdbar { color: var(--ink) !important; background: none; border-bottom: 3px solid var(--ink); border-radius: 0; height: auto; padding: 0 2px; }
+.ry-kx-sec { display: flex; flex-direction: column; gap: 10px; }
+.ry-kx-h { margin: 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.ry-kx-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ry-kx-row { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.ry-kx-row.is-edit { border-color: var(--ink); }
+.ry-kx-what { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.ry-kx-what em { font-style: normal; color: var(--muted, #888); margin-right: 6px; font-size: 13px; }
+.ry-kx-what small { flex-basis: 100%; }
+.ry-kx-editor { border: 1px solid var(--line-strong); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: #0a0a0a; }
+.ry-kx-edhead { display: flex; justify-content: space-between; align-items: center; }
+.ry-kx-step { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.ry-kx-num { width: 22px; height: 22px; border-radius: 999px; background: var(--ink); color: #000; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.ry-kx-lines { display: flex; flex-direction: column; gap: 10px; }
+.ry-kx-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ry-kx-taps { display: inline-flex; gap: 4px; align-items: center; min-width: 112px; }
+.ry-kx-say { min-width: 92px; color: var(--muted, #aaa); }
+.ry-kx-box { min-width: 140px; height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--ink); background: #151515; color: var(--ink); font-size: 15px; cursor: pointer; }
+.ry-kx-box.is-empty { border-style: dashed; color: var(--muted, #888); }
+.ry-kx-box[aria-expanded="true"] { background: var(--ink); color: #000; }
+.ry-kx-pick { flex-basis: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.ry-kx-foot { display: flex; align-items: center; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.ry-kx-foot .ry-kx-msg { margin-right: auto; }
+.ry-kx-msg { margin: 0; min-height: 1.2em; font-size: 13px; color: var(--ok, #7bd88f); }
+.ry-kx-msg.is-bad { color: var(--danger); }
+.ry-kx-more summary { cursor: pointer; color: var(--muted, #aaa); margin: 4px 0 8px; }
+@media (max-width: 600px) { .ry-kx-taps { min-width: 0; } .ry-kx-say { min-width: 0; } }
