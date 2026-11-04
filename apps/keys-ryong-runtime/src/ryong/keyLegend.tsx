@@ -128,7 +128,7 @@ export function legendFor(
     case "OS Adaptive Key": { // param1 on Windows, param2 on Apple: "Windows key/Mac key", marked as changing
       const win = keyName(p1, false).replace(/^(GUI|Meta|⌘)$/, "Win").replace("AltGr", "Alt");
       const mac = keyName(p2, false).replace(/^(GUI|Meta|Win)$/, "⌘").replace(/^(Alt|AltGr)$/, "⌥");
-      return { main: `${win}/${mac}`, sub: "Auto" };
+      return { main: `${win}/${mac}`, sub: "OS Adaptive" };
     }
     case "Backlight":
       return { main: (["BL On", "BL Off", "BL", "BL +", "BL −", "BL Step", "BL Set"] as const)[p1] ?? "BL", sub: p1 === 2 ? "On/Off" : undefined };

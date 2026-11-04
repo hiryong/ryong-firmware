@@ -87,16 +87,17 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       ...simple("outputselection", "BLE", t("Send keys over Bluetooth", "Bluetooth로 출력"), codes.__out_OUT_BLE),
       ...simple("outputselection", "USB↔BLE", t("Toggle output", "출력 전환"), codes.__out_OUT_TOG),
     ];
+    // OS Adaptive: the key changes with the computer ("Windows key/Mac key"). Fixed modifiers are in 수정키.
+    const adaptive: Tile[] = [
+      ...simple("osadaptivekey", "L Alt/⌘", t("Changes with the computer: Windows → left Alt, Mac → left ⌘ Command", "컴퓨터에 따라 바뀜: Windows → 왼쪽 Alt, Mac → 왼쪽 ⌘ Command"), usage("LALT"), usage("LGUI")),
+      ...simple("osadaptivekey", "L Win/⌥", t("Changes with the computer: Windows → left Win, Mac → left ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 왼쪽 Win, Mac → 왼쪽 ⌥ Option"), usage("LGUI"), usage("LALT")),
+      ...simple("osadaptivekey", "R Alt/⌘", t("Changes with the computer: Windows → right Alt, Mac → right ⌘ Command", "컴퓨터에 따라 바뀜: Windows → 오른쪽 Alt, Mac → 오른쪽 ⌘ Command"), usage("RALT"), usage("RGUI")),
+      ...simple("osadaptivekey", "R Win/⌥", t("Changes with the computer: Windows → right Win, Mac → right ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 오른쪽 Win, Mac → 오른쪽 ⌥ Option"), usage("RGUI"), usage("RALT")),
+      ...simple("osadaptivekey", "Menu/⌥", t("Changes with the computer: Windows → Menu, Mac → right ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 메뉴 키, Mac → 오른쪽 ⌥ Option"), usage("C_MENU"), usage("RALT")),
+    ];
     const special = [
       ...simple("graveescape", "Esc · `", t("Esc, or ` with Shift/GUI", "Esc, Shift·GUI와 함께면 `")),
       ...simple("backspacedelete", "Bksp · Del", t("Backspace, or Delete with Shift", "Backspace, Shift와 함께면 Delete")),
-      // Same key on every computer: the modifier tiles ("Alt (⌥)" = the Alt key, which a Mac calls Option).
-      // These change with the computer instead: "Windows key / Mac key".
-      ...simple("osadaptivekey", t("Auto Alt/⌘", "자동 Alt/⌘"), t("Changes with the computer: Windows → left Alt, Mac → left ⌘ Command", "컴퓨터에 따라 바뀜: Windows → 왼쪽 Alt, Mac → 왼쪽 ⌘ Command"), usage("LALT"), usage("LGUI")),
-      ...simple("osadaptivekey", t("Auto Win/⌥", "자동 Win/⌥"), t("Changes with the computer: Windows → left Win, Mac → left ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 왼쪽 Win, Mac → 왼쪽 ⌥ Option"), usage("LGUI"), usage("LALT")),
-      ...simple("osadaptivekey", t("Auto R Alt/⌘", "자동 R Alt/⌘"), t("Changes with the computer: Windows → right Alt, Mac → right ⌘ Command", "컴퓨터에 따라 바뀜: Windows → 오른쪽 Alt, Mac → 오른쪽 ⌘ Command"), usage("RALT"), usage("RGUI")),
-      ...simple("osadaptivekey", t("Auto R Win/⌥", "자동 R Win/⌥"), t("Changes with the computer: Windows → right Win, Mac → right ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 오른쪽 Win, Mac → 오른쪽 ⌥ Option"), usage("RGUI"), usage("RALT")),
-      ...simple("osadaptivekey", t("Auto Menu/⌥", "자동 Menu/⌥"), t("Changes with the computer: Windows → Menu, Mac → right ⌥ Option", "컴퓨터에 따라 바뀜: Windows → 메뉴 키, Mac → 오른쪽 ⌥ Option"), usage("C_MENU"), usage("RALT")),
       ...simple("transparent", "▽", t("Transparent: use the layer below", "투명: 아래 레이어 키 사용")),
       ...simple("none", "✕", t("Do nothing", "아무 동작 없음")),
       ...simple("capsword", "Caps Word", "Caps Word"),
@@ -141,6 +142,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       ...(id("modtap") !== undefined || id("layertap") !== undefined ? [{ id: "holdtap", label: t("Tap · Hold", "탭·홀드"), tiles: [] as Tile[] }] : []),
       { id: "bt", label: "Bluetooth", tiles: [...bt, ...bt2] },
       { id: "lights", label: t("Lights", "조명"), tiles: lights },
+      { id: "adaptive", label: "OS Adaptive", tiles: adaptive },
       { id: "special", label: t("Special", "특수"), tiles: special },
       { id: "dynamic", label: t("Macro · Tap Dance", "매크로·탭댄스"), tiles: dynamic },
     ].filter(x => x.tiles.length || x.id === "holdtap");
