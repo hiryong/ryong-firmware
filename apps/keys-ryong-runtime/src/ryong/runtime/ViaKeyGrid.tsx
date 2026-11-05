@@ -47,9 +47,7 @@ const TITLES: Record<string, () => string> = {
 const SHIFTED_OF: Record<string, string> = Object.fromEntries(SYMBOLS.map(([sym, k]) => [k, sym]));
 const MORE: [string, string][] = [["한/영", "LANG1"], ["한자", "LANG2"], ...Array.from({ length: 12 }, (_, i) => [`F${i + 13}`, `F${i + 13}`] as [string, string])];
 
-export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDetail, children, at }: {
-  /** the key being edited (layer index, position): for "edit in the Tap Dance / Tap · Hold tab" */
-  at?: { layer: number; pos: number };
+export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDetail, children }: {
   behaviors: GetBehaviorDetailsResponse[]; layers: { id: number; name: string }[];
   binding: BehaviorBinding; onChange: (binding: BehaviorBinding) => void;
   detail: boolean; onDetail: (open: boolean) => void; children?: ReactNode;
@@ -180,11 +178,6 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       <p className="ry-via-current" aria-live="polite">
         {!error && shownMacro && view ? <span className="ry-via-preview"><b>{namedRuntimeBindings(view).find((c) => c.binding.behaviorId === shownMacro.behaviorId && c.binding.param1 === shownMacro.param1)?.label}</b>
           {" · "}{macroPreview(view, shownMacro.param1) || t("empty", "비어 있음")}{" "}<button className="ry-text" onClick={() => openFeature({ kind: "macro", layer: shownMacro.param1, pos: 0 })}>{t("Edit in Macros", "매크로 탭에서 편집")}</button></span>
-        : !error && featureOf(view, binding) && at ? <span className="ry-via-preview">{featureOf(view, binding) === "dance"
-            ? t("This key is a tap dance: {d}", "이 키는 탭댄스예요: {d}", { d: danceSummary(view!, binding.param1) })
-            : t("This key is a tap·hold: tap {k}", "이 키는 탭·홀드예요: 짧게 {k}", { k: tapName(view!, binding.param2) })}
-          {" "}<button className="ry-text" onClick={() => openFeature({ kind: featureOf(view, binding)!, layer: at.layer, pos: at.pos })}>
-            {featureOf(view, binding) === "dance" ? t("Edit in Tap Dance", "탭댄스 탭에서 편집") : t("Edit in Tap · Hold", "탭·홀드 탭에서 편집")}</button></span>
         : error ? <span className="ry-danger">{error}</span>
           : !onGrid && !detail ? <>{t("Current: {name}. Change its options in detailed settings.", "현재 할당: {name} · 세부 옵션은 세부 설정에서 바꿉니다.", { name: currentName })}
             <button className="ry-text" onClick={() => onDetail(true)}>{t("Open", "열기")}</button></> : null}
@@ -273,28 +266,4 @@ function macroPreview(view: RuntimeView | null, slot: number): string {
     }
     return parts.join(" ").slice(0, 160);
   } catch { return ""; }
-}
-
-/** Tap dance or tap·hold on this key (edited in their header tabs, not in the picker). */
-function featureOf(view: RuntimeView | null, b: BehaviorBinding): "dance" | "hold" | undefined {
-  if (!view) return undefined;
-  const { rtd, mt, lt, osmt } = view.catalog;
-  if (rtd !== undefined && b.behaviorId === rtd) return "dance";
-  if ([mt, lt, osmt].some((x) => x !== undefined && x === b.behaviorId)) return "hold";
-  return undefined;
-}
-function danceSummary(view: RuntimeView, index: number): string {
-  try {
-    const doc = viewDocument(view);
-    const td = doc.tapDances.find((x) => x.id === "runtime_dance_" + index);
-    return td ? td.bindings.map((b, i) => `${i + 1}× ${friendlyLabel(b, doc, view.layerNames)}`).join(" · ") : "?";
-  } catch { return "?"; }
-}
-function tapName(view: RuntimeView, usage: number): string {
-  try {
-    const doc = viewDocument(view);
-    const kp = view.catalog.kp;
-    if (kp === undefined) return "?";
-    return friendlyLabel({ b: "kp", key: Object.entries(values as Record<string, number>).find(([k, v]) => v === (usage & 0xffffff) && !k.startsWith("__"))?.[0] ?? "?" }, doc, view.layerNames);
-  } catch { return "?"; }
 }

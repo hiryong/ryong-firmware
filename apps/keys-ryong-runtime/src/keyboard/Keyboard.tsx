@@ -642,7 +642,6 @@ export default function Keyboard() {
       {keymap && selectedBinding && (viaFirst ? (
         <div className="ry-picker-panel col-start-1 row-start-2">
           <ViaKeyGrid behaviors={Object.values(behaviors)} binding={selectedBinding}
-            at={selectedKeyPosition === undefined ? undefined : { layer: selectedLayerIndex, pos: selectedKeyPosition }}
             layers={keymap.layers.map(({ id, name }) => ({ id, name }))} onChange={doUpdateBinding}
             detail={detailPicker} onDetail={setDetailPicker}>
             <RuntimeBindingPicker binding={selectedBinding} onChange={doUpdateBinding} />
