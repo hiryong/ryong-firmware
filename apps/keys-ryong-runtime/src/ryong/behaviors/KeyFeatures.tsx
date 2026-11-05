@@ -430,43 +430,17 @@ export function TapHoldPanel(p: KeyFeatureProps) {
   </div>;
 }
 
-/* ------------------------------------------------------------------ macro → key */
+/* ------------------------------------------------------------------ macro → keys */
 
-/** In a macro card: which keys play it, and putting it on a key (saves the macro first when needed). */
+/** In a macro card: which keys play it. Putting it on a key is done in the keymap (매크로 category). */
 export function MacroOnKey(p: KeyFeatureProps & { macroId: string; dirty: boolean }) {
-  const { view, doc, layers, keys } = p;
+  const { view, layers, keys } = p;
   const ref = view.catalog.ref;
-  const [layer, setLayer] = useState(0);
-  const [pos, setPos] = useState<number | undefined>();
-  const { busy, msg, run } = useRun();
-  const slotOf = (id?: string) => id?.startsWith("runtime_macro_") ? Number(id.slice(14)) : undefined;
-  const slot = slotOf(p.macroId);
-  const on = slot === undefined || ref === undefined ? [] : keysWith(view, ref, slot);
-  const keyName = (s: Spot) => keys[s.pos]?.[4] ?? String(s.pos);
-  const label = (b: Binding) => friendlyLabel(b, doc, layers);
+  const slot = p.macroId.startsWith("runtime_macro_") ? Number(p.macroId.slice(14)) : undefined;
   if (ref === undefined) return null;
-  const put = () => run(async () => {
-    if (pos === undefined) throw new Error(t("Choose the key.", "키를 고르세요."));
-    let v = view, id: string | undefined = p.macroId;
-    if (p.dirty || slot === undefined) {
-      const at = doc.macros.findIndex((m) => m.id === p.macroId);
-      const r = await p.commit(doc);
-      v = r.view; id = r.nextDoc.macros[at]?.id;
-    }
-    const s = slotOf(id);
-    if (s === undefined) throw new Error(t("The keyboard did not keep the macro.", "키보드가 매크로를 저장하지 못했어요."));
-    await place(p, v, [{ layer, pos, wire: { behaviorId: ref, param1: s, param2: 0 } }]);
-    return t("Put on {k}. Press it to play the macro.", "{k} 키에 넣었어요. 누르면 매크로가 실행돼요.", { k: keyName({ layer, pos }) });
-  });
-  return <div className="ry-kx-onkey">
-    <div className="ry-kx-step"><b>{t("Key", "넣을 키")}</b>
-      <span className="ry-faint">{on.length ? t("Now on {w}.", "지금 {w}에 있어요.", { w: on.map((s) => keyName(s) + where(layers, s)).join(", ") }) : t("Not on a key yet.", "아직 어느 키에도 없어요.")}</span></div>
-    <KeyPick keys={keys} layers={layers} layer={layer} pos={pos} onLayer={setLayer} onPick={setPos}
-      labelAt={(l, k) => { const b = bindingAt(view, l, k); return b ? label(b) : undefined; }} />
-    <div className="ry-kx-foot">
-      <Msg msg={msg} />
-      <button type="button" className="ry-primary" disabled={busy || pos === undefined || !p.conn} onClick={() => void put()}>
-        {busy ? t("Saving…", "저장 중…") : p.dirty || slot === undefined ? t("Save and put on the key", "저장하고 키에 넣기") : t("Put on the key", "키에 넣기")}</button>
-    </div>
-  </div>;
+  const on = slot === undefined ? [] : keysWith(view, ref, slot);
+  const names = on.map((s) => (keys[s.pos]?.[4] ?? String(s.pos)) + where(layers, s)).join(", ");
+  return <p className="ry-faint">{on.length
+    ? t("On {w}. To put it on another key: keymap → pick the key → 매크로.", "지금 {w}에 있어요. 다른 키에 넣으려면 키맵 탭에서 키를 고르고 '매크로' 칸에서 고르세요.", { w: names })
+    : t("Not on a key yet. Keymap → pick the key → 매크로.", "아직 어느 키에도 없어요. 키맵 탭에서 키를 고르고 '매크로' 칸에서 고르세요.")}</p>;
 }

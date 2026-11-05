@@ -1112,3 +1112,7 @@ span.ry-chip { display: inline-flex; align-items: center; justify-content: cente
 .ry-tools-menu > .ry-text { text-align: left; padding: 8px 10px; border-radius: 6px; }
 
 .ry-kx-onkey { display: flex; flex-direction: column; gap: 10px; }
+
+.ry-via-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.ry-via-preview b { font-weight: 600; }
+.ry-via-key.is-auto { width: auto; min-width: 92px; max-width: 220px; padding: 0 12px; }

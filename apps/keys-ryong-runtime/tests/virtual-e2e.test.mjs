@@ -260,18 +260,16 @@ await step("macro: type text macro and save", async () => {
 });
 
 /* tap dance */
-await step("macro: put it on Z from its card", async () => {
-  await tab("매크로");
-  const head = page.locator(".ry-item-head", { hasText: globalThis.createdMacro }).first();
-  if ((await head.getAttribute("aria-expanded")) !== "true") await head.click(); // still open after its save
-  const card = page.locator(".ry-item.is-open");
-  await card.locator(".ry-kx-onkey").waitFor({ timeout: 5000 });
-  await mapKey(card.locator(".ry-kx-onkey"), "Z");
-  await card.getByRole("button", { name: /키에 넣기/ }).click();
-  await card.getByText("Z 키에 넣었어요.", { exact: false }).waitFor({ timeout: 8000 });
-  const b = (await flash()).layers[0].bindings[42];
-  assert.equal(b.behaviorId, 20, "Runtime Macro on Z");
+await step("keymap: put the macro on Z from the 매크로 tab, with a preview", async () => {
   await tab("키맵");
+  await key(42).click();
+  await page.getByRole("tab", { name: "매크로", exact: true }).click();
+  const tile = page.locator(".ry-via-key", { hasText: globalThis.createdMacro }).first();
+  await tile.hover();
+  await page.locator(".ry-via-preview", { hasText: globalThis.createdMacro }).waitFor({ timeout: 3000 });
+  await tile.click();
+  await page.locator("button:has([aria-label=Save])").click();
+  await page.waitForFunction(() => window.__ryongVirtual.flash.layers[0].bindings[42].behaviorId === 20, null, { timeout: 3000 });
   assert.ok((await key(42).innerText()).includes(globalThis.createdMacro));
 });
 

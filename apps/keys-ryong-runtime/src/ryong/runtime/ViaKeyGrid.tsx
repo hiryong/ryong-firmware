@@ -2,7 +2,9 @@ import { ReactNode, useContext, useMemo, useState } from "react";
 import type { BehaviorBinding } from "@zmkfirmware/zmk-studio-ts-client/keymap";
 import type { GetBehaviorDetailsResponse } from "@zmkfirmware/zmk-studio-ts-client/behaviors";
 import values from "./keycode-values.json";
-import { RuntimeBindingsContext, checkedRuntimeBinding } from "./bindings";
+import { RuntimeBindingsContext, checkedRuntimeBinding, namedRuntimeBindings } from "./bindings";
+import { viewDocument, type RuntimeView } from "./modelBridge";
+import { friendlyLabel } from "../behaviors/FriendlyBindingPicker";
 import { t } from "../i18n";
 
 /** VIA-style picker: click a tile and the selected key gets it. The Studio dropdowns stay below for full control. */
@@ -12,7 +14,7 @@ const usage = (k: string) => codes[k] ?? HEX[k];
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 type Tile = { label: string; title?: string; binding: BehaviorBinding; wide?: boolean; shift?: string; group?: string };
-type Tab = { id: string; label: string; tiles: Tile[] };
+type Tab = { id: string; label: string; tiles: Tile[]; empty?: boolean };
 
 const BASIC: [string, string][] = [
   ["Esc", "ESC"], ["F1", "F1"], ["F2", "F2"], ["F3", "F3"], ["F4", "F4"], ["F5", "F5"], ["F6", "F6"], ["F7", "F7"], ["F8", "F8"], ["F9", "F9"], ["F10", "F10"], ["F11", "F11"], ["F12", "F12"],
@@ -122,6 +124,8 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       ...simple("underglow", t("Speed +", "속도 +"), t("Underglow: effect faster", "언더글로우 속도 +"), 9),
       ...simple("underglow", t("Speed −", "속도 −"), t("Underglow: effect slower", "언더글로우 속도 −"), 10),
     ].map((x) => ({ ...x, wide: true }));
+    const macroTiles: Tile[] = namedRuntimeBindings(view).filter((c) => c.kind === "macro").map((c) => ({ label: c.label, title: macroPreview(view, c.binding.param1),
+      binding: c.binding, wide: true, key: c.key } as Tile & { key: string }));
     return [
       { id: "basic", label: t("Basic", "기본"), tiles: [...keys(BASIC), ...keys(NAV), ...keys(MORE).map((x, i) => (i === 0 ? { ...x, group: t("Others", "기타") } : x))] },
       { id: "mods", label: t("Modifiers", "수정키"), tiles: [...keys(MODS), ...adaptive.map((x, i) => (i === 0 ? { ...x, group: "OS Adaptive" } : x))] },
@@ -132,11 +136,14 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       { id: "bt", label: "Bluetooth", tiles: [...bt, ...bt2] },
       { id: "lights", label: t("Lights", "조명"), tiles: lights },
       { id: "special", label: t("Special", "특수"), tiles: special },
-    ].filter(x => x.tiles.length || x.id === "holdtap");
+      { id: "macros", label: t("Macros", "매크로"), tiles: macroTiles, empty: true },
+    ].filter(x => x.tiles.length || x.id === "holdtap" || x.empty);
   }, [id, layers, view]);
 
   const current = tabs.find(x => x.id === tab) ?? tabs[0];
   if (!current) return null;
+  const [hover, setHover] = useState<BehaviorBinding | null>(null);
+  const shownMacro = current?.id === "macros" ? (hover ?? (binding.behaviorId === view?.catalog.ref ? binding : null)) : null;
   const same = (b: BehaviorBinding) => b.behaviorId === binding.behaviorId && b.param1 === binding.param1 && b.param2 === binding.param2;
   const onGrid = tabs.some(x => x.tiles.some(tile => same(tile.binding))) || (binding.behaviorId === id("modtap") || binding.behaviorId === id("layertap"));
   const currentName = behaviors.find(b => b.id === binding.behaviorId)?.displayName ?? t("Unknown action", "알 수 없는 동작");
@@ -154,9 +161,11 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       {detail ? <div className="ry-via-detail">{children}</div>
         : current.id === "holdtap" ? <HoldTapBuilder key={`${binding.behaviorId}:${binding.param1}:${binding.param2}`} keyPress={id("keypress")} modTap={id("modtap")} layerTap={id("layertap")} osModTap={id("osmodtap")} layers={layers} binding={binding} onChange={onChange} />
         : <div className="ry-via-grid" role="tabpanel" aria-label={current.label}>
+          {current.id === "macros" && !current.tiles.length && <p className="ry-faint">{t("No macros yet. Make one in the Macros tab at the top, then pick it here.", "아직 매크로가 없어요. 위쪽 매크로 탭에서 만든 뒤 여기서 고르세요.")}</p>}
           {current.tiles.map((tile, i) => [tile.group && <div key={"g" + i} className="ry-via-group"><span>{tile.group}</span>
               {tile.group === "OS Adaptive" && <small>{t("changes with the OS: Windows key / Mac key", "OS에 따라 바뀌어요: Windows 키 / Mac 키")}</small>}</div>,
-            <button key={i} className={"ry-via-key" + size(tile.label) + (tile.shift ? " has-shift" : "")} title={tile.title} aria-pressed={same(tile.binding)}
+            <button key={i} className={"ry-via-key" + (current.id === "macros" ? " is-auto" : size(tile.label)) + (tile.shift ? " has-shift" : "")} title={tile.title} aria-pressed={same(tile.binding)}
+              onMouseEnter={current.id === "macros" ? () => setHover(tile.binding) : undefined} onMouseLeave={current.id === "macros" ? () => setHover(null) : undefined}
             onClick={async () => {
               setError(null);
               const key = (tile as Tile & { key?: string }).key;
@@ -166,7 +175,9 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
         </div>}
       {/* fixed-height status line: the panel never changes size */}
       <p className="ry-via-current" aria-live="polite">
-        {error ? <span className="ry-danger">{error}</span>
+        {!error && shownMacro && view ? <span className="ry-via-preview"><b>{namedRuntimeBindings(view).find((c) => c.binding.behaviorId === shownMacro.behaviorId && c.binding.param1 === shownMacro.param1)?.label}</b>
+          {" · "}{macroPreview(view, shownMacro.param1) || t("empty", "비어 있음")}<span className="ry-faint"> · {t("edit it in the Macros tab", "내용은 위쪽 매크로 탭에서 바꿔요")}</span></span>
+        : error ? <span className="ry-danger">{error}</span>
           : !onGrid && !detail ? <>{t("Current: {name}. Change its options in detailed settings.", "현재 할당: {name} · 세부 옵션은 세부 설정에서 바꿉니다.", { name: currentName })}
             <button className="ry-text" onClick={() => onDetail(true)}>{t("Open", "열기")}</button></> : null}
       </p>
@@ -237,4 +248,21 @@ function HoldTapBuilder({ keyPress, modTap, layerTap, osModTap, layers, binding,
       ? t("On this key: tap {tap} · hold {hold}. Hold time is set in the Tap · Hold tab.", "이 키: 짧게 {tap} · 길게 {hold}. 판정 시간은 위쪽 탭·홀드 탭에서 바꿔요.", { tap: tapName, hold: holdName })
       : t("Pick what holding does; the key keeps typing {tap} on a tap.", "길게 누를 때 할 동작을 고르면 바로 들어가요. 짧게 누르면 {tap} 그대로예요.", { tap: tapName })}</p>
   </div>;
+}
+
+/** What a macro does, in one line ("H i ! · Shift↓ · 50 ms …"), for its tile and the preview line. */
+function macroPreview(view: RuntimeView | null, slot: number): string {
+  if (!view) return "";
+  try {
+    const doc = viewDocument(view);
+    const m = doc.macros.find((x) => x.id === "runtime_macro_" + slot);
+    if (!m) return "";
+    const parts: string[] = [];
+    for (const st of m.steps) {
+      if (st.t === "wait") parts.push(`${st.ms}ms`);
+      else if (st.t === "text") parts.push(st.text);
+      else { const l = friendlyLabel(st.binding, doc, view.layerNames); parts.push(st.t === "press" ? `${l}↓` : st.t === "release" ? `${l}↑` : l); }
+    }
+    return parts.join(" ").slice(0, 160);
+  } catch { return ""; }
 }
