@@ -35,7 +35,7 @@ import { baseKeyName, baseLabels, findInKeymap, KeyLabel, keysAt, positionsAt, P
 import { useSub } from "../../usePubSub";
 import { WakePicker } from "../PowerInfo";
 import { KeyPress } from "../UnlockAnim";
-import { TapDancePanel, TapHoldPanel } from "./KeyFeatures";
+import { MacroOnKey, TapDancePanel, TapHoldPanel } from "./KeyFeatures";
 import { BehaviorLab } from "./BehaviorLab";
 import { FriendlyBindingPicker, friendlyLabel } from "./FriendlyBindingPicker";
 import type { MacroItem } from "./labEngine";
@@ -760,6 +760,9 @@ const Editor = ({
                         onChange={(steps) => update("macros", m.id, { steps })}
                       />
                     </Field>
+                    {runtime && featureProps && <Field label={t("Put on a key", "키에 넣기")}>
+                      <MacroOnKey {...featureProps} macroId={m.id} dirty={dirty} />
+                    </Field>}
                     {m.steps.length > 0 && <BehaviorLab lab={{ kind: "macro", name: m.name, wait: m.wait, tap: m.tap, steps: m.steps.map((st): MacroItem =>
                       st.t === "wait" ? { kind: "wait", label: "", ms: st.ms } : st.t === "text" ? { kind: "text", label: st.text } : { kind: st.t, label: friendlyLabel(st.binding, doc, layers) }) }} />}
                     <div className="ry-two">

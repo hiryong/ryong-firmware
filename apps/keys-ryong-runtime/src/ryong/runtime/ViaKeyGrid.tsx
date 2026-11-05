@@ -2,7 +2,7 @@ import { ReactNode, useContext, useMemo, useState } from "react";
 import type { BehaviorBinding } from "@zmkfirmware/zmk-studio-ts-client/keymap";
 import type { GetBehaviorDetailsResponse } from "@zmkfirmware/zmk-studio-ts-client/behaviors";
 import values from "./keycode-values.json";
-import { RuntimeBindingsContext, namedRuntimeBindings, checkedRuntimeBinding } from "./bindings";
+import { RuntimeBindingsContext, checkedRuntimeBinding } from "./bindings";
 import { t } from "../i18n";
 
 /** VIA-style picker: click a tile and the selected key gets it. The Studio dropdowns stay below for full control. */
@@ -122,8 +122,6 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       ...simple("underglow", t("Speed +", "속도 +"), t("Underglow: effect faster", "언더글로우 속도 +"), 9),
       ...simple("underglow", t("Speed −", "속도 −"), t("Underglow: effect slower", "언더글로우 속도 −"), 10),
     ].map((x) => ({ ...x, wide: true }));
-    const dynamic: Tile[] = namedRuntimeBindings(view).map(c => ({ label: c.label, title: c.kind === "macro" ? t("Macro", "매크로") : t("Tap Dance", "탭댄스"),
-      binding: c.binding, wide: true, key: c.key } as Tile & { key: string }));
     return [
       { id: "basic", label: t("Basic", "기본"), tiles: [...keys(BASIC), ...keys(NAV), ...keys(MORE).map((x, i) => (i === 0 ? { ...x, group: t("Others", "기타") } : x))] },
       { id: "mods", label: t("Modifiers", "수정키"), tiles: [...keys(MODS), ...adaptive.map((x, i) => (i === 0 ? { ...x, group: "OS Adaptive" } : x))] },
@@ -131,11 +129,9 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       { id: "media", label: t("Media", "미디어"), tiles: keys(MEDIA) },
       { id: "layers", label: t("Layers", "레이어"), tiles: layerTiles },
       // Built in the panel below (tap key + hold modifier/layer), not a fixed tile list.
-      ...(id("modtap") !== undefined || id("layertap") !== undefined ? [{ id: "holdtap", label: t("Tap · Hold", "탭·홀드"), tiles: [] as Tile[] }] : []),
       { id: "bt", label: "Bluetooth", tiles: [...bt, ...bt2] },
       { id: "lights", label: t("Lights", "조명"), tiles: lights },
       { id: "special", label: t("Special", "특수"), tiles: special },
-      { id: "dynamic", label: t("Macro · Tap Dance", "매크로·탭댄스"), tiles: dynamic },
     ].filter(x => x.tiles.length || x.id === "holdtap");
   }, [id, layers, view]);
 

@@ -69,6 +69,19 @@ async function power() {
   if (await btn.isVisible()) await page.locator(".ry-virtual button").first().click(); // fold the panel away again
 }
 const tab = (name) => page.getByRole("button", { name: new RegExp(`^${name}( ·)?$`) }).first().click();
+const pickLetter = async (scope, k) => {
+  const fb = scope.locator(".ry-kx-pick").first();
+  await fb.getByRole("tab", { name: "문자·숫자" }).click();
+  await fb.locator(".ry-fb-tile", { hasText: new RegExp(`^${k}$`) }).click();
+};
+const mapKey = async (scope, label) => {
+  const keys = scope.locator(".ry-combokeys button");
+  const i = await keys.evaluateAll((bs, l) => bs.findIndex((b) => b.textContent.trim() === l), label);
+  assert.ok(i >= 0, label + " on the key map");
+  await keys.nth(i).click();
+  return i;
+};
+
 async function saveBehaviors() {
   await page.getByRole("button", { name: "키보드에 저장" }).click();
   await page.getByText("키보드에 저장했습니다.", { exact: false }).waitFor({ timeout: 10000 });
@@ -247,23 +260,31 @@ await step("macro: type text macro and save", async () => {
 });
 
 /* tap dance */
-await step("keymap: put the macro on Z from the 매크로·탭댄스 tab", async () => {
+await step("macro: put it on Z from its card", async () => {
+  await tab("매크로");
+  const head = page.locator(".ry-item-head", { hasText: globalThis.createdMacro }).first();
+  if ((await head.getAttribute("aria-expanded")) !== "true") await head.click(); // still open after its save
+  const card = page.locator(".ry-item.is-open");
+  await card.locator(".ry-kx-onkey").waitFor({ timeout: 5000 });
+  await mapKey(card.locator(".ry-kx-onkey"), "Z");
+  await card.getByRole("button", { name: /키에 넣기/ }).click();
+  await card.getByText("Z 키에 넣었어요.", { exact: false }).waitFor({ timeout: 8000 });
+  const b = (await flash()).layers[0].bindings[42];
+  assert.equal(b.behaviorId, 20, "Runtime Macro on Z");
   await tab("키맵");
-  await key(42).click();
-  await page.getByRole("tab", { name: "매크로·탭댄스" }).click();
-  await page.locator(".ry-via-key", { hasText: globalThis.createdMacro }).first().click();
-  await page.locator("button:has([aria-label=Save])").click();
-  await page.waitForFunction(() => window.__ryongVirtual.flash.layers[0].bindings[42].behaviorId !== 1, null, { timeout: 3000 });
   assert.ok((await key(42).innerText()).includes(globalThis.createdMacro));
 });
 
-await step("keymap: tap·hold with an OS Adaptive hold (OS Mod-Tap) on J", async () => {
-  await tab("키맵");
-  await key(35).click(); // J
-  await page.getByRole("tab", { name: "탭·홀드" }).click();
-  await page.getByRole("group", { name: "길게 누르면 (OS Adaptive)" }).getByRole("button", { name: "Alt/⌘", exact: true }).click();
-  await page.locator("button:has([aria-label=Save])").click();
-  await page.waitForFunction(() => { const b = window.__ryongVirtual.flash.layers[0].bindings[35]; return b.behaviorId === 31 && (b.param1 & 0xffff) === 0xe2 && (b.param2 & 0xffff) === 0x0d; }, null, { timeout: 3000 });
+await step("tap·hold tab: OS Adaptive hold (OS Mod-Tap) on J", async () => {
+  await tab("탭·홀드");
+  await page.getByRole("button", { name: "탭·홀드 추가" }).click();
+  const ed = page.getByRole("region", { name: "새 탭·홀드" });
+  await mapKey(ed, "J");
+  await ed.getByRole("group", { name: "길게 누르면" }).getByRole("button", { name: "OS Alt/⌘", exact: true }).click();
+  await ed.getByRole("button", { name: "키에 등록" }).click();
+  await page.getByText("등록했어요: J", { exact: false }).waitFor({ timeout: 8000 });
+  const b = (await flash()).layers[0].bindings[35];
+  assert.ok(b.behaviorId === 31 && (b.param1 & 0xffff) === 0xe2 && (b.param2 & 0xffff) === 0x0d, JSON.stringify(b));
 });
 
 await step("keymap: backlight and underglow keys in the 조명 tab", async () => {
@@ -276,31 +297,19 @@ await step("keymap: backlight and underglow keys in the 조명 tab", async () =>
   assert.ok(await page.locator(".ry-via-key", { hasText: "언더글로우 켜기/끄기" }).count() > 0, "underglow tiles too");
 });
 
-await step("keymap: tap·hold keeps the key for tap, hold = layer or modifier", async () => {
-  await tab("키맵");
-  await key(32).click(); // F
-  await page.getByRole("tab", { name: "탭·홀드" }).click();
-  assert.equal(await page.getByLabel("짧게 누르면", { exact: true }).locator("option:checked").innerText(), "F", "tap defaults to the key itself");
-  await page.getByRole("group", { name: "길게 누르면" }).getByRole("button", { name: "raise 레이어" }).click();
-  await key(33).click(); // G
-  await page.getByRole("tab", { name: "탭·홀드" }).click();
-  await page.getByRole("group", { name: "길게 누르면" }).getByRole("button", { name: "L Shift" }).click();
-  await page.locator("button:has([aria-label=Save])").click();
-  await page.waitForFunction(() => { const b = window.__ryongVirtual.flash.layers[0].bindings; return b[32].behaviorId === 10 && b[32].param1 === 1 && b[33].behaviorId === 9; }, null, { timeout: 3000 });
+await step("tap·hold tab: F hold = raise layer, G hold = Shift", async () => {
+  await tab("탭·홀드");
+  for (const [k, hold] of [["F", "raise 레이어"], ["G", "Shift"]]) {
+    await page.getByRole("button", { name: "탭·홀드 추가" }).click();
+    const ed = page.getByRole("region", { name: "새 탭·홀드" });
+    await mapKey(ed, k);
+    await ed.getByRole("group", { name: "길게 누르면" }).getByRole("button", { name: hold, exact: true }).click();
+    await ed.getByRole("button", { name: "키에 등록" }).click();
+    await page.getByText(`등록했어요: ${k}`, { exact: false }).waitFor({ timeout: 8000 });
+  }
+  const b = (await flash()).layers[0].bindings;
+  assert.ok(b[32].behaviorId === 10 && b[32].param1 === 1 && b[33].behaviorId === 9, JSON.stringify([b[32], b[33]]));
 });
-
-const pickLetter = async (scope, k) => {
-  const fb = scope.locator(".ry-kx-pick").first();
-  await fb.getByRole("tab", { name: "문자·숫자" }).click();
-  await fb.locator(".ry-fb-tile", { hasText: new RegExp(`^${k}$`) }).click();
-};
-const mapKey = async (scope, label) => {
-  const keys = scope.locator(".ry-combokeys button");
-  const i = await keys.evaluateAll((bs, l) => bs.findIndex((b) => b.textContent.trim() === l), label);
-  assert.ok(i >= 0, label + " on the key map");
-  await keys.nth(i).click();
-  return i;
-};
 
 await step("tap dance: add on W (1× stays W, 2× = B) and register", async () => {
   await tab("탭댄스");
