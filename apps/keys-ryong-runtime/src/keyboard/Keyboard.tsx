@@ -176,7 +176,8 @@ export default function Keyboard() {
   // keys.ryong.com: flat (2D) or keycaps seen from slightly above (3D)
   const [keymapView, setKeymapView] = useLocalStorageState<"2d" | "3d">("keymapView", "2d");
   // Runtime copy: the VIA-style grid is the main picker; Studio's detailed editor opens on request.
-  const [detailPicker, setDetailPicker] = useLocalStorageState<boolean>("ryong.detailPicker", false);
+  // Not remembered: every visit starts with the key grid (a remembered "detailed" view looked like a broken picker).
+  const [detailPicker, setDetailPicker] = useState(false);
   const viaFirst = import.meta.env.VITE_RYONG_RUNTIME === "1";
   // Runtime copy: the layer menu stays at the screen's left edge, its top level with the keyboard's top edge;
   // the keyboard keeps generous margins in the space to the right of the menu.
