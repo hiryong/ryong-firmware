@@ -344,6 +344,15 @@ await step("tap dance: edit W, add 3× = C", async () => {
   assert.equal(usage(d.config.tripleBinding.param1), 0x06, "3× C");
 });
 
+await step("keymap: a tap dance key links to its editor", async () => {
+  await tab("키맵");
+  await key(globalThis.wPos).click();
+  await page.getByText("이 키는 탭댄스예요", { exact: false }).waitFor({ timeout: 3000 });
+  await page.getByRole("button", { name: "탭댄스 탭에서 편집" }).click();
+  await page.getByRole("region", { name: "탭댄스 편집" }).waitFor({ timeout: 3000 });
+  await page.getByRole("region", { name: "탭댄스 편집" }).getByRole("button", { name: "닫기" }).click();
+});
+
 /* hold-tap */
 await step("tap·hold: add on H (tap H, hold Ctrl) and register", async () => {
   await tab("탭·홀드");

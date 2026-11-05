@@ -36,6 +36,7 @@ import { useSub } from "../../usePubSub";
 import { WakePicker } from "../PowerInfo";
 import { KeyPress } from "../UnlockAnim";
 import { MacroOnKey, TapDancePanel, TapHoldPanel } from "./KeyFeatures";
+import { takeFeature } from "../openFeature";
 import { BehaviorLab } from "./BehaviorLab";
 import { FriendlyBindingPicker, friendlyLabel } from "./FriendlyBindingPicker";
 import type { MacroItem } from "./labEngine";
@@ -489,6 +490,18 @@ const Editor = ({
       setSaving(false);
     }
   };
+  // "Edit in Macros" from the keymap's macro preview: open that macro's card
+  useEffect(() => {
+    const open = () => {
+      const tg = takeFeature("macro");
+      if (!tg) return;
+      const id = "runtime_macro_" + tg.layer;
+      if (doc.macros.some((m) => m.id === id)) { setOpenId(id); setTimeout(() => document.querySelector(".ry-item.is-open")?.scrollIntoView({ block: "nearest" }), 50); }
+    };
+    open();
+    window.addEventListener("ryong:open-feature", open);
+    return () => window.removeEventListener("ryong:open-feature", open);
+  });
   const commitDoc = async (next: BehaviorDoc) => {
     const r = await save(next, true);
     if (!r) throw new Error(t("Couldn't save.", "저장하지 못했어요."));

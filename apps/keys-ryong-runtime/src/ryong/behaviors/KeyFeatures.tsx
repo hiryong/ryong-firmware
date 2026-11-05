@@ -9,7 +9,8 @@
 //
 // Both are "what a key does", so the list shows the keys that have one, "+ Add" opens one small
 // editor (key → actions → Register), and Register writes it to the keyboard at once.
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { takeFeature } from "../openFeature";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
 import type { BehaviorDoc, Binding, TapDance } from "./model";
@@ -114,6 +115,19 @@ export function TapDancePanel(p: KeyFeatureProps) {
     setDraft({ id: td.id, from: s, spot: s, acts: [...td.bindings] });
   };
   const ready = !!draft?.spot && draft.acts.length >= 2 && draft.acts.every(Boolean);
+  // "Edit in the Tap Dance tab" from the keymap: open that key's tap dance
+  useEffect(() => {
+    const open = () => {
+      const tg = takeFeature("dance");
+      if (!tg) return;
+      const td = doc.tapDances.find((d) => spotsOf(d).some((s) => same(s, tg)));
+      if (td) startEdit(td);
+      setTimeout(() => document.querySelector(".ry-kx-editor")?.scrollIntoView({ block: "nearest" }), 50);
+    };
+    open();
+    window.addEventListener("ryong:open-feature", open);
+    return () => window.removeEventListener("ryong:open-feature", open);
+  });
 
   const register = () => run(async () => {
     if (!draft?.spot || !ready || rtd === undefined) throw new Error(t("Choose the key and every action.", "키와 동작을 모두 고르세요."));
@@ -280,6 +294,18 @@ export function TapHoldPanel(p: KeyFeatureProps) {
   const startNew = () => { clear(); setPickTap(false); setMapLayer(0); setDraft({ tap: null, hold: "m" + codes.LCTRL }); };
   const startEdit = (it: { spot: Spot; hold: string }) => { clear(); setPickTap(false); setMapLayer(it.spot.layer); setDraft({ from: it.spot, spot: it.spot, tap: tapOf(it.spot), hold: it.hold }); };
   const ready = !!draft?.spot && draft.tap?.b === "kp" && !!draft.hold;
+  useEffect(() => {
+    const open = () => {
+      const tg = takeFeature("hold");
+      if (!tg) return;
+      const it = items.find((x) => same(x.spot, tg));
+      if (it) startEdit(it);
+      setTimeout(() => document.querySelector(".ry-kx-editor")?.scrollIntoView({ block: "nearest" }), 50);
+    };
+    open();
+    window.addEventListener("ryong:open-feature", open);
+    return () => window.removeEventListener("ryong:open-feature", open);
+  });
   const keyName = (s: Spot) => { const tp = tapOf(s); return tp ? label(tp) : keys[s.pos]?.[4] ?? String(s.pos); };
 
   const register = () => run(async () => {

@@ -1,3 +1,4 @@
+import type { FeatureTarget } from "./openFeature";
 import { hidStats, hidStatsVersion, subscribeHidStats } from "./runtime/hidConnect";
 import { requestCounts } from "../rpc/pipeline";
 import { useSyncExternalStore, ReactNode, useContext, useEffect, useState } from "react";
@@ -33,6 +34,11 @@ export function RuntimePanel({ open, onClose, deviceName, onSaved, keymap, onSec
   const [dirty, setDirty] = useState(false);
   const [view, setView] = useState<RuntimeView | null>(null);
   useEffect(() => onSectionChange?.(section), [section, onSectionChange]);
+  useEffect(() => {
+    const go = (e: Event) => { const k = (e as CustomEvent<FeatureTarget>).detail.kind; setSection(k === "dance" ? "tapDances" : k === "macro" ? "macros" : "settings"); };
+    window.addEventListener("ryong:open-feature", go);
+    return () => window.removeEventListener("ryong:open-feature", go);
+  }, []);
   if (!open) return <main className="ry-workspace" />;
   const tabs: { id: Section; label: string }[] = [
     { id: "keymap", label: t("Keymap", "키맵") },
