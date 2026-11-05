@@ -22,8 +22,9 @@ const BASIC: [string, string][] = [
   ["Z", "Z"], ["X", "X"], ["C", "C"], ["V", "V"], ["B", "B"], ["N", "N"], ["M", "M"], [",", "COMMA"], [".", "DOT"], ["/", "FSLH"], ["Space", "SPACE"],
 ];
 const MODS: [string, string][] = [["L Ctrl", "LCTRL"], ["L Shift", "LSHFT"], ["L Alt (⌥)", "LALT"], ["L Win (⌘)", "LGUI"], ["R Ctrl", "RCTRL"], ["R Shift", "RSHFT"], ["R Alt (⌥)", "RALT"], ["R Win (⌘)", "RGUI"]];
-const NAV: [string, string][] = [["↑", "UP"], ["↓", "DOWN"], ["←", "LEFT"], ["→", "RIGHT"], ["Home", "HOME"], ["End", "END"], ["PgUp", "PG_UP"], ["PgDn", "PG_DN"], ["Ins", "INS"], ["Del", "DEL"],
-  ["PrtSc", "PSCRN"], ["ScrLk", "SLCK"], ["Pause", "PAUSE_BREAK"], ["Menu", "K_APP"]];
+/* The rest of an 87-key (TKL) board, in its order: print/scroll/pause, the six-key block, arrows, menu. */
+const NAV: [string, string][] = [["PrtSc", "PSCRN"], ["ScrLk", "SLCK"], ["Pause", "PAUSE_BREAK"], ["Ins", "INS"], ["Home", "HOME"], ["PgUp", "PG_UP"],
+  ["Del", "DEL"], ["End", "END"], ["PgDn", "PG_DN"], ["↑", "UP"], ["←", "LEFT"], ["↓", "DOWN"], ["→", "RIGHT"], ["Menu", "K_APP"]];
 const MEDIA: [string, string][] = [["Vol +", "C_VOL_UP"], ["Vol −", "C_VOL_DN"], ["Mute", "C_MUTE"], ["Play", "C_PLAY_PAUSE"], ["Next", "C_NEXT"], ["Prev", "C_PREV"], 
   ["Eject", "C_EJECT"], ["Bright +", "C_BRI_INC"], ["Bright −", "C_BRI_DEC"], ["Search", "C_AC_SEARCH"], ["Browser Home", "C_AC_HOME"],
   ["Back", "C_AC_BACK"], ["Forward", "C_AC_FORWARD"], ["Refresh", "C_AC_REFRESH"], ["Calc", "C_AL_CALC"]];
@@ -63,16 +64,6 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       .map(([label, k]) => ({ label, title: TITLES[k]?.() ?? k, binding: { behaviorId: kp, param1: usage(k)!, param2: 0 }, wide: label.length > 5, shift: SHIFTED_OF[k] }));
     const simple = (name: string, label: string, title: string, p1 = 0, p2 = 0): Tile[] =>
       id(name) === undefined ? [] : [{ label, title, binding: { behaviorId: id(name), param1: p1, param2: p2 } }];
-    const withMods = (k: string, mods: string[]) => usage(k) === undefined || kp === undefined ? undefined
-      : mods.reduce((v, m) => (v | codes["__mod_" + m]) >>> 0, usage(k)!);
-    // Common shortcuts, Windows (Ctrl) and Mac (Cmd) side by side.
-    const SC: [string, string, string[]][] = [[t("Copy", "복사"), "C", []], [t("Paste", "붙여넣기"), "V", []], [t("Cut", "잘라내기"), "X", []], [t("Undo", "실행 취소"), "Z", []],
-      [t("Redo", "다시 실행"), "Z", ["LS"]], [t("Select all", "모두 선택"), "A", []], [t("Save", "저장"), "S", []], [t("Find", "찾기"), "F", []], [t("New tab", "새 탭"), "T", []], [t("Close tab", "탭 닫기"), "W", []]];
-    const shortcuts: Tile[] = (["LC", "LG"] as const).flatMap((m) => SC.flatMap(([name, k, extra]) => {
-      const v = withMods(k, [m, ...extra]);
-      const who = m === "LC" ? "Win" : "Mac";
-      return v === undefined ? [] : [{ label: `${name} ${who}`, title: `${m === "LC" ? "Ctrl" : "Cmd"}${extra.length ? " + Shift" : ""} + ${k}`, binding: { behaviorId: kp!, param1: v, param2: 0 }, wide: true }];
-    }));
     const layerTiles = layers.flatMap((l, i) => [
       ...simple("momentarylayer", `MO ${i}`, t("Hold for layer {n}", "누르는 동안 {n}", { n: l.name || i }), i),
       ...simple("togglelayer", `TG ${i}`, t("Toggle layer {n}", "{n} 켜기/끄기", { n: l.name || i }), i),
@@ -134,12 +125,10 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
     const dynamic: Tile[] = namedRuntimeBindings(view).map(c => ({ label: c.label, title: c.kind === "macro" ? t("Macro", "매크로") : t("Tap Dance", "탭댄스"),
       binding: c.binding, wide: true, key: c.key } as Tile & { key: string }));
     return [
-      { id: "basic", label: t("Basic", "기본"), tiles: [...keys(BASIC), ...keys(MORE).map((x, i) => (i === 0 ? { ...x, group: t("Others", "기타") } : x))] },
+      { id: "basic", label: t("Basic", "기본"), tiles: [...keys(BASIC), ...keys(NAV).map((x, i) => (i === 0 ? { ...x, group: t("Navigation (TKL)", "이동·편집 (텐키리스)") } : x)), ...keys(MORE).map((x, i) => (i === 0 ? { ...x, group: t("Others", "기타") } : x))] },
       { id: "mods", label: t("Modifiers", "수정키"), tiles: [...keys(MODS), ...adaptive.map((x, i) => (i === 0 ? { ...x, group: "OS Adaptive" } : x))] },
-      { id: "nav", label: t("Navigation", "이동·편집"), tiles: keys(NAV) },
       { id: "numpad", label: t("Numpad", "숫자패드"), tiles: keys(NUMPAD) },
       { id: "media", label: t("Media", "미디어"), tiles: keys(MEDIA) },
-      { id: "shortcuts", label: t("Shortcuts", "단축키"), tiles: shortcuts },
       { id: "layers", label: t("Layers", "레이어"), tiles: layerTiles },
       // Built in the panel below (tap key + hold modifier/layer), not a fixed tile list.
       ...(id("modtap") !== undefined || id("layertap") !== undefined ? [{ id: "holdtap", label: t("Tap · Hold", "탭·홀드"), tiles: [] as Tile[] }] : []),

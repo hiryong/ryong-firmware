@@ -810,7 +810,7 @@ dialog:focus, dialog:focus-visible { outline: none; }
 .ry-layer-float [role="option"] { font-size: 13px; line-height: 1.2; padding: 7px 8px !important; border-radius: 6px; min-height: 0 !important; }
 .ry-layer-float svg { width: 14px; height: 14px; }
 
-.ry-picker-panel { height: clamp(172px, 31vh, 248px); border-top: 1px solid var(--line); background: #0A0A0A; padding-block: 10px 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); min-width: 0; }
+.ry-picker-panel { height: clamp(172px, 34vh, 282px); border-top: 1px solid var(--line); background: #0A0A0A; padding-block: 10px 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); min-width: 0; }
 .ry-via { display: flex; flex-direction: column; gap: 8px; height: 100%; min-width: 0; }
 .ry-via-cats { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .ry-via-catlist { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 2px; border-radius: 8px; background: #141414; }
@@ -1101,8 +1101,9 @@ span.ry-chip { display: inline-flex; align-items: center; justify-content: cente
 
 .ry-via-key.has-shift { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; line-height: 1.05; }
 .ry-via-key.has-shift small { font-size: 10px; color: var(--soft); }
-.ry-via-group { flex-basis: 100%; display: flex; align-items: baseline; gap: 10px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink); }
-.ry-via-group small { color: var(--soft); font-size: 11px; }
+/* a group inside a category: an inline divider with its name, so the tiles keep flowing (no extra rows) */
+.ry-via-group { flex: none; display: inline-flex; flex-direction: column; justify-content: center; height: 42px; margin: 0 4px 0 8px; padding-left: 12px; border-left: 1px solid var(--line-strong); font-size: 11px; line-height: 1.25; color: var(--ink); white-space: nowrap; }
+.ry-via-group small { color: var(--soft); font-size: 10px; }
 
 .ry-tools { align-self: flex-end; position: relative; margin-left: auto; }
 .ry-tools > summary { list-style: none; cursor: pointer; font-size: 13px; color: var(--soft); padding: 6px 12px; border: 1px solid var(--line-strong); border-radius: 9999px; }
