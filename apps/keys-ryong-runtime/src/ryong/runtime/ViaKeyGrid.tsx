@@ -125,7 +125,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
     const dynamic: Tile[] = namedRuntimeBindings(view).map(c => ({ label: c.label, title: c.kind === "macro" ? t("Macro", "매크로") : t("Tap Dance", "탭댄스"),
       binding: c.binding, wide: true, key: c.key } as Tile & { key: string }));
     return [
-      { id: "basic", label: t("Basic", "기본"), tiles: [...keys(BASIC), ...keys(NAV).map((x, i) => (i === 0 ? { ...x, group: t("Navigation (TKL)", "이동·편집 (텐키리스)") } : x)), ...keys(MORE).map((x, i) => (i === 0 ? { ...x, group: t("Others", "기타") } : x))] },
+      { id: "basic", label: t("Basic", "기본"), tiles: [...keys(BASIC), ...keys(NAV), ...keys(MORE).map((x, i) => (i === 0 ? { ...x, group: t("Others", "기타") } : x))] },
       { id: "mods", label: t("Modifiers", "수정키"), tiles: [...keys(MODS), ...adaptive.map((x, i) => (i === 0 ? { ...x, group: "OS Adaptive" } : x))] },
       { id: "numpad", label: t("Numpad", "숫자패드"), tiles: keys(NUMPAD) },
       { id: "media", label: t("Media", "미디어"), tiles: keys(MEDIA) },
