@@ -1116,3 +1116,11 @@ span.ry-chip { display: inline-flex; align-items: center; justify-content: cente
 .ry-via-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
 .ry-via-preview b { font-weight: 600; }
 .ry-via-key.is-auto { width: auto; min-width: 92px; max-width: 220px; padding: 0 12px; }
+
+/* keyboard picker (several keyboards allowed): hidConnect.ts */
+dialog.ry-kbpick { width: min(420px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--bg, #000); color: var(--ink); }
+dialog.ry-kbpick h2 { margin: 0 0 6px; font-size: 18px; }
+.ry-kbpick-list { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.ry-kbpick-item { text-align: left; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: #0d0d0d; color: var(--ink); font-size: 15px; cursor: pointer; }
+.ry-kbpick-item:hover { border-color: var(--ink); }
+.ry-kbpick-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

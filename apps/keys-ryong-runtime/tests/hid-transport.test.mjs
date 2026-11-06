@@ -16,7 +16,7 @@ const dev=Object.assign(new EventTarget(),{opened:false,productName:"Oreo",colle
       setTimeout(()=>dev.dispatchEvent(new Ev("inputreport",{reportId:0x10,data:new DataView(b.buffer)})),0);}}}});
 hid.getDevices=async()=>[dev];hid.requestDevice=async()=>{throw new Error("should use the allowed device");};
 vm.runInNewContext(js,{module,exports:module.exports,require:createRequire(import.meta.url),navigator:{hid,language:"en"},performance,process,console,Uint8Array,DataView,DOMException,EventTarget,Event,ReadableStream,WritableStream,AbortController,setTimeout,localStorage:{getItem:()=>"en",setItem(){}}});
-const {toReports,fromReport,connect,reportSizeOf}=module.exports;
+const {toReports,fromReport,openTransport,reportSizeOf,nameOf}=module.exports;
 // report size from the descriptor (newer firmware 60, older/unknown 32)
 assert.equal(reportSizeOf({collections:[{usagePage:0xff5a,usage:1,outputReports:[{reportId:0x10,items:[{reportSize:8,reportCount:60}]}]}]}),60);
 assert.equal(reportSizeOf({collections:[{usagePage:0xff5a,usage:1}]}),32);
@@ -29,10 +29,11 @@ assert.deepEqual([...fromReport(new DataView(r[2].buffer))],[62,63,64,65,66,67,6
 const odd=new Uint8Array(32);odd[0]=200;assert.equal(fromReport(new DataView(odd.buffer)).length,31); // clamps bad lengths
 
 // round trip through the transport
-const tr=await connect();
+assert.equal(await nameOf(dev),"Oreo"); // a name from the browser is used as is
+const tr=await openTransport(dev);
 assert.equal(tr.label,"Oreo");assert.equal(dev.opened,true);
 const w=tr.writable.getWriter();await w.write(new Uint8Array(40).map((_,i)=>i));
 const rd=tr.readable.getReader();let got=[];while(got.length<40){const {value}=await rd.read();got.push(...value);}
 assert.deepEqual(got,[...Array(40).keys()].reverse());
 tr.abortController.abort();await new Promise(r=>setTimeout(r,0));assert.equal(dev.opened,false);
-console.log("PASS: Studio WebHID transport framing, allowed-device reconnect, round trip, close");
+console.log("PASS: Studio WebHID transport framing, name, round trip, close");
