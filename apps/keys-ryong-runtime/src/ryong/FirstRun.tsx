@@ -14,6 +14,11 @@ export const ConnectLead = () => (
       {t("Changes apply right away; press Save to keep them.", "바꾼 키는 바로 적용되고, 저장을 눌러야 유지돼요.")}
     </p>
     <ConnectAnim />
+    {/* Windows does not hand a Bluetooth LE keyboard's name to the browser (HidD_GetProductString is
+        not supported for BLE HID), so Chrome lists it by its USB IDs. 1D50:615E is ZMK's. */}
+    {/Windows/.test(navigator.userAgent) && <p className="ry-faint ry-connect-win">
+      {t("On Windows over Bluetooth the list shows the keyboard as “Unknown device (1D50:615E)”. That is your keyboard: Windows doesn't pass Bluetooth keyboard names to the browser.",
+        "Windows에서 Bluetooth로 연결하면 목록에 키보드가 '알 수 없는 기기(1D50:615E)'로 보여요. 그게 키보드예요. Windows가 Bluetooth 키보드 이름을 브라우저에 알려 주지 않아서 그래요.")}</p>}
   </>
 );
 
