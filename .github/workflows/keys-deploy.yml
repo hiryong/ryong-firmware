@@ -1,6 +1,7 @@
-# Deploys the web app (and its /admin) to the Cloudflare Pages project ryong-keys, served at
-# keys.ryong.com (replaced the original Keys site and keysbeta.ryong.com on 2026-11-04; the
-# one-time move is keys-cutover.yml). Does nothing until the Cloudflare repository secrets exist.
+# Deploys the web app (and its /admin) to Cloudflare, served at keys.ryong.com.
+# 2026-11-09: moving from the Pages project ryong-keys to the Worker ryong-keys (static assets +
+# worker/index.ts for /api/admin). Both are deployed until keys.ryong.com is attached to the Worker
+# in the dashboard; then the Pages step is removed. Does nothing until the Cloudflare secrets exist.
 # Uploads the static app plus ONLY the /api/admin functions (admin-functions/); the
 # original app's GitHub sign-in functions are never uploaded.
 # Optional secrets: ADMIN_PASSWORD and ADMIN_GITHUB_TOKEN are copied into the Pages
@@ -56,6 +57,28 @@ jobs:
           # Open to search engines (owner's choice, 2026-11-04); only /admin stays out.
           printf 'User-agent: *\nDisallow: /admin\n' > dist-runtime/robots.txt
           printf '/admin*\n  X-Robots-Tag: noindex\n' > dist-runtime/_headers
+      - name: Deploy to the Worker (static assets + admin API)
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          ADMIN_GITHUB_TOKEN: ${{ secrets.ADMIN_GITHUB_TOKEN }}
+        run: |
+          # Only the site, the worker and the admin API go up (never the app's sign-in functions/).
+          app=apps/keys-ryong-runtime; d=/tmp/worker
+          mkdir -p $d && cp -r $app/dist-runtime $d/site && cp -r $app/worker $app/admin-functions $app/wrangler.jsonc $d/
+          cd $d
+          npx --yes wrangler@4.40.0 deploy --message "$GITHUB_SHA"
+          # Secrets live encrypted on the Worker, never in the uploaded files.
+          python3 - > secrets.json <<'PY'
+          import json, os
+          print(json.dumps({k: os.environ[k] for k in ("ADMIN_PASSWORD", "ADMIN_GITHUB_TOKEN") if os.environ.get(k)}))
+          PY
+          [ "$(cat secrets.json)" != "{}" ] && npx --yes wrangler@4.40.0 secret bulk secrets.json >/dev/null && echo "admin secrets set"
+          rm -f secrets.json
+          echo "### keys deployed (Worker)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Worker: \`ryong-keys\` · workers.dev URL in the Cloudflare dashboard · https://$DOMAIN once attached" >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy to the separate Pages project
         if: steps.gate.outputs.enabled == 'true'
         env:

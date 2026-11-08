@@ -1,0 +1,16 @@
+// keys.ryong.com as a Cloudflare Worker with static assets (deployed by .github/workflows/keys-deploy.yml,
+// which assembles ./site from dist-runtime). Secrets ADMIN_PASSWORD / ADMIN_GITHUB_TOKEN are set by the
+// workflow with `wrangler secret put`; they are never in this file.
+{
+  "name": "ryong-keys",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-09-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./site",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "observability": { "enabled": true }
+}
