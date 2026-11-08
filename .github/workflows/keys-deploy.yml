@@ -69,7 +69,7 @@ jobs:
           app=apps/keys-ryong-runtime; d=/tmp/worker
           mkdir -p $d && cp -r $app/dist-runtime $d/site && cp -r $app/worker $app/admin-functions $app/wrangler.jsonc $d/
           cd $d
-          npx --yes wrangler@4.40.0 deploy --message "$GITHUB_SHA"
+          npx --yes wrangler@4.40.0 deploy
           # Secrets live encrypted on the Worker, never in the uploaded files.
           python3 - > secrets.json <<'PY'
           import json, os
