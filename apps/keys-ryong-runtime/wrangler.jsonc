@@ -2,7 +2,7 @@
 // which assembles ./site from dist-runtime). Secrets ADMIN_PASSWORD / ADMIN_GITHUB_TOKEN are set by the
 // workflow with `wrangler secret put`; they are never in this file.
 {
-  "name": "ryong-keys",
+  "name": "keys",
   "main": "worker/index.ts",
   "compatibility_date": "2025-09-01",
   "workers_dev": true,

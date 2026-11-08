@@ -1,5 +1,5 @@
 # Deploys the web app (and its /admin) to Cloudflare, served at keys.ryong.com.
-# 2026-11-09: moving from the Pages project ryong-keys to the Worker ryong-keys (static assets +
+# 2026-11-09: moving from the Pages project ryong-keys to the Worker keys (static assets +
 # worker/index.ts for /api/admin). Both are deployed until keys.ryong.com is attached to the Worker
 # in the dashboard; then the Pages step is removed. Does nothing until the Cloudflare secrets exist.
 # Uploads the static app plus ONLY the /api/admin functions (admin-functions/); the
@@ -80,7 +80,7 @@ jobs:
           [ "$(cat secrets.json)" != "{}" ] && npx --yes wrangler@4.40.0 secret bulk secrets.json >/dev/null && echo "admin secrets set"
           rm -f secrets.json
           echo "### keys deployed (Worker)" >> "$GITHUB_STEP_SUMMARY"
-          echo "Worker: \`ryong-keys\` · workers.dev URL in the Cloudflare dashboard · https://$DOMAIN once attached" >> "$GITHUB_STEP_SUMMARY"
+          echo "Worker: \`keys\` · workers.dev URL in the Cloudflare dashboard · https://$DOMAIN once attached" >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy to the separate Pages project
         if: steps.gate.outputs.enabled == 'true'
         env:
