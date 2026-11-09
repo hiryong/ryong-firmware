@@ -230,10 +230,11 @@ async function loadModel(url: string): Promise<{ color: string; geo: THREE.Buffe
 /** Real part models, by look, for footprints they fit (the rest stay simple shapes). */
 /** Model colours → finishes: light greys are plated metal, yellows gold plating, the rest plastic. */
 function modelMaterial(color: string) {
-  const c = new THREE.Color(color), r = c.r, g = c.g, b = c.b;
-  const grey = Math.max(r, g, b) - Math.min(r, g, b) < 0.06;
-  if (grey && r > 0.2) return mat(r > 0.8 ? "#d3d5d8" : "#c9ccd0", 1, r > 0.8 ? 0.3 : 0.24); // tin / stainless
-  if (r > 0.8 && g > 0.75 && b < 0.75) return mat("#d9c47e", 1, 0.3); // gold
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16) / 255); // sRGB
+  const grey = Math.max(r, g, b) - Math.min(r, g, b) < 0.08;
+  if (grey && Math.min(r, g, b) > 0.93) return mat("#f2f1ed", 0, 0.45); // white plastic / ceramic
+  if (grey && r > 0.35) return mat(r > 0.65 ? "#d3d5d8" : "#c9ccd0", 1, r > 0.65 ? 0.3 : 0.26); // tin / stainless
+  if (r > 0.8 && g > 0.65 && b < 0.6) return mat("#d9c47e", 1, 0.3); // gold
   if (grey) return mat("#1c1c1f", 0, 0.5, { clearcoat: 0.15 }); // black plastic
   return mat(color, 0, 0.5);
 }

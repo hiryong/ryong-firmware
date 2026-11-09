@@ -16,7 +16,8 @@ here = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, here)
 from sexpr import parse, kids, kid, num
 
 FIXES = {  # model file name → extra convert_model.py arguments
-    "SMD_KEYBOARD-SW.step": ["--recolor", "#230092=#5a50b4"],  # purple, as in the LCSC photo
+    # purple, as in the LCSC photo; the logo cut into its side covered (filling it still shows the letters)
+    "SMD_KEYBOARD-SW.step": ["--recolor", "#230092=#5a50b4", "--cover", "1.4", "1.05", "0.38", "3.75", "1.062", "1.18", "#230092"],
     "WIRELM-SMD_L18.0-W13.0-H3.0-E73-2G4M08S1C.step": ["--recolor", "#60574e=#c9ccd0"],  # the shield can is tin-plated steel
 }
 SKIP = re.compile(r"^R\d")  # resistors: drawn shapes are enough
