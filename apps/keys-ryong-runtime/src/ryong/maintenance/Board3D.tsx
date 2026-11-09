@@ -652,7 +652,7 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
             ))}
           </div>
         </div>
-        {board && <p className="ry-faint ry-b3-note">{t("{title} · {w} × {h} mm · {n} parts. Parts are their real 3D models (LCSC/EasyEDA, KiCad library); resistors are drawn to size.", "{title} · {w} × {h} mm · 부품 {n}개. 부품은 실제 3D 모델(LCSC/EasyEDA, KiCad 라이브러리)이고, 저항만 크기대로 그린 모양이에요.", { title: board.title, w: board.width.toFixed(1), h: board.height.toFixed(1), n: board.parts.length })}</p>}
+        {board && <p className="ry-faint ry-b3-note">{t("{title} · {w} × {h} mm · {n} parts. Parts are their real 3D models (LCSC/EasyEDA, KiCad library); the Bluetooth module follows its datasheet drawing, resistors are drawn to size.", "{title} · {w} × {h} mm · 부품 {n}개. 부품은 실제 3D 모델(LCSC/EasyEDA, KiCad 라이브러리)이고, 블루투스 모듈은 데이터시트 도면대로, 저항은 크기대로 그린 모양이에요.", { title: board.title, w: board.width.toFixed(1), h: board.height.toFixed(1), n: board.parts.length })}</p>}
       </aside>
     </div>
   );

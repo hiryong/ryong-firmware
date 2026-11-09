@@ -4,14 +4,15 @@
 
 For each footprint the factory assembles, the KiCad file names a 3D model and its offset/rotation:
 - EASYEDA_MODELS/*.step: the part's own LCSC/EasyEDA model, fetched by its LCSC number
-  (easyeda.com component API → modules.easyeda.com STEP). EasyEDA's z offset is ignored: its STEP
-  models already sit on z = 0 (the board face), and the exported z sinks them into the board.
+  (easyeda.com component API → modules.easyeda.com STEP), placed on EasyEDA's footprint for it and
+  then turned (quarter turns) so that footprint's pads lie on ours: the board can use a turned
+  variant of that footprint. EasyEDA's z offset is ignored: its STEP models sit on z = 0.
 - ${KICAD*_3DMODEL_DIR}/<lib>.3dshapes/<name>: KiCad's official model (kicad-packages3D, its .step).
 Resistors are left as drawn shapes (plain 0402 chips). Each model becomes <name>.bin (convert_model.py);
 models.json maps it to the parts that use it. Per-model fixes (a logo cut into a part, a plastic
 colour that should match the real part) are in FIXES.
 """
-import argparse, csv, hashlib, json, os, re, subprocess, sys, urllib.request
+import argparse, csv, hashlib, json, math, os, re, subprocess, sys, urllib.request
 here = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, here)
 from sexpr import parse, kids, kid, num
 
@@ -21,6 +22,8 @@ FIXES = {  # model file name → extra convert_model.py arguments
     "WIRELM-SMD_L18.0-W13.0-H3.0-E73-2G4M08S1C.step": ["--recolor", "#60574e=#c9ccd0"],  # the shield can is tin-plated steel
 }
 SKIP = re.compile(r"^R\d")  # resistors: drawn shapes are enough
+# parts whose vendor model is wrong: drawn from the datasheet instead (script, centred on the part)
+BUILT = {"C356849": "make_e73.py"}  # EBYTE E73-2G4M08S1C: shield/antenna proportions from its manual
 KICAD = "https://gitlab.com/kicad/libraries/kicad-packages3D/-/raw/master/"
 
 def get(url, path):
@@ -35,11 +38,30 @@ def easyeda_model(lcsc, cache):
     meta = get(f"https://easyeda.com/api/products/{lcsc}/components?version=6.4.19.5", os.path.join(cache, f"{lcsc}.json"))
     data = json.load(open(meta))["result"]["packageDetail"]["dataStr"]
     node = next(json.loads(s.split("~", 1)[1])["attrs"] for s in data["shape"] if s.startswith("SVGNODE"))
+    hx, hy = float(data["head"]["x"]), float(data["head"]["y"])
     ox, oy = (float(v) for v in node["c_origin"].split(","))
-    off = ((ox - float(data["head"]["x"])) * 0.254, -(oy - float(data["head"]["y"])) * 0.254, 0.0)
+    off = ((ox - hx) * 0.254, -(oy - hy) * 0.254, 0.0)
     rz = -float(node.get("c_rotation", "0,0,0").split(",")[2])
+    # its footprint's pads, model frame (mm, y up): to turn the model onto the board's footprint
+    pads = [((float(f[2]) - hx) * 0.254, -(float(f[3]) - hy) * 0.254, f[8]) for f in (s.split("~") for s in data["shape"] if s.startswith("PAD~"))]
     step = get(f"https://modules.easyeda.com/qAxj6KHrDKw4blvCG8QJPs7Y/{node['uuid']}", os.path.join(cache, node["uuid"] + ".step"))
-    return step, off, rz
+    return step, off, rz, pads
+
+def best_turn(theirs, ours):
+    """The quarter turn that lays EasyEDA's footprint pads onto the board footprint's (both mm, y up).
+    The board's footprint can be a turned variant of the one EasyEDA's model was drawn for."""
+    if not theirs or not ours: return 0
+    num_t = {n: (x, y) for x, y, n in theirs if n}; num_o = {n: (x, y) for x, y, n in ours if n}
+    common = set(num_t) & set(num_o)
+    def cost(t):
+        c, s_ = round(math.cos(math.radians(t))), round(math.sin(math.radians(t)))
+        turn = lambda x, y: (x * c - y * s_, x * s_ + y * c)
+        if len(common) >= 2:  # numbered pads: pin 1 must land on pin 1 (tells 180° apart)
+            return sum(sum((u - v) ** 2 for u, v in zip(turn(*num_t[n]), num_o[n])) for n in common)
+        rt = [turn(x, y) for x, y, _ in theirs]
+        d = lambda p, q: min((p[0] - r[0]) ** 2 + (p[1] - r[1]) ** 2 for r in q)
+        return sum(d(p, rt) for p in ours) + sum(d(p, ours) for p in rt)
+    return min((0, 90, 180, 270), key=cost)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -54,10 +76,12 @@ def main():
                 if ref: lcsc[ref] = row["LCSC Part #"].strip()
     board = parse(open(a.pcb).read())
     jobs = {}  # (model, offset, rotation) → refs
+    boardpads = {}  # ref → its footprint's pads (mm, model frame: y up)
     for fp in kids(board, "footprint"):
         props = {p[1]: p[2] for p in kids(fp, "property")}
         ref = props.get("Reference", "")
         if ref not in lcsc or SKIP.match(ref): continue
+        boardpads[ref] = [(num(kid(p, "at")[1]), -num(kid(p, "at")[2]), p[1]) for p in kids(fp, "pad") if p[2] in ("smd", "thru_hole")]
         if not kids(fp, "model"):  # no model in the design: the part's own, as EasyEDA places it
             jobs.setdefault(("LCSC:" + lcsc[ref], None, 0.0), []).append(ref)
         for m in kids(fp, "model"):
@@ -70,27 +94,35 @@ def main():
         stem = re.sub(r"[^A-Za-z0-9._-]+", "_", os.path.splitext(name)[0])[:48]
         tag = hashlib.sha1(repr((path, off, rz)).encode()).hexdigest()[:6]
         out = f"m-{stem}-{tag}.bin"
+        turn = 0
         try:
-            if path.startswith("LCSC:"):
-                src, off, rz = easyeda_model(lcsc[refs[0]], a.cache)
-            elif "EASYEDA_MODELS" in path:
-                src = easyeda_model(lcsc[refs[0]], a.cache)[0]; off = (off[0], off[1], 0.0)
+            if lcsc[refs[0]] in BUILT:
+                src = os.path.join(a.cache, lcsc[refs[0]] + ".glb")
+                subprocess.run([sys.executable, os.path.join(here, BUILT[lcsc[refs[0]]]), os.path.join(a.out, "board.json"), refs[0], src], check=True, capture_output=True)
+                part = next(p for p in json.load(open(os.path.join(a.out, "board.json")))["parts"] if p["ref"] == refs[0])
+                off, rz = (-part["origin"][0], part["origin"][1], 0.0), 0.0  # part centre from the footprint origin, y up
+            elif path.startswith("LCSC:") or "EASYEDA_MODELS" in path:
+                # the part's current EasyEDA model, placed on EasyEDA's own footprint, then turned onto ours
+                src, off, rz, pads = easyeda_model(lcsc[refs[0]], a.cache)
+                turn = best_turn(pads, boardpads[refs[0]])
             else:
                 rel = re.sub(r"^\$\{[^}]+\}/", "", path)
                 rel = re.sub(r"\.wrl$", ".step", rel)  # the library repository keeps STEP sources
                 try:
                     src = get(KICAD + rel, os.path.join(a.cache, rel.replace("/", "__")))
                 except Exception:  # not in the library any more: the part's own model
-                    src, off, rz = easyeda_model(lcsc[refs[0]], a.cache)
+                    src, off, rz, pads = easyeda_model(lcsc[refs[0]], a.cache)
+                    turn = best_turn(pads, boardpads[refs[0]])
         except Exception as e:
             print(f"skip {name} ({', '.join(refs)}): {e}"); continue
+        out = f"m-{stem}-{hashlib.sha1(repr((src, off, rz, turn)).encode()).hexdigest()[:6]}.bin"
         cmd = [sys.executable, os.path.join(here, "convert_model.py"), src, os.path.join(a.out, out),
-               "--offset", *map(str, off), "--rotate", str(rz), *FIXES.get(name, [])]
-        if os.path.basename(src)[:32].isalnum(): cmd.append("--no-logo")  # EasyEDA models (cached by uuid)
+               "--offset", *map(str, off), "--rotate", str(rz), "--turn", str(turn), *FIXES.get(name, [])]
+        if os.path.basename(src)[:32].isalnum() and src.endswith(".step"): cmd.append("--no-logo")  # EasyEDA models (cached by uuid)
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode: print(f"skip {name}: {r.stderr.strip()[-200:]}"); continue
         size = os.path.getsize(os.path.join(a.out, out))
-        print(f"{out}  {size // 1024} KB  {len(refs)} parts")
+        print(f"{out}  {size // 1024} KB  {len(refs)} parts" + (f"  turned {turn}°" if turn else ""))
         models.append({"file": out, "source": name, "refs": refs})
     json.dump({"models": models}, open(os.path.join(a.out, "models.json"), "w"), indent=1)
 
