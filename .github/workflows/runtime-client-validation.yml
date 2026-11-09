@@ -87,6 +87,7 @@ jobs:
           RYONG_PLAYWRIGHT: /tmp/ryong-ui-qa/node_modules/playwright/index.mjs
         run: |
           node tests/virtual-e2e.test.mjs
+          node tests/board3d.test.mjs
           RYONG_BROWSER=webkit node tests/virtual-e2e.test.mjs
       - name: Admin page and its API (mocked GitHub, no network)
         working-directory: apps/keys-ryong-runtime

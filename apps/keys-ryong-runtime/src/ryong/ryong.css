@@ -1128,3 +1128,35 @@ dialog.ry-kbpick h2 { margin: 0 0 6px; font-size: 18px; }
 .ry-kbpick-item { text-align: left; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: #0d0d0d; color: var(--ink); font-size: 15px; cursor: pointer; }
 .ry-kbpick-item:hover { border-color: var(--ink); }
 .ry-kbpick-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+/* ---------- maintenance: board in 3D ---------- */
+.ry-maint-title { display: flex; align-items: baseline; gap: 10px; justify-self: center; font-size: 14px; color: var(--ink); white-space: nowrap; }
+.ry-maint-title strong { font-weight: 500; }
+.ry-b3 { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; }
+.ry-b3-stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; touch-action: none; }
+.ry-b3-stage canvas { display: block; }
+.ry-b3-msg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mute); font-size: 13px; margin: 0; }
+.ry-b3-tip { position: absolute; pointer-events: none; z-index: 2; padding: 6px 10px; border-radius: 8px; background: rgba(10, 11, 13, 0.9); border: 1px solid var(--line-strong); color: var(--ink); font-size: 12px; white-space: nowrap; }
+.ry-b3-tip span { display: block; color: var(--mute); font-size: 11px; }
+.ry-b3-views { position: absolute; left: 12px; top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+.ry-b3-views .ry-chip { background: rgba(12, 13, 15, 0.75); backdrop-filter: blur(6px); }
+.ry-b3-hint { position: absolute; left: 12px; bottom: 10px; margin: 0; color: var(--faint); font-size: 11px; pointer-events: none; }
+.ry-b3-side { border-left: 1px solid var(--line); padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; font-size: 13px; color: var(--body); }
+.ry-b3-info h3 { margin: 4px 0 0; font-size: 22px; font-weight: 500; color: var(--ink); }
+.ry-b3-info-head { display: flex; justify-content: space-between; align-items: center; }
+.ry-b3-value { margin: 2px 0 10px; color: var(--ink); font-size: 14px; }
+.ry-b3-info p { margin: 0 0 10px; line-height: 1.5; }
+.ry-b3-info dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; }
+.ry-b3-info dt { color: var(--faint); }
+.ry-b3-info dd { margin: 0; overflow-wrap: anywhere; }
+.ry-b3-info a { color: #6cc6ff; }
+.ry-b3-kinds > div { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ry-b3-kinds .ry-chip { min-height: 28px; padding: 0 10px; }
+.ry-b3-note { font-size: 11px; line-height: 1.5; margin: auto 0 0; }
+@media (max-width: 760px) {
+  .ry-b3 { grid-template-columns: 1fr; grid-template-rows: minmax(300px, 58dvh) auto; overflow-y: auto; }
+  .ry-b3-side { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .ry-maint-title span { display: none; }
+}
+@media (hover: none) { .ry-b3-hint { font-size: 0; } .ry-b3-hint::after { content: attr(data-touch); font-size: 11px; } }
+@media (max-width: 760px) { .ry-b3-hint { display: none; } }

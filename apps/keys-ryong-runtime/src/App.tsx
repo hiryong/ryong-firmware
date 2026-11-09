@@ -34,6 +34,7 @@ import { UnlockModal } from "./UnlockModal";
 import { valueAfter } from "./misc/async";
 import { AppFooter } from "./AppFooter";
 import { AboutModal } from "./AboutModal";
+import { Maintenance } from "./ryong/maintenance/Maintenance";
 import { LicenseNoticeModal } from "./misc/LicenseNoticeModal";
 import { Hub, HubTab, HUB_TABS, useResumeHub } from "./ryong/Hub";
 import { KeysWatcher } from "./ryong/KeysWatcher";
@@ -197,6 +198,7 @@ function App() {
   const [doIt, undo, redo, canUndo, canRedo, reset] = useUndoRedo();
   const [showAbout, setShowAbout] = useState(false);
   const [showLicenseNotice, setShowLicenseNotice] = useState(false);
+  const [showMaint, setShowMaint] = useState(false);
   const [connectionAbort, setConnectionAbort] = useState(new AbortController());
   const [hubTab, setHubTab] = useState<HubTab | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -365,6 +367,7 @@ function App() {
             }}
           />
           <AboutModal open={showAbout} onClose={() => setShowAbout(false)} />
+          <Maintenance open={showMaint} onClose={() => setShowMaint(false)} />
           <LicenseNoticeModal
             open={showLicenseNotice}
             onClose={() => setShowLicenseNotice(false)}
@@ -402,6 +405,7 @@ function App() {
             <AppFooter
               onShowAbout={() => setShowAbout(true)}
               onShowLicenseNotice={() => setShowLicenseNotice(true)}
+              onShowMaintenance={() => setShowMaint(true)}
             />
           </div>
         </UndoRedoContext.Provider>
