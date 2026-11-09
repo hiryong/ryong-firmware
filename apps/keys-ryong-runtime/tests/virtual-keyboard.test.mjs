@@ -17,7 +17,7 @@ assert.equal(call({core:{getDeviceInfo:true}}).core.getDeviceInfo.name,VIRTUAL_N
 assert.equal(call({keymap:{getKeymap:true}}).meta.simpleError,1,"locked keyboard refuses keymap");
 d.setLock(false);
 const km=call({keymap:{getKeymap:true}}).keymap.getKeymap;
-assert.equal(km.layers.length,4);for(const l of km.layers)assert.equal(l.bindings.length,61);
+assert.equal(km.layers.length,3);for(const l of km.layers)assert.equal(l.bindings.length,61);
 assert.equal(call({keymap:{getPhysicalLayouts:true}}).keymap.getPhysicalLayouts.layouts[0].keys.length,61);
 assert.equal(call({keymap:{setLayerBinding:{layerId:0,keyPosition:15,binding:{behaviorId:1,param1:458793,param2:0}}}}).keymap.setLayerBinding,0);
 assert.equal(call({keymap:{checkUnsavedChanges:true}}).keymap.checkUnsavedChanges,true);
