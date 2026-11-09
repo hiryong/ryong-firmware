@@ -91,7 +91,7 @@ const PASSWORD = "correct horse battery";
 const env = { ADMIN_PASSWORD: PASSWORD, ADMIN_GITHUB_TOKEN: "ghp_test" };
 let cookie = "";
 async function call(handler, method, urlPath, { body, params = {}, headers = {}, e = env } = {}) {
-  const req = new Request("https://keysbeta.ryong.com" + urlPath, { method, body: body === undefined ? undefined : JSON.stringify(body),
+  const req = new Request("https://keys.ryong.com" + urlPath, { method, body: body === undefined ? undefined : JSON.stringify(body),
     headers: { "Content-Type": "application/json", Cookie: cookie, "CF-Connecting-IP": "1.2.3.4", ...(method !== "GET" ? { "X-Ryong-Admin": "1" } : {}), ...headers } });
   const ctx = { request: req, env: e, params, next: () => handler(ctxFor) };
   const key = { GET: "onRequestGet", POST: "onRequestPost", PUT: "onRequestPut" }[method];

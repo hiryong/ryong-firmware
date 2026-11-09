@@ -448,7 +448,7 @@ await step("bluetooth: pair a new Windows PC on the empty selected slot", async 
   await page.getByLabel("슬롯 1", { exact: true }).getByText("등록됨 · 연결 안 됨").waitFor({ timeout: 5000 });
 });
 
-await step("keysbeta has no firmware menu (firmware lives in /admin)", async () => {
+await step("keys.ryong.com has no firmware menu (firmware lives in /admin)", async () => {
   assert.equal(await page.getByRole("button", { name: "펌웨어", exact: true }).count(), 0);
 });
 

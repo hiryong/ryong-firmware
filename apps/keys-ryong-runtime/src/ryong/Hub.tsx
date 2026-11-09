@@ -12,7 +12,7 @@ import { LangToggle } from "./LangToggle";
 // until they use something that needs GitHub.
 export type HubTab = "firmware" | "backup" | "guide";
 
-/** keysbeta (runtime build) has no Firmware tab: builds and releases live in /admin. */
+/** keys.ryong.com (runtime build) has no Firmware tab: builds and releases live in /admin. */
 export const FIRMWARE_TAB = import.meta.env.VITE_RYONG_RUNTIME !== "1";
 export const HUB_TABS: { id: HubTab; label: () => string }[] = [
   ...(FIRMWARE_TAB ? [{ id: "firmware" as HubTab, label: () => t("Firmware", "펌웨어") }] : []),

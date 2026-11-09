@@ -163,7 +163,7 @@ export const Guide = ({ onTab }: { onTab: (t: HubTab) => void }) => {
   );
 };
 
-/** keysbeta: everything is changed on the keyboard itself; firmware is the maker's job. */
+/** keys.ryong.com: everything is changed on the keyboard itself; firmware is the maker's job. */
 const RuntimeGuide = () => (
   <>
     <div className="ry-sec">

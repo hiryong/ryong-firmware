@@ -33,7 +33,7 @@ Copied once, at the commits we had reviewed and pinned, then owned here. Builds 
 throwaway local git repo (`scripts/vendor_zmk.py`), so west finds them as usual and nothing is
 fetched from GitHub for them. `base.json` holds a hash of every file; editing one requires
 updating the hash on purpose. Removed from the copies: CI/devcontainer/agent config and the
-`web/` browser UIs (keysbeta has its own). License: MIT, kept in each folder.
+`web/` browser UIs (keys.ryong.com has its own). License: MIT, kept in each folder.
 
 | Module | Copied from |
 |---|---|
@@ -51,5 +51,5 @@ repositories at pinned commits.
 Nothing is installed on its own. A weekly scheduled check (Claude) looks for a new official
 release; when one appears it ports the patches and modules onto it on a separate branch, decides
 where the release now covers something our modules do (and drops or keeps ours accordingly),
-builds every board, and reports the result on keysbeta.ryong.com/admin (`zmk-update.json` in the
+builds every board, and reports the result on keys.ryong.com/admin (`zmk-update.json` in the
 firmware-registry branch). Adopting it is then the usual flow: bench-test, record, release.

@@ -1,4 +1,4 @@
-/* keysbeta /admin — same black, hairline, pill language as the main app (tokens from ryong.css).
+/* keys.ryong.com /admin — same black, hairline, pill language as the main app (tokens from ryong.css).
    Class prefix kc- ("keys console"), never ad-: ad blockers hide .ad-* elements, which blanked the page. */
 .kc-shell { min-height: 100vh; background: #000; color: var(--ink); }
 .kc-center { padding: 40vh 16px 0; text-align: center; }
