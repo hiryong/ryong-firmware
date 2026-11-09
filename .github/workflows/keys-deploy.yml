@@ -1,11 +1,10 @@
-# Deploys the web app (and its /admin) to Cloudflare, served at keys.ryong.com.
-# 2026-11-09: moving from the Pages project ryong-keys to the Worker keys (static assets +
-# worker/index.ts for /api/admin). Both are deployed until keys.ryong.com is attached to the Worker
-# in the dashboard; then the Pages step is removed. Does nothing until the Cloudflare secrets exist.
+# Deploys the web app (and its /admin) to the Cloudflare Worker "keys" (static assets +
+# worker/index.ts for /api/admin), served at keys.ryong.com (custom domain attached in the dashboard;
+# moved from the Pages project ryong-keys on 2026-11-09). Does nothing until the Cloudflare secrets exist.
 # Uploads the static app plus ONLY the /api/admin functions (admin-functions/); the
 # original app's GitHub sign-in functions are never uploaded.
-# Optional secrets: ADMIN_PASSWORD and ADMIN_GITHUB_TOKEN are copied into the Pages
-# project's encrypted secrets so /admin can sign in and drive the firmware workflows.
+# Optional secrets: ADMIN_PASSWORD and ADMIN_GITHUB_TOKEN are copied into the Worker's
+# encrypted secrets so /admin can sign in and drive the firmware workflows.
 name: keys deploy
 on:
   push:
@@ -13,7 +12,6 @@ on:
     paths: ['apps/keys-ryong-runtime/**', 'experiments/runtime-client/**', '.github/workflows/keys-deploy.yml']
   workflow_dispatch:
 env:
-  PROJECT: ryong-keys
   DOMAIN: keys.ryong.com
   ZONE: ryong.com
 permissions:
@@ -59,8 +57,6 @@ jobs:
           printf '/admin*\n  X-Robots-Tag: noindex\n' > dist-runtime/_headers
       - name: Deploy to the Worker (static assets + admin API)
         if: steps.gate.outputs.enabled == 'true'
-        # Until the token has Workers Scripts: Edit, keep the Pages site (keys.ryong.com) deploying.
-        continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -81,35 +77,3 @@ jobs:
           rm -f secrets.json
           echo "### keys deployed (Worker)" >> "$GITHUB_STEP_SUMMARY"
           echo "Worker: \`keys\` · workers.dev URL in the Cloudflare dashboard · https://$DOMAIN once attached" >> "$GITHUB_STEP_SUMMARY"
-      - name: Deploy to the separate Pages project
-        if: steps.gate.outputs.enabled == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-          ADMIN_GITHUB_TOKEN: ${{ secrets.ADMIN_GITHUB_TOKEN }}
-        run: |
-          # Run from a folder holding only the site and the admin API, so the app's sign-in functions/ are never uploaded.
-          mkdir -p /tmp/deploy && cp -r apps/keys-ryong-runtime/dist-runtime /tmp/deploy/site
-          cp -r apps/keys-ryong-runtime/admin-functions /tmp/deploy/functions && rm -f /tmp/deploy/functions/tsconfig.json
-          cd /tmp/deploy
-          npx --yes wrangler@3.114.17 pages project list | grep -q " $PROJECT " || npx --yes wrangler@3.114.17 pages project create "$PROJECT" --production-branch=main
-          # Admin secrets live encrypted in the Pages project; they are never part of the uploaded files.
-          for name in ADMIN_PASSWORD ADMIN_GITHUB_TOKEN; do
-            if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx --yes wrangler@3.114.17 pages secret put "$name" --project-name="$PROJECT" >/dev/null && echo "$name set"; else echo "::notice::$name not set; /admin stays closed until it is."; fi
-          done
-          npx --yes wrangler@3.114.17 pages deploy site --project-name="$PROJECT" --branch=main --commit-hash="$GITHUB_SHA" --commit-dirty=true
-          echo "### keys deployed" >> "$GITHUB_STEP_SUMMARY"
-          echo "Pages project: \`$PROJECT\` · https://$PROJECT.pages.dev · https://$DOMAIN" >> "$GITHUB_STEP_SUMMARY"
-      - name: Keep keys.ryong.com attached (after the one-time move)
-        if: steps.gate.outputs.enabled == 'true'
-        continue-on-error: true
-        env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          set -u
-          api() { curl -sS -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" "$@"; }
-          base="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/pages/projects/$PROJECT/domains"
-          if api "$base/$DOMAIN" | grep -q '"success":true'; then echo "$DOMAIN is attached to $PROJECT."
-          else echo "Could not confirm $DOMAIN with this token (it was attached in the Cloudflare dashboard on 2026-11-04)."; fi

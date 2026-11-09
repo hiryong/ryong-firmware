@@ -5,7 +5,8 @@
   "name": "keys",
   "main": "worker/index.ts",
   "compatibility_date": "2025-09-01",
-  "workers_dev": true,
+  "workers_dev": false, // only keys.ryong.com (no keys.<account>.workers.dev copy)
+  "preview_urls": false,
   "assets": {
     "directory": "./site",
     "binding": "ASSETS",
