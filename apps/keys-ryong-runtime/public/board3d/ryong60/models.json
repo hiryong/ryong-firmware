@@ -1,0 +1,382 @@
+{
+ "models": [
+  {
+   "file": "m-C_0402_1005Metric-b08a3b.bin",
+   "source": "C_0402_1005Metric.wrl",
+   "refs": [
+    "C30",
+    "C34",
+    "C33",
+    "C25",
+    "C32"
+   ]
+  },
+  {
+   "file": "m-C_0603_1608Metric-ea781b.bin",
+   "source": "C_0603_1608Metric.wrl",
+   "refs": [
+    "C27",
+    "C26",
+    "C38"
+   ]
+  },
+  {
+   "file": "m-Molex_PicoBlade_53261-0371_1x03-1MP_P1.25mm_Hori-1576ae.bin",
+   "source": "Molex_PicoBlade_53261-0371_1x03-1MP_P1.25mm_Horizontal.wrl",
+   "refs": [
+    "CN1"
+   ]
+  },
+  {
+   "file": "m-LED_0603_1608Metric-fc4464.bin",
+   "source": "LED_0603_1608Metric.wrl",
+   "refs": [
+    "LED1",
+    "LED2"
+   ]
+  },
+  {
+   "file": "m-JST_SH_SM02B-SRSS-TB_1x02-1MP_P1.00mm_Horizontal-fe6ab3.bin",
+   "source": "JST_SH_SM02B-SRSS-TB_1x02-1MP_P1.00mm_Horizontal.wrl",
+   "refs": [
+    "J4"
+   ]
+  },
+  {
+   "file": "m-JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal-acc57d.bin",
+   "source": "JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal.wrl",
+   "refs": [
+    "J3"
+   ]
+  },
+  {
+   "file": "m-VQFN-16-1EP_3x3mm_P0.5mm_EP1.68x1.68mm-c12e3c.bin",
+   "source": "VQFN-16-1EP_3x3mm_P0.5mm_EP1.68x1.68mm.wrl",
+   "refs": [
+    "U5"
+   ]
+  },
+  {
+   "file": "m-SOT-23-c4459f.bin",
+   "source": "SOT-23.wrl",
+   "refs": [
+    "Q5"
+   ]
+  },
+  {
+   "file": "m-D_SOD-882-b05a5d.bin",
+   "source": "D_SOD-882.step",
+   "refs": [
+    "DZ1"
+   ]
+  },
+  {
+   "file": "m-7a4b9b6e725448df9ee2451185154c27_bar_0819f05c4ee-d2bf97.bin",
+   "source": "7a4b9b6e725448df9ee2451185154c27{bar}0819f05c4eef4c71ace90d822a990e87.step",
+   "refs": [
+    "D44",
+    "D22",
+    "D37",
+    "D10",
+    "D33",
+    "D4",
+    "D57",
+    "D61",
+    "D11",
+    "D23",
+    "D17",
+    "D29",
+    "D41",
+    "D52",
+    "D46",
+    "D31",
+    "D32",
+    "D43",
+    "D45",
+    "D40",
+    "D14",
+    "D39",
+    "D62",
+    "D19",
+    "D51",
+    "D25",
+    "D6",
+    "D36",
+    "D27",
+    "D24",
+    "D20",
+    "D18",
+    "D63",
+    "D9",
+    "D47",
+    "D30",
+    "D13",
+    "D53",
+    "D58",
+    "D8",
+    "D15",
+    "D3",
+    "D49",
+    "D50",
+    "D7",
+    "D54",
+    "D26",
+    "D16",
+    "D38",
+    "D21",
+    "D28",
+    "D56",
+    "D59",
+    "D55",
+    "D12",
+    "D34",
+    "D42",
+    "D35",
+    "D60",
+    "D48",
+    "D5"
+   ]
+  },
+  {
+   "file": "m-C0402_L1.0-W0.5-H0.5-0b2f4d.bin",
+   "source": "C0402_L1.0-W0.5-H0.5.step",
+   "refs": [
+    "C2",
+    "C5",
+    "C1",
+    "C7",
+    "C3",
+    "C8",
+    "C39",
+    "C6",
+    "C10"
+   ]
+  },
+  {
+   "file": "m-C0603_L1.6-W0.8-H0.8-0809b9.bin",
+   "source": "C0603_L1.6-W0.8-H0.8.step",
+   "refs": [
+    "C9",
+    "C4"
+   ]
+  },
+  {
+   "file": "m-DFN-8_L2.0-W2.0-H0.8-P0.50-efd247.bin",
+   "source": "DFN-8_L2.0-W2.0-H0.8-P0.50.step",
+   "refs": [
+    "U1"
+   ]
+  },
+  {
+   "file": "m-F0805_L2.1-W1.4-H0.8-65df64.bin",
+   "source": "F0805_L2.1-W1.4-H0.8.step",
+   "refs": [
+    "BT1"
+   ]
+  },
+  {
+   "file": "m-FC-135R_L3.2-W1.5-80beca.bin",
+   "source": "FC-135R_L3.2-W1.5.step",
+   "refs": [
+    "X1"
+   ]
+  },
+  {
+   "file": "m-L0603_L1.6-W0.8-H0.5_BEAD-f7af82.bin",
+   "source": "L0603_L1.6-W0.8-H0.5_BEAD.step",
+   "refs": [
+    "L1"
+   ]
+  },
+  {
+   "file": "m-SMD_KEYBOARD-SW-dad6cb.bin",
+   "source": "SMD_KEYBOARD-SW.step",
+   "refs": [
+    "U12",
+    "U13",
+    "U65",
+    "U36",
+    "U34",
+    "U42",
+    "U41",
+    "U53",
+    "U57",
+    "U22",
+    "U18",
+    "U49",
+    "U29",
+    "U44",
+    "U58",
+    "U59",
+    "U63",
+    "U10",
+    "U37",
+    "U61",
+    "U21",
+    "U17",
+    "U9",
+    "U8",
+    "U50",
+    "U43",
+    "U28",
+    "U26",
+    "U19",
+    "U11",
+    "U31",
+    "U38",
+    "U56",
+    "U15",
+    "U60",
+    "U52",
+    "U30",
+    "U16",
+    "U46",
+    "U62",
+    "U47",
+    "U39",
+    "U20",
+    "U54",
+    "U55",
+    "U48",
+    "U32",
+    "U23",
+    "U14",
+    "U27",
+    "U35",
+    "U66",
+    "U45",
+    "U51",
+    "U24",
+    "U64",
+    "U25"
+   ]
+  },
+  {
+   "file": "m-SOT-23-3P_L2.9-W1.3-H1.0-LS2.4-P0.95-d6c7f3.bin",
+   "source": "SOT-23-3P_L2.9-W1.3-H1.0-LS2.4-P0.95.step",
+   "refs": [
+    "Q82",
+    "Q83",
+    "Q4",
+    "Q81"
+   ]
+  },
+  {
+   "file": "m-SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95-053816.bin",
+   "source": "SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95.step",
+   "refs": [
+    "D2",
+    "U83"
+   ]
+  },
+  {
+   "file": "m-SW-SMD_4P-L5.2-W5.2-H1.5-LS6.4-P3.70-c2b99c.bin",
+   "source": "SW-SMD_4P-L5.2-W5.2-H1.5-LS6.4-P3.70.step",
+   "refs": [
+    "SW1"
+   ]
+  },
+  {
+   "file": "m-SW-SMD_MK-11C04-G013-dfd589.bin",
+   "source": "SW-SMD_MK-11C04-G013.step",
+   "refs": [
+    "SW2"
+   ]
+  },
+  {
+   "file": "m-TSSOP-8_L3.0-W4.4-H1.0-LS6.4-P0.65-8a0767.bin",
+   "source": "TSSOP-8_L3.0-W4.4-H1.0-LS6.4-P0.65.step",
+   "refs": [
+    "U3"
+   ]
+  },
+  {
+   "file": "m-USB-C-SMD_KH-TYPE-C-16P-63f551.bin",
+   "source": "USB-C-SMD_KH-TYPE-C-16P.step",
+   "refs": [
+    "USB1"
+   ]
+  },
+  {
+   "file": "m-WIRELM-SMD_L18.0-W13.0-H3.0-E73-2G4M08S1C-251b08.bin",
+   "source": "WIRELM-SMD_L18.0-W13.0-H3.0-E73-2G4M08S1C.step",
+   "refs": [
+    "U2"
+   ]
+  },
+  {
+   "file": "m-LCSC_C2961656-c3cb7f.bin",
+   "source": "LCSC:C2961656",
+   "refs": [
+    "U81"
+   ]
+  },
+  {
+   "file": "m-LCSC_C575513-53e60b.bin",
+   "source": "LCSC:C575513",
+   "refs": [
+    "BL29",
+    "BL7",
+    "BL15",
+    "BL55",
+    "BL16",
+    "BL53",
+    "BL38",
+    "BL24",
+    "BL52",
+    "BL3",
+    "BL21",
+    "BL57",
+    "BL32",
+    "BL41",
+    "BL9",
+    "BL10",
+    "BL2",
+    "BL46",
+    "BL5",
+    "BL26",
+    "BL49",
+    "BL31",
+    "BL50",
+    "BL20",
+    "BL23",
+    "BL28",
+    "BL51",
+    "BL36",
+    "BL60",
+    "BL27",
+    "BL4",
+    "BL25",
+    "BL8",
+    "BL33",
+    "BL1",
+    "BL59",
+    "BL56",
+    "BL11",
+    "BL40",
+    "BL12",
+    "BL34",
+    "BL42",
+    "BL18",
+    "BL37",
+    "BL47",
+    "BL22",
+    "BL48",
+    "BL30",
+    "BL39",
+    "BL17",
+    "BL45",
+    "BL43",
+    "BL13",
+    "BL61",
+    "BL14",
+    "BL58",
+    "BL44",
+    "BL35",
+    "BL6",
+    "BL54",
+    "BL19"
+   ]
+  }
+ ]
+}

@@ -12,23 +12,27 @@ board face the part sits on, mm. --offset is the footprint's KiCad model offset 
 File: b"RYM1", uint32 json length, json {"scale", "groups": [{"color", "verts", "tris"}]},
 padding to 4, then per group int16 xyz × verts (× scale = mm), padding to 4, uint16 indices.
 """
-import argparse, json, re, struct, tempfile
+import argparse, json, math, re, struct, tempfile
 from collections import defaultdict
 
 ap = argparse.ArgumentParser()
 ap.add_argument("model"); ap.add_argument("out")
 ap.add_argument("--dx", type=float, default=0); ap.add_argument("--dy", type=float, default=0)
 ap.add_argument("--offset", type=float, nargs=3, default=(0, 0, 0))
+ap.add_argument("--rotate", type=float, default=0, help="KiCad model rotation about z, degrees (applied before the offset)")
 ap.add_argument("--drop", nargs="*", default=[], help="colours to leave out (e.g. a vendor logo printed on the part)")
 ap.add_argument("--patch", nargs=6, action="append", default=[], metavar=("X0", "Y0", "X1", "Y1", "Z", "COLOR"), help="cover a rectangle (model mm, facing up) — e.g. a vendor logo engraved into a metal shell")
 ap.add_argument("--recolor", nargs="*", default=[], help="FROM=TO colour pairs, e.g. to match the real part's plastic")
 ap.add_argument("--cover", nargs=7, action="append", default=[], metavar=("X0", "Y0", "Z0", "X1", "Y1", "Z1", "COLOR"), help="a thin box (model mm) over a printed logo, in the colour of the surface under it")
+ap.add_argument("--no-logo", action="store_true", help="EasyEDA models: leave out the LCEDA logo (a small, finely triangulated white or flat piece) and seat chips modelled centred on z = 0")
 ap.add_argument("--thickness", type=float, default=1.6); ap.add_argument("--flip", action="store_true")
 a = ap.parse_args()
 groups = defaultdict(lambda: {"P": [], "I": []})
 
 def place(mx, my, mz):
     """model mm (KiCad 3D frame: x right, y up = -KiCad y, z up off the footprint side) → view frame"""
+    if a.rotate:
+        t = math.radians(a.rotate); mx, my = mx * math.cos(t) - my * math.sin(t), mx * math.sin(t) + my * math.cos(t)
     mx, my, mz = mx + a.offset[0], my + a.offset[1], mz + a.offset[2]
     if a.flip: return (mx + a.dx, -mz - a.thickness, my + a.dy)
     return (mx + a.dx, mz, -my + a.dy)
@@ -58,9 +62,35 @@ else:
     import cascadio, trimesh
     glb = tempfile.mktemp(suffix=".glb")
     cascadio.step_to_glb(a.model, glb, tol_linear=0.01, tol_angular=0.3)
+    parts = []
     for g in trimesh.load(glb).dump(concatenate=False):  # scene graph transforms applied; metres
         c = g.visual.material.baseColorFactor if hasattr(g.visual, "material") else (128, 128, 128, 255)
-        add("#%02x%02x%02x" % tuple(int(v) for v in c[:3]), [tuple(v * 1000 for v in p) for p in g.vertices.tolist()], g.faces.tolist())
+        parts.append(("#%02x%02x%02x" % tuple(int(v) for v in c[:3]), [tuple(v * 1000 for v in p) for p in g.vertices.tolist()], g.faces.tolist()))
+    allp = [p for _, pts, _ in parts for p in pts]
+    lo = [min(p[k] for p in allp) for k in range(3)]; hi = [max(p[k] for p in allp) for k in range(3)]
+    dz = 0.0
+    if a.no_logo and lo[2] < -0.05 and abs(hi[2] + lo[2]) < 0.1 * (hi[2] - lo[2]):
+        dz = -lo[2]  # a chip modelled centred on z = 0: seat it on the board
+        print(f"seated: +{dz:.2f} mm")
+    area = (hi[0] - lo[0]) * (hi[1] - lo[1])
+    def is_logo(color, pts, tris):
+        if not a.no_logo or len(tris) < 600: return False
+        e = [max(p[k] for p in pts) - min(p[k] for p in pts) for k in range(3)]
+        if min(e) < 0.03: return True  # a flat print
+        return color == "#ffffff" and len(tris) > 1500 and e[0] * e[1] < 0.5 * area  # a small, finely cut white piece
+    for i, (color, pts, tris) in enumerate(parts):
+        if is_logo(color, pts, tris):
+            # EasyEDA cuts its logo into the part and fills it with this piece: give the fill the colour of
+            # the surface around it, so the part reads plain (dropping it would leave the letters as holes)
+            c = [sum(p[k] for p in pts) / len(pts) for k in range(3)]
+            def gap(j):  # distance from the logo's centre to piece j's box, then the smaller box
+                q = parts[j][1]; lo_ = [min(p[k] for p in q) for k in range(3)]; hi_ = [max(p[k] for p in q) for k in range(3)]
+                d = sum(max(lo_[k] - c[k], 0, c[k] - hi_[k]) ** 2 for k in range(3))
+                return (round(d, 4), (hi_[0] - lo_[0]) * (hi_[1] - lo_[1]) * (hi_[2] - lo_[2]))
+            near = min((j for j in range(len(parts)) if j != i and not is_logo(*parts[j])), key=gap, default=None)
+            if near is not None: color = parts[near][0]
+            print(f"logo blended: {len(tris)} triangles → {color}")
+        add(color, [(x, y, z + dz) for x, y, z in pts], tris)
 
 for x0, y0, x1, y1, z, color in a.patch:
     x0, y0, x1, y1, z = map(float, (x0, y0, x1, y1, z))

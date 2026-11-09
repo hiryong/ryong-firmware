@@ -15,12 +15,16 @@ Needs `npm i pcb-stackup@4.2.8 playwright` and Python 3 with Pillow.
 
 ## Real part models
 
-Most parts are drawn as simple shapes sized from the footprint. The parts that fill most of the
-board's volume use real 3D models, converted with `convert_model.py` into `<name>.bin`:
+`fetch_models.py` gives every assembled part except the resistors its real 3D model, placed the way
+the board's KiCad file places it (footprint origin, model offset and rotation):
 
-| file | part | source | placement |
-|---|---|---|---|
-| `hotswap-cpg151101s11-16.bin` | HanElectricity CPG151101S11-16 (LCSC C41430893), the purple MX hot-swap socket on this board | the part's LCSC/EasyEDA STEP model (uuid 5c2d585f6c544fcf92e7ed163bda57d3) | `--drop "#000000" --recolor "#230092=#5a50b4" --cover 1.4 1.05 0.38 3.75 1.062 1.18 "#230092"` (the EasyEDA logo on its side covered; plastic colour from the LCSC photo) |
-| `usb-c-kh-16p.bin` | Kinghelm KH-TYPE-C-16P-T (LCSC C709358) | the part's LCSC/EasyEDA STEP model (`modules.easyeda.com`, uuid 954b2a5828604707b62aef0fe6e7695f) | `--offset 0 -1.15 0` (the board's KiCad model offset in x/y; z 0 so it sits on the board — the EasyEDA z sinks it) |
+- parts whose model is `EASYEDA_MODELS/*.step`, and parts with no model in the design: the part's own
+  LCSC/EasyEDA STEP, fetched by its LCSC number. EasyEDA's z offset is not used (its models sit on
+  z = 0; chips modelled centred on z = 0 are seated), and the LCEDA logo it cuts into each model is
+  filled in the colour around it.
+- parts with a KiCad library model: KiCad's own STEP from kicad-packages3D.
 
-Both are placed from the footprint origin (`origin` in board.json).
+Each model becomes `m-*.bin` (`convert_model.py`), listed with its parts in `models.json`. Per-model
+fixes (the purple socket plastic from the LCSC photo, the module's tin-plated shield) are in `FIXES`.
+
+    python3 fetch_models.py --pcb board.kicad_pcb --bom BOM.csv --out <board3d dir> --cache <dir>

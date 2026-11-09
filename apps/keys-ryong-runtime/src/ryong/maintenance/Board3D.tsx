@@ -228,13 +228,6 @@ async function loadModel(url: string): Promise<{ color: string; geo: THREE.Buffe
 }
 
 /** Real part models, by look, for footprints they fit (the rest stay simple shapes). */
-/** fromOrigin: the model is in KiCad footprint coordinates (else fitted to the part centre) */
-const MODELS: Record<string, { file: string; footprint: RegExp; fromOrigin?: boolean }> = {
-  // HanElectricity CPG151101S11-16 (the purple MX hot-swap socket this board uses), its LCSC/EasyEDA model
-  hotswap: { file: "hotswap-cpg151101s11-16.bin", footprint: /SMD_KEYBOARD-SW/, fromOrigin: true },
-  // KH-TYPE-C-16P-T receptacle, the part's own model from LCSC/EasyEDA, placed with the board's KiCad model offset
-  usb: { file: "usb-c-kh-16p.bin", footprint: /KH-TYPE-C-16P/, fromOrigin: true },
-};
 /** Model colours → finishes: light greys are plated metal, yellows gold plating, the rest plastic. */
 function modelMaterial(color: string) {
   const c = new THREE.Color(color), r = c.r, g = c.g, b = c.b;
@@ -382,9 +375,13 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
     let alive = true;
     const extraMats: THREE.Material[] = [];
     const instOf = new Map<Part, [THREE.InstancedMesh, number][]>(); // a real-model part's slot in each colour mesh
-    for (const [look, m] of Object.entries(MODELS)) {
-      const ps = board.parts.filter((p) => p.look === look && m.footprint.test(p.footprint));
-      if (!ps.length) continue;
+    // models.json (tools/board3d/fetch_models.py): each model file and the parts placed with it,
+    // in KiCad footprint coordinates (so placed from each part's footprint origin)
+    const byRef = new Map(board.parts.map((p) => [p.ref, p]));
+    fetch(src + "models.json").then((r) => (r.ok ? r.json() : { models: [] })).catch(() => ({ models: [] })).then(({ models }: { models: { file: string; refs: string[] }[] }) => {
+    for (const m of models) {
+      const ps = m.refs.map((r) => byRef.get(r)).filter((p): p is Part => !!p);
+      if (!ps.length || !alive) continue;
       loadModel(src + m.file).then((meshes) => {
         if (!alive) return;
         for (const p of ps) { const g = groups.get(p)!; for (const c of [...g.children]) if (c.name !== "pick") g.remove(c); }
@@ -394,7 +391,7 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
           ps.forEach((p, i) => {
             const g = groups.get(p)!; g.updateMatrix();
             const mx = g.matrix.clone();
-            if (m.fromOrigin && p.origin) mx.multiply(new THREE.Matrix4().makeTranslation(p.origin[0], 0, p.origin[1]));
+            if (p.origin) mx.multiply(new THREE.Matrix4().makeTranslation(p.origin[0], 0, p.origin[1]));
             inst.setMatrixAt(i, mx);
             instOf.set(p, [...(instOf.get(p) ?? []), [inst, i]]);
           });
@@ -405,6 +402,7 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
         dirty = true;
       }, () => {}); // keep the simple shapes if the model can't load
     }
+    });
 
     // ---- highlight boxes ----
     const hiMat = new THREE.MeshBasicMaterial({ color: "#2fb6ff", transparent: true, opacity: 0.28, depthWrite: false });
@@ -653,7 +651,7 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
             ))}
           </div>
         </div>
-        {board && <p className="ry-faint ry-b3-note">{t("{title} · {w} × {h} mm · {n} parts. Hot-swap sockets and the USB-C receptacle are real part models; the small parts are drawn to size from the assembly data. (models: LCSC/EasyEDA)", "{title} · {w} × {h} mm · 부품 {n}개. 핫스왑 소켓과 USB-C는 실제 부품 3D 모델이고, 작은 부품은 조립 데이터의 위치·크기로 그린 모양이에요. (모델: LCSC/EasyEDA)", { title: board.title, w: board.width.toFixed(1), h: board.height.toFixed(1), n: board.parts.length })}</p>}
+        {board && <p className="ry-faint ry-b3-note">{t("{title} · {w} × {h} mm · {n} parts. Parts are their real 3D models (LCSC/EasyEDA, KiCad library); resistors are drawn to size.", "{title} · {w} × {h} mm · 부품 {n}개. 부품은 실제 3D 모델(LCSC/EasyEDA, KiCad 라이브러리)이고, 저항만 크기대로 그린 모양이에요.", { title: board.title, w: board.width.toFixed(1), h: board.height.toFixed(1), n: board.parts.length })}</p>}
       </aside>
     </div>
   );
