@@ -1160,3 +1160,4 @@ dialog.ry-kbpick h2 { margin: 0 0 6px; font-size: 18px; }
 }
 @media (hover: none) { .ry-b3-hint { font-size: 0; } .ry-b3-hint::after { content: attr(data-touch); font-size: 11px; } }
 @media (max-width: 760px) { .ry-b3-hint { display: none; } }
+.ry-b3-alts { display: block; margin-top: 2px; font-size: 12px; }

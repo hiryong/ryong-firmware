@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { t } from "../i18n";
+import { aliUrl, buyInfo } from "./partBuy";
 
 // The assembled board in 3D: the bare board from the factory Gerbers (textures), and every part the
 // assembler places drawn from its BOM/CPL position and package size (public/board3d/<name>/board.json,
@@ -13,6 +14,8 @@ export interface Part {
   kind: string; kindName: string; look: string; role: string;
   x: number; y: number; rot: number; side: "top" | "bottom";
   w: number; l: number; h: number; pads: [number, number, number, number][];
+  /** footprint origin, local to the part centre (KiCad models are placed from it) */
+  origin?: [number, number];
 }
 interface Board {
   name: string; title: string; thickness: number; width: number; height: number;
@@ -196,11 +199,12 @@ async function loadModel(url: string): Promise<{ color: string; geo: THREE.Buffe
 }
 
 /** Real part models, by look, for footprints they fit (the rest stay simple shapes). */
-const MODELS: Record<string, { file: string; footprint: RegExp }> = {
+/** fromOrigin: the model is in KiCad footprint coordinates (else fitted to the part centre) */
+const MODELS: Record<string, { file: string; footprint: RegExp; fromOrigin?: boolean }> = {
   // Kailh CPG151101S11 MX hot-swap socket, 3D model from kiswitch/keyswitch-kicad-library (CC BY-SA 4.0 / MIT)
   hotswap: { file: "hotswap-kailh-mx.bin", footprint: /SMD_KEYBOARD-SW/ },
   // KH-TYPE-C-16P-T receptacle, the part's own model from LCSC/EasyEDA, placed with the board's KiCad model offset
-  usb: { file: "usb-c-kh-16p.bin", footprint: /KH-TYPE-C-16P/ },
+  usb: { file: "usb-c-kh-16p.bin", footprint: /KH-TYPE-C-16P/, fromOrigin: true },
 };
 /** Model colours → finishes: light greys are plated metal, yellows gold plating, the rest plastic. */
 function modelMaterial(color: string) {
@@ -325,7 +329,10 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
           const mm = modelMaterial(color); extraMats.push(mm);
           const inst = new THREE.InstancedMesh(geo, mm, ps.length);
           ps.forEach((p, i) => {
-            const g = groups.get(p)!; g.updateMatrix(); inst.setMatrixAt(i, g.matrix);
+            const g = groups.get(p)!; g.updateMatrix();
+            const mx = g.matrix.clone();
+            if (m.fromOrigin && p.origin) mx.multiply(new THREE.Matrix4().makeTranslation(p.origin[0], 0, p.origin[1]));
+            inst.setMatrixAt(i, mx);
             instOf.set(p, [...(instOf.get(p) ?? []), [inst, i]]);
           });
           inst.castShadow = true; inst.receiveShadow = true;
@@ -529,6 +536,7 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
     return [...m.entries()].sort((a, b) => b[1].n - a[1].n);
   }, [board]);
 
+  const buy = useMemo(() => (sel ? buyInfo(sel) : null), [sel]);
   const same = useMemo(() => (board && sel ? board.parts.filter((p) => (sel.lcsc ? p.lcsc === sel.lcsc : p.value === sel.value)) : []), [board, sel]);
 
   return (
@@ -564,6 +572,8 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
               <dt>{t("Package", "패키지")}</dt><dd>{sel.footprint}</dd>
               <dt>{t("Size", "크기")}</dt><dd>{sel.w.toFixed(1)} × {sel.l.toFixed(1)} × {sel.h.toFixed(1)} mm</dd>
               {sel.lcsc && (<><dt>LCSC</dt><dd><a href={`https://www.lcsc.com/product-detail/${sel.lcsc}.html`} target="_blank" rel="noreferrer">{sel.lcsc}</a></dd></>)}
+              {buy && (<><dt>{t("Replace with", "대체")}</dt><dd>{t(...buy.spec)}{buy.alts && <span className="ry-b3-alts">{buy.alts.join(" · ")}</span>}{buy.note && <span className="ry-faint ry-b3-alts">{t(...buy.note)}</span>}</dd>
+                <dt>{t("Buy", "구매")}</dt><dd><a href={aliUrl(buy.query)} target="_blank" rel="noreferrer">{t("Search AliExpress", "알리익스프레스에서 찾기")}</a></dd></>)}
               <dt>{t("Same part", "같은 부품")}</dt><dd>{same.length > 12 ? t("{n} on the board", "기판에 {n}개", { n: same.length }) : same.map((p) => p.ref).join(", ")}</dd>
             </dl>
           </div>

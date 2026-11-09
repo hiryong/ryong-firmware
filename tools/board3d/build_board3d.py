@@ -216,6 +216,8 @@ def main():
             "footprint": fpname, "kind": k, "kindName": kname, "look": look, "role": role_of(ref),
             "x": gx, "y": gy, "rot": round(fr, 2), "side": side,
             "w": round(bw, 3), "l": round(bl, 3), "h": height, "pads": pads[:40],
+            # the footprint's own origin, local to the part centre: KiCad 3D models are placed from it
+            "origin": [round(-cx, 3), round(-cy, 3)],
         })
 
     # sanity: every BOM designator placed
