@@ -311,7 +311,8 @@ button.ry-link { background: none; border: 0; padding: 0; font: inherit; cursor:
 @media (max-width: 640px) {
   .ry-step { grid-template-columns: minmax(0, 1fr) auto; }
   .ry-step .ry-step-type { grid-column: 1 / -1; }
-  .ry-savebar { margin: 0 -16px -64px; padding-left: 16px; padding-right: 16px; }
+  /* edge to edge of the screen, never wider (the -16px margins stuck out 4px and let phones pan sideways) */
+  .ry-savebar { margin: 0 calc(50% - 50vw) -64px; padding-left: 16px; padding-right: 16px; }
   .ry-two { grid-template-columns: 1fr; }
 }
 
@@ -925,19 +926,22 @@ header .ry-tabs { flex-wrap: nowrap; white-space: nowrap; }
   header.grid > :last-child button, header.grid > :last-child a { padding-inline: 7px; }
   /* nothing may scroll the page sideways, not even focus moving to a clipped element */
   html, body, .ry-app { overflow-x: clip; }
-  .ry-workspace-tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  /* phones: tabs wrap onto a second line instead of scrolling sideways */
+  .ry-workspace-tabs { overflow-x: visible; flex-wrap: wrap; row-gap: 2px; padding-block: 4px; }
   .ry-workspace-tabs .ry-tab { flex: none; }
-  .ry-workspace-keymap:not([hidden]) { min-height: 0; grid-template-columns: minmax(0, 1fr); }
+  .ry-workspace-keymap:not([hidden]) { min-height: 0; grid-template-columns: minmax(0, 1fr); flex: none; }
+  /* phones: the page scrolls down (never sideways); the key list is shown whole, not cut */
+  .ry-workspace-keymap > .ry-canvas-float { height: auto; overflow: visible; grid-template-rows: auto 300px auto; }
   .ry-canvas-float { min-width: 0; width: 100%; }
   /* keymap: layers become a scrolling row above the keyboard, keyboard uses the full width */
   .ry-canvas-float { grid-template-rows: auto minmax(200px, 1fr) auto; overflow: hidden; }
-  .ry-canvas-float > .ry-layer-float { position: static; grid-row: 1; width: auto; max-width: none; max-height: none; margin: 8px 12px 0; padding: 6px 8px; flex-direction: row; align-items: center; overflow-x: auto; }
-  .ry-layer-float [role="listbox"], .ry-layer-float [role="grid"] { display: flex; flex-direction: row; gap: 4px; }
+  .ry-canvas-float > .ry-layer-float { position: static; grid-row: 1; width: auto; max-width: none; max-height: none; margin: 8px 12px 0; padding: 6px 8px; flex-direction: row; flex-wrap: wrap; align-items: center; overflow: visible; }
+  .ry-layer-float [role="listbox"], .ry-layer-float [role="grid"] { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; }
   .ry-layer-float .min-w-40 { flex-direction: row; align-items: center; gap: 8px; }
   .ry-canvas-float > .ry-keys-float { grid-row: 2; min-height: 200px; }
-  .ry-canvas-float > .ry-picker-panel { grid-row: 3; height: 280px; }
+  .ry-canvas-float > .ry-picker-panel { grid-row: 3; height: auto; max-height: none; }
   .ry-canvas-float .ry-view-2d, .ry-canvas-float .ry-view-3d { left: 10px; right: 10px; top: 48px; bottom: 10px; }
-  .ry-via-catlist { flex: 1; }
+  .ry-via-catlist { flex: 1; flex-wrap: wrap; overflow-x: visible; }
   .ry-via-detail-toggle { padding: 0 10px; }
   .ry-virtual { right: 8px; bottom: 8px; }
   .ry-virtual-head { min-height: 36px; padding: 0 10px; font-size: 12px; }
