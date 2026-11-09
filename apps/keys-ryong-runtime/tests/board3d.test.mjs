@@ -24,6 +24,7 @@ const browser = await pw.chromium.launch({ args: ["--enable-unsafe-swiftshader",
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 await ctx.addInitScript(() => localStorage.setItem("ryong.lang", "ko"));
 const page = await ctx.newPage();
+page.setDefaultTimeout(120000); // software WebGL draws the full model slowly
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 try {
@@ -46,9 +47,9 @@ try {
       Object.assign(at, { x: r.x + r.width / 2, y: r.y + r.height / 2 });
     }
     await page.mouse.move(at.x, at.y);
-    await page.locator(".ry-b3-tip", { hasText: ref }).waitFor({ timeout: 5000 });
+    await page.locator(".ry-b3-tip", { hasText: ref }).waitFor({ timeout: 60000 });
     await page.mouse.down(); await page.mouse.up();
-    await page.locator(".ry-b3-info h3", { hasText: ref }).waitFor({ timeout: 5000 });
+    await page.locator(".ry-b3-info h3", { hasText: ref }).waitFor({ timeout: 60000 });
   }
   assert.match(await page.locator(".ry-b3-info").innerText(), /C25905/); // R10's LCSC number
   await page.screenshot({ path: path.join(output, "board3d.png") });

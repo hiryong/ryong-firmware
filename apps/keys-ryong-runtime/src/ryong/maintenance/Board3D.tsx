@@ -174,6 +174,44 @@ function buildPart(p: Part, M: Mats): THREE.Group {
   return g;
 }
 
+/** A part model made by tools/board3d/convert_wrl.py: one indexed mesh per colour, in the part's own frame. */
+async function loadModel(url: string): Promise<{ color: string; geo: THREE.BufferGeometry }[]> {
+  const buf = await (await fetch(url)).arrayBuffer();
+  const dv = new DataView(buf);
+  if (dv.getUint32(0, true) !== 0x314d5952) throw new Error("not a RYM1 model"); // "RYM1"
+  const jl = dv.getUint32(4, true);
+  const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, jl))) as { scale: number; groups: { color: string; verts: number; tris: number }[] };
+  let o = 8 + jl; o += -o & 3;
+  return meta.groups.map((g) => {
+    const q = new Int16Array(buf, o, g.verts * 3); o += q.byteLength; o += -o & 3;
+    const idx = new Uint16Array(buf, o, g.tris * 3).slice(); o += idx.byteLength; o += -o & 3;
+    const pos = new Float32Array(q.length);
+    for (let i = 0; i < q.length; i++) pos[i] = q[i] * meta.scale;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    geo.computeVertexNormals();
+    return { color: g.color, geo };
+  });
+}
+
+/** Real part models, by look, for footprints they fit (the rest stay simple shapes). */
+const MODELS: Record<string, { file: string; footprint: RegExp }> = {
+  // Kailh CPG151101S11 MX hot-swap socket, 3D model from kiswitch/keyswitch-kicad-library (CC BY-SA 4.0 / MIT)
+  hotswap: { file: "hotswap-kailh-mx.bin", footprint: /SMD_KEYBOARD-SW/ },
+  // KH-TYPE-C-16P-T receptacle, the part's own model from LCSC/EasyEDA, placed with the board's KiCad model offset
+  usb: { file: "usb-c-kh-16p.bin", footprint: /KH-TYPE-C-16P/ },
+};
+/** Model colours → finishes: light greys are plated metal, yellows gold plating, the rest plastic. */
+function modelMaterial(color: string) {
+  const c = new THREE.Color(color), r = c.r, g = c.g, b = c.b;
+  const grey = Math.max(r, g, b) - Math.min(r, g, b) < 0.06;
+  if (grey && r > 0.2) return mat(r > 0.8 ? "#d3d5d8" : "#c9ccd0", 1, r > 0.8 ? 0.3 : 0.24); // tin / stainless
+  if (r > 0.8 && g > 0.75 && b < 0.75) return mat("#d9c47e", 1, 0.3); // gold
+  if (grey) return mat("#1c1c1f", 0, 0.5, { clearcoat: 0.15 }); // black plastic
+  return mat(color, 0, 0.5);
+}
+
 export function partTitle(p: Part) {
   return `${p.ref} · ${p.value}`;
 }
@@ -185,7 +223,7 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
   const [hover, setHover] = useState<{ p: Part; x: number; y: number } | null>(null);
   const [sel, setSel] = useState<Part | null>(null);
   const [kind, setKind] = useState<string | null>(null);
-  const api = useRef<{ view: (v: "parts" | "switch" | "reset") => void; mark: (ps: Part[], hover: Part | null) => void } | null>(null);
+  const api = useRef<{ view: (v: "parts" | "switch" | "reset") => void; mark: (ps: Part[], hover: Part | null) => void; select: (p: Part | null) => void } | null>(null);
 
   useEffect(() => {
     fetch(src + "board.json").then((r) => (r.ok ? r.json() : Promise.reject(r.status))).then(setBoard, () => setErr(t("Could not load the board.", "기판 데이터를 불러오지 못했어요.")));
@@ -273,6 +311,31 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
       byPick.set(pick, p);
     }
 
+    // real models replace the simple shapes once they arrive (one instanced mesh per colour)
+    let alive = true;
+    const extraMats: THREE.Material[] = [];
+    const instOf = new Map<Part, [THREE.InstancedMesh, number][]>(); // a real-model part's slot in each colour mesh
+    for (const [look, m] of Object.entries(MODELS)) {
+      const ps = board.parts.filter((p) => p.look === look && m.footprint.test(p.footprint));
+      if (!ps.length) continue;
+      loadModel(src + m.file).then((meshes) => {
+        if (!alive) return;
+        for (const p of ps) { const g = groups.get(p)!; for (const c of [...g.children]) if (c.name !== "pick") g.remove(c); }
+        for (const { color, geo } of meshes) {
+          const mm = modelMaterial(color); extraMats.push(mm);
+          const inst = new THREE.InstancedMesh(geo, mm, ps.length);
+          ps.forEach((p, i) => {
+            const g = groups.get(p)!; g.updateMatrix(); inst.setMatrixAt(i, g.matrix);
+            instOf.set(p, [...(instOf.get(p) ?? []), [inst, i]]);
+          });
+          inst.castShadow = true; inst.receiveShadow = true;
+          boardG.add(inst);
+        }
+        if (selected && instOf.has(selected)) select(selected);
+        dirty = true;
+      }, () => {}); // keep the simple shapes if the model can't load
+    }
+
     // ---- highlight boxes ----
     const hiMat = new THREE.MeshBasicMaterial({ color: "#2fb6ff", transparent: true, opacity: 0.28, depthWrite: false });
     const hiLine = new THREE.LineBasicMaterial({ color: "#5cc8ff" });
@@ -300,8 +363,11 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
     };
 
     // ---- camera ----
-    // camera moves go around the board (spherical), so a turn to the other side never passes through it
-    let goal: { a: THREE.Spherical; b: THREE.Spherical; t0: number } | null = null;
+    // Changing sides turns the board over in place (about the screen's vertical axis, like flipping a
+    // real board), instead of flying the camera round to the far side. The camera only eases to the
+    // chosen angle, going round the board (spherical) when it has to move far.
+    let goal: { a: THREE.Spherical; b: THREE.Spherical; f0: number; f1: number; t0: number } | null = null;
+    let flipped = false;
     const fit = () => {
       const a = el.clientWidth / Math.max(el.clientHeight, 1);
       const vfov = (camera.fov * Math.PI) / 180;
@@ -310,10 +376,9 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
       return Math.max(dW, dH);
     };
     const viewPos = (v: "parts" | "switch" | "reset", d: number) =>
-      v === "switch" ? new THREE.Vector3(0, -d * 0.97, -d * 0.24) // from below, board y up the screen, so it reads mirrored like the real switch side
-      : v === "parts" ? new THREE.Vector3(0, d, 0.001)
-      : new THREE.Vector3(-d * 0.25, d * 0.82, d * 0.55);
+      v === "reset" ? new THREE.Vector3(-d * 0.25, d * 0.82, d * 0.55) : new THREE.Vector3(0, d, 0.001);
     const view = (v: "parts" | "switch" | "reset") => {
+      if (v !== "reset") flipped = v === "switch";
       controls.target.set(0, 0, 0);
       const a = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
       const b = new THREE.Spherical().setFromVector3(viewPos(v, fit()));
@@ -321,10 +386,53 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
       while (dt > Math.PI) dt -= 2 * Math.PI;
       while (dt < -Math.PI) dt += 2 * Math.PI;
       b.theta = a.theta + dt;
-      goal = { a, b, t0: performance.now() };
+      goal = { a, b, f0: boardG.rotation.z, f1: flipped ? Math.PI : 0, t0: performance.now() };
       dirty = true;
     };
-    api.current = { view, mark };
+    // ---- selection: everything else dims a little, the chosen part stays lit and slightly brighter ----
+    // Drawn in passes: the whole board, a dark veil over it, then the chosen part again on top
+    // (same geometry and transform, so it fills exactly its own visible pixels), then the marks.
+    const veil = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: "#000000", transparent: true, opacity: 0.42, depthTest: false, depthWrite: false }));
+    const veilCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const selScene = new THREE.Scene();
+    selScene.environment = scene.environment;
+    selScene.environmentIntensity = scene.environmentIntensity * 1.18;
+    for (const l of [sun, under]) { const c = l.clone(); c.castShadow = false; c.intensity *= 1.18; selScene.add(c); }
+    let selected: Part | null = null;
+    let selPairs: [THREE.Object3D, THREE.Object3D][] = [];
+    const select = (p: Part | null) => {
+      for (const [c] of selPairs) selScene.remove(c);
+      selPairs = [];
+      selected = p;
+      if (p) {
+        for (const o of groups.get(p)!.children) {
+          if (o.name === "pick" || !(o as THREE.Mesh).isMesh) continue;
+          const c = (o as THREE.Mesh).clone(); c.matrixAutoUpdate = false; c.matrixWorldAutoUpdate = false;
+          selPairs.push([c, o]);
+        }
+        for (const [inst, i] of instOf.get(p) ?? []) {
+          const c = new THREE.InstancedMesh(inst.geometry, inst.material, 1);
+          const m = new THREE.Matrix4(); inst.getMatrixAt(i, m); c.setMatrixAt(0, m);
+          c.matrixAutoUpdate = false; c.matrixWorldAutoUpdate = false; c.frustumCulled = false;
+          selPairs.push([c, inst]);
+        }
+        for (const [c] of selPairs) selScene.add(c);
+      }
+      dirty = true;
+    };
+    const draw = () => {
+      if (!selected) { renderer.render(scene, camera); return; }
+      marks.visible = false;
+      renderer.render(scene, camera);
+      marks.visible = true;
+      renderer.autoClear = false;
+      renderer.render(veil, veilCam);
+      for (const [c, o] of selPairs) c.matrixWorld.copy(o.matrixWorld);
+      renderer.render(selScene, camera);
+      renderer.render(marks, camera);
+      renderer.autoClear = true;
+    };
+    api.current = { view, mark, select };
 
     // ---- pointer ----
     const ray = new THREE.Raycaster();
@@ -379,13 +487,14 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
     const tick = () => {
       raf = requestAnimationFrame(tick);
       if (goal) {
-        const k = Math.min(1, (performance.now() - goal.t0) / 650), e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+        const k = Math.min(1, (performance.now() - goal.t0) / 700), e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
         const sp = new THREE.Spherical(goal.a.radius + (goal.b.radius - goal.a.radius) * e, goal.a.phi + (goal.b.phi - goal.a.phi) * e, goal.a.theta + (goal.b.theta - goal.a.theta) * e);
         camera.position.setFromSpherical(sp).add(controls.target);
+        boardG.rotation.z = goal.f0 + (goal.f1 - goal.f0) * e;
         if (k >= 1) goal = null;
         dirty = true;
       }
-      if (controls.update() || dirty) { renderer.render(scene, camera); dirty = false; }
+      if (controls.update() || dirty) { draw(); dirty = false; }
     };
     tick();
     (el as unknown as { __three?: unknown }).__three = { scene, camera, controls, groups };
@@ -395,7 +504,8 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
       ro.disconnect();
       controls.dispose();
       scene.traverse((o) => { const m = o as THREE.Mesh; if (m.geometry) m.geometry.dispose(); });
-      for (const m of Object.values(M)) m.dispose();
+      alive = false;
+      for (const m of [...Object.values(M), ...extraMats]) m.dispose();
       pm.dispose();
       renderer.dispose();
       renderer.domElement.remove();
@@ -409,7 +519,9 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
   useEffect(() => { hoverHook.current((p) => setHoverPart(p)); }, [board]);
 
   const sameKind = useMemo(() => (board && kind ? board.parts.filter((p) => p.kind === kind) : []), [board, kind]);
-  useEffect(() => { api.current?.mark(sameKind, hoverPart ?? sel); }, [sameKind, hoverPart, sel]);
+  // hover gets the blue box; the selected part is shown by dimming the rest instead
+  useEffect(() => { api.current?.mark(sameKind, hoverPart && hoverPart !== sel ? hoverPart : null); }, [sameKind, hoverPart, sel]);
+  useEffect(() => { api.current?.select(sel); }, [sel, board]);
 
   const kinds = useMemo(() => {
     const m = new Map<string, { name: string; n: number }>();
@@ -468,7 +580,7 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
             ))}
           </div>
         </div>
-        {board && <p className="ry-faint ry-b3-note">{t("{title} · {w} × {h} mm · {n} parts. Parts are drawn to size from the assembly data, not exact CAD models.", "{title} · {w} × {h} mm · 부품 {n}개. 조립 데이터의 위치·크기로 그린 모양이라 실제 부품 모델과 세부는 달라요.", { title: board.title, w: board.width.toFixed(1), h: board.height.toFixed(1), n: board.parts.length })}</p>}
+        {board && <p className="ry-faint ry-b3-note">{t("{title} · {w} × {h} mm · {n} parts. Hot-swap sockets and the USB-C receptacle are real part models; the small parts are drawn to size from the assembly data. Socket model: kiswitch (CC BY-SA 4.0).", "{title} · {w} × {h} mm · 부품 {n}개. 핫스왑 소켓과 USB-C는 실제 부품 3D 모델이고, 작은 부품은 조립 데이터의 위치·크기로 그린 모양이에요. 소켓 모델: kiswitch (CC BY-SA 4.0).", { title: board.title, w: board.width.toFixed(1), h: board.height.toFixed(1), n: board.parts.length })}</p>}
       </aside>
     </div>
   );
