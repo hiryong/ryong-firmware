@@ -21,6 +21,8 @@ ap.add_argument("--dx", type=float, default=0); ap.add_argument("--dy", type=flo
 ap.add_argument("--offset", type=float, nargs=3, default=(0, 0, 0))
 ap.add_argument("--drop", nargs="*", default=[], help="colours to leave out (e.g. a vendor logo printed on the part)")
 ap.add_argument("--patch", nargs=6, action="append", default=[], metavar=("X0", "Y0", "X1", "Y1", "Z", "COLOR"), help="cover a rectangle (model mm, facing up) — e.g. a vendor logo engraved into a metal shell")
+ap.add_argument("--recolor", nargs="*", default=[], help="FROM=TO colour pairs, e.g. to match the real part's plastic")
+ap.add_argument("--cover", nargs=7, action="append", default=[], metavar=("X0", "Y0", "Z0", "X1", "Y1", "Z1", "COLOR"), help="a thin box (model mm) over a printed logo, in the colour of the surface under it")
 ap.add_argument("--thickness", type=float, default=1.6); ap.add_argument("--flip", action="store_true")
 a = ap.parse_args()
 groups = defaultdict(lambda: {"P": [], "I": []})
@@ -31,8 +33,11 @@ def place(mx, my, mz):
     if a.flip: return (mx + a.dx, -mz - a.thickness, my + a.dy)
     return (mx + a.dx, mz, -my + a.dy)
 
+RECOLOR = dict(x.split("=") for x in a.recolor)
+
 def add(color, pts, tris):
     if color in a.drop: return
+    color = RECOLOR.get(color, color)
     g = groups[color]; base = len(g["P"])
     g["P"] += [place(*p) for p in pts]
     if len(g["P"]) > 65535: raise SystemExit(f"{color}: more than 65535 vertices")
@@ -60,6 +65,12 @@ else:
 for x0, y0, x1, y1, z, color in a.patch:
     x0, y0, x1, y1, z = map(float, (x0, y0, x1, y1, z))
     add(color, [(x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z)], [(0, 1, 2), (0, 2, 3)])
+
+for *v, color in a.cover:
+    x0, y0, z0, x1, y1, z1 = map(float, v)
+    pts = [(x, y, z) for z in (z0, z1) for y in (y0, y1) for x in (x0, x1)]  # index = x + 2y + 4z
+    quads = [(0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (0, 4, 6, 2), (1, 3, 7, 5)]  # outward, CCW
+    add(color, pts, [t for q in quads for t in ((q[0], q[1], q[2]), (q[0], q[2], q[3]))])
 
 span = max(abs(c) for g in groups.values() for p in g["P"] for c in p)
 scale = span / 32767

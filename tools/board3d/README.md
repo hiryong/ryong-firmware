@@ -20,7 +20,7 @@ board's volume use real 3D models, converted with `convert_model.py` into `<name
 
 | file | part | source | placement |
 |---|---|---|---|
-| `hotswap-kailh-mx.bin` | Kailh CPG151101S11 MX hot-swap socket | `SW_Hotswap_Kailh_MX.wrl` from [kiswitch/kiswitch](https://github.com/kiswitch/kiswitch) (MIT / CC BY-SA 4.0) | `--flip --dx 1.53 --dy -3.777` (its pin holes onto this footprint's) |
-| `usb-c-kh-16p.bin` | Kinghelm KH-TYPE-C-16P-T (LCSC C709358) | the part's LCSC/EasyEDA STEP model (`modules.easyeda.com`, uuid 954b2a5828604707b62aef0fe6e7695f) | `--offset 0 -1.15 -1.1` (the board's own KiCad model offset) |
+| `hotswap-cpg151101s11-16.bin` | HanElectricity CPG151101S11-16 (LCSC C41430893), the purple MX hot-swap socket on this board | the part's LCSC/EasyEDA STEP model (uuid 5c2d585f6c544fcf92e7ed163bda57d3) | `--drop "#000000" --recolor "#230092=#5a50b4" --cover 1.4 1.05 0.38 3.75 1.062 1.18 "#230092"` (the EasyEDA logo on its side covered; plastic colour from the LCSC photo) |
+| `usb-c-kh-16p.bin` | Kinghelm KH-TYPE-C-16P-T (LCSC C709358) | the part's LCSC/EasyEDA STEP model (`modules.easyeda.com`, uuid 954b2a5828604707b62aef0fe6e7695f) | `--offset 0 -1.15 0` (the board's KiCad model offset in x/y; z 0 so it sits on the board — the EasyEDA z sinks it) |
 
-The converted hot-swap socket model stays under the source's licence (CC BY-SA 4.0 / MIT).
+Both are placed from the footprint origin (`origin` in board.json).

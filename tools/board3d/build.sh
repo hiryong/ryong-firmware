@@ -8,5 +8,7 @@ mkdir -p "$out"; tmp=$(mktemp -d)
 node "$here/render_textures.mjs" "$pkg/gerber" "$tmp" 12
 python3 -I -c "
 from PIL import Image; import sys
-for s in ('top','bottom'): Image.open(f'$tmp/{s}.png').save(f'$out/{s}.webp', 'WEBP', quality=88, method=6)"
+for s in ('top','bottom'):
+  Image.open(f'$tmp/{s}.png').save(f'$out/{s}.webp', 'WEBP', quality=88, method=6)
+  Image.open(f'$tmp/{s}-bump.png').convert('L').save(f'$out/{s}-bump.webp', 'WEBP', quality=80, method=6)"
 python3 -I "$here/build_board3d.py" --pcb "$pkg"/*.kicad_pcb --bom "$pkg"/BOM_*.csv --out "$out" --name "$name"

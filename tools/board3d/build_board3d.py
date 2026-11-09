@@ -159,12 +159,18 @@ def main():
         ref, value = props.get("Reference", ""), props.get("Value", "")
         place = lambda lx, ly: (lambda d: (fx + d[0], fy + d[1]))(rot(lx, ly, fr))
 
-        # cutouts drawn in the footprint (backlight LED windows) and drilled holes
-        for g in fp[1:]:
-            if isinstance(g, list) and g and g[0].startswith("fp_") and layer_of(g) == "Edge.Cuts":
-                pts = [to_board(*place(x, y)) for x, y in shape_points(g)]
-                if g[0] in ("fp_rect", "fp_poly", "fp_circle"):
-                    holes.append({"poly": pts})
+        # cutouts drawn in the footprint (backlight LED windows): a rounded rectangle from their outline
+        cut = [g for g in fp[1:] if isinstance(g, list) and g and g[0].startswith("fp_") and layer_of(g) == "Edge.Cuts"]
+        if cut:
+            pts = [p for g in cut for p in shape_points(g)]
+            xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+            r = 0.0
+            for g in cut:
+                if g[0] == "fp_arc":  # corner radius from the arc's chord (a quarter circle)
+                    (x1, y1), _, (x2, y2) = shape_points(g); r = max(r, math.hypot(x2 - x1, y2 - y1) / math.sqrt(2))
+            bx, by = to_board(*place((max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2))
+            holes.append({"x": bx, "y": by, "dx": round(max(xs) - min(xs), 3), "dy": round(max(ys) - min(ys), 3), "rot": round(fr, 1), "r": round(r, 3), "cut": True})
+        # drilled holes (round or oval); plated ones get copper walls
         for pad in kids(fp, "pad"):
             drill = kid(pad, "drill")
             if drill and len(drill) > 1:
@@ -174,7 +180,9 @@ def main():
                     dx = vals[0]; dy = vals[1] if len(vals) > 1 else dx
                     bx, by = to_board(px, py)
                     prot = num(pat[3]) if len(pat) > 3 else fr
-                    holes.append({"x": bx, "y": by, "dx": round(dx, 3), "dy": round(dy, 3), "rot": round(prot, 1)})
+                    h = {"x": bx, "y": by, "dx": round(dx, 3), "dy": round(dy, 3), "rot": round(prot, 1)}
+                    if pad[2] == "thru_hole": h["plated"] = True
+                    holes.append(h)
 
         row = bom.get(ref)
         if not row:
@@ -232,7 +240,7 @@ def main():
         "width": round(W, 3), "height": round(H, 3),
         "outline": [to_board(x, y) for x, y in outline],
         "holes": holes, "parts": parts,
-        "textures": {"top": "top.webp", "bottom": "bottom.webp"},
+        "textures": {"top": "top.webp", "bottom": "bottom.webp", "topBump": "top-bump.webp", "bottomBump": "bottom-bump.webp"},
         "colors": {"mask": "white", "silk": "black"},
     }
     (out / "board.json").write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

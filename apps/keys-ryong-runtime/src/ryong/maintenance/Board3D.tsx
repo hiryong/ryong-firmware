@@ -17,9 +17,31 @@ export interface Part {
   /** footprint origin, local to the part centre (KiCad models are placed from it) */
   origin?: [number, number];
 }
+interface Hole { x: number; y: number; dx: number; dy: number; rot: number; plated?: boolean; cut?: boolean; r?: number }
+
+/** A hole's outline, local to its centre (KiCad x, y): round, oval (slot), or rounded rectangle (window). */
+function holeOutline(h: Hole): [number, number][] {
+  const out: [number, number][] = [];
+  const arc = (cx: number, cy: number, r: number, a0: number, n: number) => {
+    for (let i = 0; i <= n; i++) { const a = a0 + (i / n) * (Math.PI / 2); out.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+  };
+  if (h.cut) {
+    const r = Math.min(h.r ?? 0, h.dx / 2, h.dy / 2), x = h.dx / 2 - r, y = h.dy / 2 - r;
+    arc(x, y, r, 0, 6); arc(-x, y, r, Math.PI / 2, 6); arc(-x, -y, r, Math.PI, 6); arc(x, -y, r, Math.PI * 1.5, 6);
+    return out;
+  }
+  const r = Math.min(h.dx, h.dy) / 2, n = Math.max(16, Math.min(48, Math.round(r * 16)));
+  const ox = h.dx / 2 - r, oy = h.dy / 2 - r; // straight part of a slot
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2, cx = Math.cos(a), cy = Math.sin(a);
+    out.push([r * cx + Math.sign(cx) * ox, r * cy + Math.sign(cy) * oy]);
+  }
+  return out;
+}
+
 interface Board {
   name: string; title: string; thickness: number; width: number; height: number;
-  outline: [number, number][]; parts: Part[]; textures: { top: string; bottom: string };
+  outline: [number, number][]; holes?: Hole[]; parts: Part[]; textures: { top: string; bottom: string; topBump?: string; bottomBump?: string };
 }
 
 const KIND_EN: Record<string, string> = {
@@ -96,10 +118,17 @@ function buildPart(p: Part, M: Mats): THREE.Group {
     case "capacitor": chip(g, M, p, M.tan, M.tin); break;
     case "inductor": chip(g, M, p, M.grey, M.tin); break;
     case "fuse": chip(g, M, p, M.fuse, M.tin); break;
-    case "backlight": // reverse-mount 1206: white body, yellow phosphor window
-      chip(g, M, p, M.white, M.tin);
-      box(g, M.phosphor, p.w * 0.36, p.l * 0.62, 0.02, 0, 0, p.h);
+    case "backlight": { // reverse-mount 1206: the package lies upside down over the board window, its lens
+      // hanging into the window so the light leaves through the switch side. From this side: the LED's
+      // white back with its two end terminals; from the switch side: the yellow lens in the window.
+      const sub = 0.3;
+      box(g, M.white, p.w - 0.7, p.l * 0.98, sub);
+      box(g, M.tin, 0.35, p.l, sub + 0.04, -(p.w - 0.35) / 2);
+      box(g, M.tin, 0.35, p.l, sub + 0.04, (p.w - 0.35) / 2);
+      box(g, M.white, 1.86, 1.5, 0.75, 0, 0, -0.75); // lens body in the window
+      box(g, M.phosphor, 1.5, 1.2, 0.02, 0, 0, -0.77); // its light face
       break;
+    }
     case "led": chip(g, M, p, M.white, M.tin); box(g, M.redLens, p.w * 0.5, p.l * 0.8, 0.12, 0, 0, p.h); break;
     case "diode": {
       const bw = p.w * 0.62;
@@ -201,8 +230,8 @@ async function loadModel(url: string): Promise<{ color: string; geo: THREE.Buffe
 /** Real part models, by look, for footprints they fit (the rest stay simple shapes). */
 /** fromOrigin: the model is in KiCad footprint coordinates (else fitted to the part centre) */
 const MODELS: Record<string, { file: string; footprint: RegExp; fromOrigin?: boolean }> = {
-  // Kailh CPG151101S11 MX hot-swap socket, 3D model from kiswitch/keyswitch-kicad-library (CC BY-SA 4.0 / MIT)
-  hotswap: { file: "hotswap-kailh-mx.bin", footprint: /SMD_KEYBOARD-SW/ },
+  // HanElectricity CPG151101S11-16 (the purple MX hot-swap socket this board uses), its LCSC/EasyEDA model
+  hotswap: { file: "hotswap-cpg151101s11-16.bin", footprint: /SMD_KEYBOARD-SW/, fromOrigin: true },
   // KH-TYPE-C-16P-T receptacle, the part's own model from LCSC/EasyEDA, placed with the board's KiCad model offset
   usb: { file: "usb-c-kh-16p.bin", footprint: /KH-TYPE-C-16P/, fromOrigin: true },
 };
@@ -247,8 +276,8 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
     scene.background = new THREE.Color("#0c0d0f");
     const pm = new THREE.PMREMGenerator(renderer);
     scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environmentIntensity = 0.85;
-    const sun = new THREE.DirectionalLight("#ffffff", 1.6);
+    scene.environmentIntensity = 0.55;
+    const sun = new THREE.DirectionalLight("#ffffff", 1.35);
     sun.position.set(-90, 220, 120);
     sun.castShadow = true;
     sun.shadow.mapSize.set(4096, 4096);
@@ -256,7 +285,7 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.03;
     scene.add(sun);
-    const under = new THREE.DirectionalLight("#ffffff", 0.9);
+    const under = new THREE.DirectionalLight("#ffffff", 0.75);
     under.position.set(60, -200, -80);
     scene.add(under);
 
@@ -286,16 +315,50 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
       }
       geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
     };
-    const faceMat = (f: string) => new THREE.MeshPhysicalMaterial({ map: tex(f), alphaTest: 0.5, roughness: 0.5, clearcoat: 0.35, clearcoatRoughness: 0.4 });
+    // satin solder mask; copper traces, pads and silkscreen stand slightly proud of it (bump map)
+    const faceMat = (f: string, bump?: string) => {
+      const m = new THREE.MeshPhysicalMaterial({ map: tex(f), alphaTest: 0.5, roughness: 0.62, clearcoat: 0.25, clearcoatRoughness: 0.55 });
+      if (bump) { const b = tex(bump); b.colorSpace = THREE.NoColorSpace; m.bumpMap = b; m.bumpScale = 1.6; }
+      return m;
+    };
     const topGeo = new THREE.ShapeGeometry(shapeOf(true), 1); topGeo.rotateX(-Math.PI / 2); topGeo.translate(0, T, 0); uvFor(topGeo, false);
     const botGeo = new THREE.ShapeGeometry(shapeOf(false), 1); botGeo.rotateX(Math.PI / 2); uvFor(botGeo, true);
-    const top = new THREE.Mesh(topGeo, faceMat(board.textures.top)); top.receiveShadow = true;
-    const bot = new THREE.Mesh(botGeo, faceMat(board.textures.bottom)); bot.receiveShadow = true;
+    const top = new THREE.Mesh(topGeo, faceMat(board.textures.top, board.textures.topBump)); top.receiveShadow = true;
+    const bot = new THREE.Mesh(botGeo, faceMat(board.textures.bottom, board.textures.bottomBump)); bot.receiveShadow = true;
     const sideGeo = new THREE.ExtrudeGeometry(shapeOf(true), { depth: T, bevelEnabled: false, curveSegments: 4 });
     sideGeo.rotateX(-Math.PI / 2);
     const edge = new THREE.Mesh(sideGeo, [new THREE.MeshBasicMaterial({ visible: false }), mat("#e9e6da", 0, 0.7)]);
     const boardG = new THREE.Group();
     boardG.add(top, bot, edge);
+    // hole walls: the textures cut the holes; these give them the board's thickness
+    // (drilled FR-4 for plain holes and the LED windows, tin for plated holes)
+    const wallGeo = (hs: Hole[]) => {
+      const pos: number[] = [], idx: number[] = [];
+      for (const h of hs) {
+        const pts = holeOutline(h);
+        const c = Math.cos((h.rot * Math.PI) / 180), sn = Math.sin((h.rot * Math.PI) / 180);
+        const base = pos.length / 3;
+        for (const [lx, ly] of pts) {
+          const x = h.x - W / 2 + lx * c + ly * sn, z = h.y - H / 2 - lx * sn + ly * c;
+          pos.push(x, 0, z, x, T, z);
+        }
+        for (let i = 0; i < pts.length; i++) {
+          const a = base + i * 2, b = base + ((i + 1) % pts.length) * 2;
+          idx.push(a, b, a + 1, b, b + 1, a + 1);
+        }
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      geo.setIndex(idx);
+      geo.computeVertexNormals();
+      return geo;
+    };
+    const holes = board.holes ?? [];
+    const walls = [
+      new THREE.Mesh(wallGeo(holes.filter((h) => !h.plated)), mat("#e6e1cf", 0, 0.8, { side: THREE.DoubleSide })),
+      new THREE.Mesh(wallGeo(holes.filter((h) => h.plated)), mat("#c9ccd0", 1, 0.35, { side: THREE.DoubleSide })),
+    ];
+    for (const w of walls) { w.receiveShadow = true; boardG.add(w); }
     scene.add(boardG);
 
     // ---- parts ----
@@ -590,7 +653,7 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
             ))}
           </div>
         </div>
-        {board && <p className="ry-faint ry-b3-note">{t("{title} · {w} × {h} mm · {n} parts. Hot-swap sockets and the USB-C receptacle are real part models; the small parts are drawn to size from the assembly data. Socket model: kiswitch (CC BY-SA 4.0).", "{title} · {w} × {h} mm · 부품 {n}개. 핫스왑 소켓과 USB-C는 실제 부품 3D 모델이고, 작은 부품은 조립 데이터의 위치·크기로 그린 모양이에요. 소켓 모델: kiswitch (CC BY-SA 4.0).", { title: board.title, w: board.width.toFixed(1), h: board.height.toFixed(1), n: board.parts.length })}</p>}
+        {board && <p className="ry-faint ry-b3-note">{t("{title} · {w} × {h} mm · {n} parts. Hot-swap sockets and the USB-C receptacle are real part models; the small parts are drawn to size from the assembly data. (models: LCSC/EasyEDA)", "{title} · {w} × {h} mm · 부품 {n}개. 핫스왑 소켓과 USB-C는 실제 부품 3D 모델이고, 작은 부품은 조립 데이터의 위치·크기로 그린 모양이에요. (모델: LCSC/EasyEDA)", { title: board.title, w: board.width.toFixed(1), h: board.height.toFixed(1), n: board.parts.length })}</p>}
       </aside>
     </div>
   );
