@@ -1220,3 +1220,14 @@ dialog.ry-kbpick h2 { margin: 0 0 6px; font-size: 18px; }
 .ry-combo-out { padding-bottom: 2px; }
 .ry-cap.is-hold { box-shadow: inset 0 -2px 0 rgba(0,0,0,.5), 0 3px 0 -1px var(--ink); }
 .ry-cap.is-sm.is-hold { box-shadow: inset 0 -1.5px 0 rgba(0,0,0,.5), 0 3px 0 -1px var(--ink); }
+/* light key: a softer lip (less contrast with its face) */
+.ry-cap.is-result, .ry-combo-out { background: linear-gradient(180deg, #f8f8f5 0%, #f0f0ec 60%, #e5e5e1 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.9), inset 0 -2px 0 #c9c9c3, 0 1px 2px rgba(0,0,0,.6); }
+.ry-cap.is-result.is-sm { box-shadow: inset 0 1px 0 rgba(255,255,255,.9), inset 0 -1.5px 0 #c9c9c3, 0 1px 2px rgba(0,0,0,.6); }
+/* letters centred on the key's face (above the lip) */
+.ry-cap, .ry-combo-chipcap, .ry-combo-out { line-height: 1; }
+.ry-cap { padding-bottom: 2px; }
+.ry-cap.is-sm { padding-bottom: 1.5px; }
+.ry-combo-chipcap, .ry-combo-out { padding-bottom: 2px; }
+.ry-combo-out { justify-content: center; }
+.ry-item-head .ry-fx .ry-cap.is-sm { padding: 0 6px 1.5px; }
+.ry-item-head .ry-cap.is-long { padding: 0 5px 1.5px; }
