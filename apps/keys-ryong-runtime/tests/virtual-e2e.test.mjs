@@ -229,7 +229,7 @@ await step("combo: assign by pressing a key on the computer keyboard", async () 
 /* macros */
 await step("firmware-built macros and unlock combo are listed; name-bound macro can't be renamed", async () => {
   await tab("콤보");
-  await page.locator(".ry-item-head", { hasText: "Studio Unlock (Esc + Backspace)" }).waitFor({ timeout: 5000 });
+  await page.locator(".ry-item-head", { has: page.getByRole("img", { name: "Esc + Bksp → Studio Unlock" }) }).waitFor({ timeout: 5000 }); // drawn as keycaps: [Esc] + [Bksp] → [Studio Unlock]
   await tab("매크로");
   const head = page.locator(".ry-item-head", { hasText: "BT_PROFILE0" });
   await head.waitFor({ timeout: 5000 });

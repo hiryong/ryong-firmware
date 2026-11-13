@@ -10,6 +10,7 @@
 // Both are "what a key does", so the list shows the keys that have one, "+ Add" opens one small
 // editor (key → actions → Register), and Register writes it to the keyboard at once.
 import { ReactNode, useEffect, useState } from "react";
+import { Formula, Keycap } from "./KeyFormula";
 import { takeFeature } from "../openFeature";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
@@ -59,7 +60,7 @@ async function place(p: KeyFeatureProps, view: RuntimeView, writes: (Spot & { wi
 
 const layerName = (layers: string[], i: number) => layers[i] || t("Layer {n}", "레이어 {n}", { n: i });
 const where = (layers: string[], s: Spot) => s.layer === 0 ? "" : ` · ${layerName(layers, s.layer)}`;
-const Cap = ({ children, wide }: { children: ReactNode; wide?: boolean }) => <kbd className={"ry-kx-cap" + (wide ? " is-wide" : "")}>{children}</kbd>;
+const Cap = ({ children }: { children: ReactNode }) => <Keycap size="sm">{children}</Keycap>;
 
 function Concept({ children }: { children: ReactNode }) {
   return <div className="ry-kx-concept">{children}</div>;
@@ -167,10 +168,10 @@ export function TapDancePanel(p: KeyFeatureProps) {
   return <div className="ry-kx">
     <Concept>
       <p><strong>{t("Tap dance", "탭댄스")}</strong> {t("— one key, and how many times you press it in a row picks what it does.", "— 키 하나를 연달아 몇 번 눌렀는지에 따라 다른 동작을 해요.")}</p>
-      <div className="ry-kx-demo" aria-hidden="true">
-        <span><Cap>Q</Cap><i>→</i><b>Q</b></span>
-        <span><Cap>Q</Cap><Cap>Q</Cap><i>→</i><b>Esc</b></span>
-        <span><Cap>Q</Cap><Cap>Q</Cap><Cap>Q</Cap><i>→</i><b>Caps Lock</b></span>
+      <div className="ry-kx-demo">
+        <Formula keys={["Q"]} join="" result="Q" />
+        <Formula keys={["Q", "Q"]} join="" result="Esc" />
+        <Formula keys={["Q", "Q", "Q"]} join="" result="Caps Lock" />
       </div>
       <p className="ry-faint">{t("The count is final once you stop for {n} ms, so even one press comes {n} ms late. Best on keys you don't type in fast runs (Esc, F-keys, punctuation).",
         "{n}ms 동안 더 누르지 않으면 횟수가 확정돼요. 그래서 한 번 누름도 {n}ms 늦게 입력돼요. 빠르게 연타하는 글자보다 Esc·기능키·기호 키에 어울려요.", { n: term })}</p>
@@ -183,9 +184,9 @@ export function TapDancePanel(p: KeyFeatureProps) {
         {doc.tapDances.map((td) => {
           const on = spotsOf(td);
           return <li key={td.id} className={"ry-kx-row" + (draft?.id === td.id ? " is-edit" : "")}>
-            <Cap wide>{on[0] ? keyName(on[0]) : "?"}</Cap>
-            <div className="ry-kx-what">
-              {td.bindings.map((b, i) => <span key={i}><em>{t("{n}×", "{n}번", { n: i + 1 })}</em>{label(b)}</span>)}
+            <div className="ry-kx-fxs">
+              {td.bindings.map((b, i) => { const kn = on[0] ? keyName(on[0]) : "?"; return <Formula key={i} size="sm" join="" keys={Array.from({ length: i + 1 }, () => kn)} result={label(b)}
+                label={t("{k} {n}× → {r}", "{k} {n}번 → {r}", { k: kn, n: i + 1, r: label(b) })} />; })}
               <small className="ry-faint">{on.length ? (on[0].layer ? layerName(layers, on[0].layer) : t("Base layer", "기본 레이어")) + (on.length > 1 ? t(" +{n} keys", " 외 {n}개 키", { n: on.length - 1 }) : "") : t("Not on a key", "키에 없음")}</small>
             </div>
             <button type="button" className="ry-icon" disabled={busy} aria-label={t("Edit {k}", "{k} 편집", { k: on[0] ? keyName(on[0]) : td.name })} onClick={() => startEdit(td)}><Pencil /></button>
@@ -356,9 +357,9 @@ export function TapHoldPanel(p: KeyFeatureProps) {
   return <div className="ry-kx">
     <Concept>
       <p><strong>{t("Tap·hold", "탭·홀드")}</strong> {t("— one key, two roles: a short press types it, holding it works as another key (a modifier or a layer) for as long as you hold.", "— 키 하나에 두 역할. 짧게 누르면 원래 입력, 누르고 있으면 그동안 다른 키(Ctrl 같은 수정키나 레이어)로 동작해요.")}</p>
-      <div className="ry-kx-demo" aria-hidden="true">
-        <span><Cap>F</Cap><small>{t("tap", "톡")}</small><i>→</i><b>F</b></span>
-        <span><Cap>F</Cap><small className="ry-kx-holdbar">{t("hold", "꾹")}</small><i>+</i><Cap>C</Cap><i>→</i><b>Ctrl + C</b></span>
+      <div className="ry-kx-demo">
+        <span className="ry-kx-say2"><small>{t("tap", "짧게")}</small><Formula keys={["F"]} result="F" /></span>
+        <span className="ry-kx-say2"><small>{t("hold", "누른 채")}</small><Formula keys={["F", "C"]} hold={0} result="Ctrl + C" /></span>
       </div>
       <p className="ry-faint">{t("Unlike a tap dance (how many presses), this is about how long. The short press types when you let go.", "탭댄스가 '몇 번'이라면 이건 '얼마나 오래'예요. 짧게 누른 글자는 손을 뗄 때 입력돼요.")}</p>
     </Concept>
@@ -368,10 +369,11 @@ export function TapHoldPanel(p: KeyFeatureProps) {
       {items.length === 0 && <p className="ry-faint">{t("None yet.", "아직 없어요.")}</p>}
       <ul className="ry-kx-list">
         {items.map((it) => <li key={`${it.spot.layer}:${it.spot.pos}`} className={"ry-kx-row" + (same(draft?.from, it.spot) ? " is-edit" : "")}>
-          <Cap wide>{usageLabel(it.tap)}</Cap>
-          <div className="ry-kx-what">
-            <span><em>{t("tap", "짧게")}</em>{usageLabel(it.tap)}</span>
-            <span><em>{t("hold", "길게")}</em>{holdLabel(it.hold)}</span>
+          <div className="ry-kx-fxs">
+            <span className="ry-kx-say2"><small>{t("tap", "짧게")}</small><Formula size="sm" keys={[usageLabel(it.tap)]} result={usageLabel(it.tap)}
+              label={t("tap {k} → {k}", "{k} 짧게 → {k}", { k: usageLabel(it.tap) })} /></span>
+            <span className="ry-kx-say2"><small>{t("hold", "길게")}</small><Formula size="sm" keys={[usageLabel(it.tap)]} hold={0} result={holdLabel(it.hold)}
+              label={t("hold {k} → {h}", "{k} 길게 → {h}", { k: usageLabel(it.tap), h: holdLabel(it.hold) })} /></span>
             <small className="ry-faint">{it.spot.layer ? layerName(layers, it.spot.layer) : t("Base layer", "기본 레이어")}</small>
           </div>
           <button type="button" className="ry-icon" disabled={busy} aria-label={t("Edit {k}", "{k} 편집", { k: usageLabel(it.tap) })} onClick={() => startEdit(it)}><Pencil /></button>

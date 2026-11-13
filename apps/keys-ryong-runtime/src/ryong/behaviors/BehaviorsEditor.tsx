@@ -1,4 +1,6 @@
 import { exportProfile, importProfile, downloadText } from "../runtime/profileFile";
+import { bindingAt } from "../runtime/assignKey";
+import { Formula } from "./KeyFormula";
 import { ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Code, Copy, Lock, Plus, Trash2 } from "lucide-react";
 import { Board, confPath, links, matchesDevice, useMyBoards } from "../keyboards";
@@ -507,6 +509,15 @@ const Editor = ({
     if (!r) throw new Error(t("Couldn't save.", "저장하지 못했어요."));
     return r;
   };
+  /** what a combo key types: the base-layer binding as the keymap shows it (Esc for Grave-Esc, Bksp…), else the layout's label */
+  const comboKeyLabel = (p: number) => {
+    // as the keymap legend shows the key: Esc for Grave-Esc, Bksp for Backspace/Delete
+    const tidy = (l: string) => (/grave.*esc/i.test(l) ? "Esc" : /backspace.*del/i.test(l) ? "Bksp" : l);
+    const b = runtimeView ? bindingAt(runtimeView, 0, p) : undefined;
+    for (const l of [b ? tidy(friendlyLabel(b, doc, layers)) : "", tidy(liveLabels?.[p]?.main ?? "")])
+      if (l && l.length <= 10) return l;
+    return comboKeys[p]?.[4] ?? String(p);
+  };
   const featureProps = runtimeView ? { view: runtimeView, conn: runtimeConn, doc, layers, keys: comboKeys, commit: commitDoc, onView: setRuntimeView } : null;
 
   // ---------- list editing helpers ----------
@@ -690,7 +701,8 @@ const Editor = ({
                   <Item
                     key={c.id}
                     title={c.name}
-                    summary={`${c.keys.map((p) => comboKeys[p]?.[4] ?? p).join(" + ") || t("No keys yet", "아직 키 없음")} → ${friendlyLabel(c.binding, doc, layers)}`}
+                    summary={`${c.keys.map(comboKeyLabel).join(" + ") || t("No keys yet", "아직 키 없음")} → ${friendlyLabel(c.binding, doc, layers)}`}
+                    formula={c.keys.length ? { keys: c.keys.map(comboKeyLabel), result: friendlyLabel(c.binding, doc, layers) } : undefined}
                     open={openId === c.id}
                     onToggle={() => setOpenId(openId === c.id ? null : c.id)}
                     onDelete={() => remove("combos", c.id)}
@@ -1247,6 +1259,7 @@ const SettingsEditor = ({ doc, setDoc, kb, skip = [] }: { doc: BehaviorDoc; setD
 const Item = ({
   title,
   summary,
+  formula,
   open,
   onToggle,
   onDelete,
@@ -1256,6 +1269,8 @@ const Item = ({
 }: {
   title: string;
   summary: string;
+  /** keys → result, drawn as keycaps (combos); a custom name then shows under it */
+  formula?: { keys: string[]; result: string };
   open: boolean;
   onToggle: () => void;
   onDelete: () => void;
@@ -1268,16 +1283,19 @@ const Item = ({
     <div className="ry-row">
       <button className="ry-item-head" onClick={onToggle} aria-expanded={open}>
         {open ? <ChevronDown /> : <ChevronRight />}
-        <span>
+        {formula ? <span className="ry-item-fx">
+          <Formula keys={formula.keys} result={formula.result} size="sm" label={summary} />
+          {title && title.replace(/\s/g, "") !== summary.replace(/\s/g, "") && !title.startsWith(formula.result) && <span className="ry-card-name">{title}</span>}
+        </span> : <span>
           <span className="ry-card-t">{title || t("Untitled", "이름 없음")}</span>
           {!(title || "").includes("→") && summary.replace(/\s/g, "") !== (title || "").replace(/\s/g, "") && <span className="ry-card-m">{summary}</span>}
-        </span>
+        </span>}
       </button>
       <span className="ry-gap" style={{ gap: 2 }}>
         {keep ? (
-          <span className="ry-keep" title={keep}>
+          <span className={"ry-keep" + (formula ? " is-icon" : "")} title={keep} aria-label={t("Required", "필수")}>
             <Lock aria-hidden="true" />
-            {t("Required", "필수")}
+            {!formula && t("Required", "필수")}
           </span>
         ) : (
           <>
