@@ -1195,3 +1195,16 @@ dialog.ry-kbpick h2 { margin: 0 0 6px; font-size: 18px; }
 .ry-item-head .ry-cap.is-long { font-size: 10.5px; padding: 0 5px; }
 .ry-item-fx { overflow: visible; }
 .ry-item-head .ry-fx-out, .ry-item-head .ry-fx-in { flex: none; }
+
+/* light (result) keycap: a lit top face that shades down to a grey lip, like a real light keycap */
+.ry-cap.is-result, .ry-combo-out {
+  border: 1px solid #a9a9a3;
+  background: linear-gradient(180deg, #f7f7f4 0%, #ececE8 52%, #d4d4cf 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), inset 0 -3px 0 #a2a29c, 0 1px 2px rgba(0,0,0,.6);
+  color: #141414;
+}
+.ry-cap.is-result.is-sm { box-shadow: inset 0 1px 0 rgba(255,255,255,.9), inset 0 -2px 0 #a2a29c, 0 1px 2px rgba(0,0,0,.6); }
+/* the combo editor's result: the same light keycap, big, and a button (pick what it does) */
+.ry-combo-out { display: inline-flex; align-items: center; min-width: 56px; height: 48px; padding: 0 16px 3px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; border-style: solid; }
+.ry-combo-out:hover, .ry-combo-out[aria-expanded="true"] { border-color: #d8d8d2; outline: 2px solid var(--ink); outline-offset: 2px; }
+.ry-combo-out.is-fixed { cursor: default; outline: none; }

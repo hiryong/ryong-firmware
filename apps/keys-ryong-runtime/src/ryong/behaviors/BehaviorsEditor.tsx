@@ -716,7 +716,7 @@ const Editor = ({
                         : undefined
                     }
                   >
-                    <Field label={t("Combo", "콤보")} hint={t("Choose the keys on the keyboard below, then click the box after = to choose what they do.", "아래 키보드에서 함께 누를 키를 고르고, = 오른쪽 칸을 눌러 동작을 고르세요.")}>
+                    <Field label={t("Combo", "콤보")} hint={t("Choose the keys on the keyboard below, then click the white key after → to choose what they do.", "아래 키보드에서 함께 누를 키를 고르고, → 오른쪽 흰 키를 눌러 동작을 고르세요.")}>
                       <ComboKeys keys={comboKeys} value={c.keys} onChange={(keys) => update("combos", c.id, { keys })}
                         output={c.binding.b === "studio_unlock"
                           ? <span className="ry-combo-out is-fixed">{bindingLabel(c.binding, doc, layers)}</span>
@@ -1361,7 +1361,7 @@ const ComboKeys = ({ keys, value, onChange, output }: { keys: KeyRect[]; value: 
             </span>
           </span>
         )) : <span className="ry-faint">{t("Click keys below to add them.", "아래 키보드에서 함께 누를 키를 눌러 추가하세요.")}</span>}
-        {output && <><b className="ry-eq-op" aria-hidden="true">=</b>{output}</>}
+        {output && <><b className="ry-eq-op" aria-hidden="true">→</b>{output}</>}
         {value.length > 0 && <button type="button" className="ry-text" onClick={() => onChange([])}>{t("Clear keys", "키 모두 지우기")}</button>}
       </div>
       <p className="ry-faint" style={{ margin: 0 }}>{full ? t("Up to {n} keys. Remove one to choose another.", "최대 {n}개까지예요. 하나를 빼면 다른 키를 고를 수 있어요.", { n: MAX })
