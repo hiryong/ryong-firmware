@@ -12,7 +12,7 @@ Resistors are left as drawn shapes (plain 0402 chips). Each model becomes <name>
 models.json maps it to the parts that use it. Per-model fixes (a logo cut into a part, a plastic
 colour that should match the real part) are in FIXES.
 """
-import argparse, gzip, csv, hashlib, json, math, os, re, subprocess, sys, urllib.request
+import argparse, gzip, csv, shutil, hashlib, json, math, os, re, subprocess, sys, urllib.request
 here = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, here)
 from sexpr import parse, kids, kid, num
 
@@ -25,9 +25,13 @@ FIXES = {  # model file name → extra convert_model.py arguments
 }
 SKIP = re.compile(r"^R\d")  # resistors: drawn shapes are enough
 # parts whose vendor model is wrong: drawn from the datasheet instead (script, centred on the part)
-BUILT = {  # drawn here: the vendor models are wrong (E73 proportions) or plain boxes (Raytac)
+BUILT = {  # drawn here: the vendor model is wrong
     "C356849": "make_e73.py",  # EBYTE E73-2G4M08S1C: shield/antenna proportions from its manual
-    "C5118826": "make_mdbt50q.py",  # Raytac MDBT50Q-1MV2: from Raytac's 3D drawing, with the can, marking and antenna detail
+}
+# models supplied by the board's owner, used as they are: glTF binary (textures kept), metres, y up,
+# x across the part, z = KiCad y, centred on the part. The viewer loads them with three.js' GLTFLoader.
+GIVEN = {
+    "C5118826": "models/MDBT50Q-1MV2.glb",  # Raytac MDBT50Q-1MV2, with its marking as a texture
 }
 KICAD = "https://gitlab.com/kicad/libraries/kicad-packages3D/-/raw/master/"
 
@@ -121,6 +125,13 @@ def main():
         tag = hashlib.sha1(repr((path, off, rz)).encode()).hexdigest()[:6]
         out = f"m-{stem}-{tag}.bin"
         turn = 0
+        if lcsc[refs[0]] in GIVEN:
+            src = os.path.join(here, GIVEN[lcsc[refs[0]]])
+            out = "m-" + os.path.basename(src)
+            shutil.copyfile(src, os.path.join(a.out, out))
+            print(f"{out}  {os.path.getsize(src) // 1024} KB  {len(refs)} parts  (given)")
+            models.append({"file": out, "source": os.path.basename(src), "refs": refs, "centred": True})
+            continue
         try:
             if lcsc[refs[0]] in BUILT:
                 src = os.path.join(a.cache, lcsc[refs[0]] + ".glb")

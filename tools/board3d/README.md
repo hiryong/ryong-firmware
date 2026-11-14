@@ -37,7 +37,9 @@ fixes (the purple socket plastic from the LCSC photo, the module's tin-plated sh
 - A vendor model whose feet sit off its own footprint is moved with `--shift` in `FIXES` (MK-11C04 slide switch).
 - The turns written to `<cache>/turns.json` were checked against the order CPL: board rotation + turn equals
   the CPL rotation for every EasyEDA-placed part.
-- `make_mdbt50q.py` draws the Raytac MDBT50Q-1MV2 from product photos (outer sizes from Raytac's 3D drawing): blue PCB, can with a folded edge and slotted walls,
-  the etched marking reading along the module from the antenna end, certification marks, black/white antenna; no small parts).
 - Model files are stored gzipped (the host does not compress `.bin`); the viewer unpacks them with
   `DecompressionStream`. The geist S4 set went from 3.97 MB to 2.68 MB in total.
+- Models supplied by the board's owner go in `models/` and are listed in `GIVEN` (fetch_models.py): glTF
+  binary in metres, y up, x across the part, z = KiCad y, centred on the part. They are copied as they are
+  and the viewer loads them with GLTFLoader, keeping their materials and textures (the MDBT50Q-1MV2's
+  marking is a texture).

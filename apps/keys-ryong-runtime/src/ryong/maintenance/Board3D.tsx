@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { t } from "../i18n";
 import { aliUrl, buyInfo } from "./partBuy";
 
@@ -206,6 +207,22 @@ function buildPart(p: Part, M: Mats): THREE.Group {
   return g;
 }
 
+/** A model supplied as glTF binary (tools/board3d/models): metres, y up, x across the part, z = KiCad y,
+ *  centred on the part. Each mesh comes back in the part frame in mm with its own material (textures kept). */
+async function loadGltf(url: string): Promise<{ geo: THREE.BufferGeometry; mat: THREE.Material }[]> {
+  const gltf = await new GLTFLoader().loadAsync(url);
+  gltf.scene.updateMatrixWorld(true);
+  const toMm = new THREE.Matrix4().makeScale(1000, 1000, 1000);
+  const out: { geo: THREE.BufferGeometry; mat: THREE.Material }[] = [];
+  gltf.scene.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const geo = m.geometry.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(toMm, m.matrixWorld));
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) out.push({ geo, mat });
+  });
+  return out;
+}
+
 /** A part model made by tools/board3d/convert_model.py: one indexed mesh per colour, in the part's own frame.
  *  Stored gzipped (the host does not compress .bin files): about half the download. */
 async function loadModel(url: string): Promise<{ color: string; geo: THREE.BufferGeometry }[]> {
@@ -383,20 +400,23 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
     // models.json (tools/board3d/fetch_models.py): each model file and the parts placed with it,
     // in KiCad footprint coordinates (so placed from each part's footprint origin)
     const byRef = new Map(board.parts.map((p) => [p.ref, p]));
-    fetch(src + "models.json").then((r) => (r.ok ? r.json() : { models: [] })).catch(() => ({ models: [] })).then(({ models }: { models: { file: string; refs: string[] }[] }) => {
+    fetch(src + "models.json").then((r) => (r.ok ? r.json() : { models: [] })).catch(() => ({ models: [] })).then(({ models }: { models: { file: string; refs: string[]; centred?: boolean }[] }) => {
     for (const m of models) {
       const ps = m.refs.map((r) => byRef.get(r)).filter((p): p is Part => !!p);
       if (!ps.length || !alive) continue;
-      loadModel(src + m.file).then((meshes) => {
+      const given = m.file.endsWith(".glb");
+      const load = given ? loadGltf(src + m.file) : loadModel(src + m.file).then((ms) => ms.map(({ color, geo }) => ({ geo, mat: modelMaterial(color) as THREE.Material })));
+      load.then((meshes) => {
         if (!alive) return;
         for (const p of ps) { const g = groups.get(p)!; for (const c of [...g.children]) if (c.name !== "pick") g.remove(c); }
-        for (const { color, geo } of meshes) {
-          const mm = modelMaterial(color); extraMats.push(mm);
-          const inst = new THREE.InstancedMesh(geo, mm, ps.length);
+        for (const { geo, mat } of meshes) {
+          extraMats.push(mat);
+          const inst = new THREE.InstancedMesh(geo, mat, ps.length);
           ps.forEach((p, i) => {
             const g = groups.get(p)!; g.updateMatrix();
             const mx = g.matrix.clone();
-            if (p.origin) mx.multiply(new THREE.Matrix4().makeTranslation(p.origin[0], 0, p.origin[1]));
+            // converted models are in footprint coordinates; given ones are centred on the part
+            if (p.origin && !m.centred) mx.multiply(new THREE.Matrix4().makeTranslation(p.origin[0], 0, p.origin[1]));
             inst.setMatrixAt(i, mx);
             instOf.set(p, [...(instOf.get(p) ?? []), [inst, i]]);
           });

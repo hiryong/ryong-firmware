@@ -92,11 +92,12 @@
    ]
   },
   {
-   "file": "m-Raytac_MDBT50Q-c9a607.bin",
-   "source": "Raytac_MDBT50Q.step",
+   "file": "m-MDBT50Q-1MV2.glb",
+   "source": "MDBT50Q-1MV2.glb",
    "refs": [
     "U2"
-   ]
+   ],
+   "centred": true
   },
   {
    "file": "m-7a4b9b6e725448df9ee2451185154c27_bar_0819f05c4ee-407182.bin",
