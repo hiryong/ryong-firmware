@@ -48,3 +48,6 @@ fixes (the purple socket plastic from the LCSC photo, the module's tin-plated sh
 - Makers' own STEP files that the owner downloads (e.g. Panasonic's `D2E.STEP` for the POSCAP 6TPE330MAP,
   C42–C46) go in `<cache>/given/` and are placed by `MAKER_STEP` (fetch_models.py). They are not committed
   here; only the converted mesh is. Without the file, the design's library model is used.
+- Finish as ordered: ENIG (gold) exposed copper, plugged vias (their drills are left out of the textures).
+  `solder.py` keeps solder only on the pads of fitted parts (board.json); unfitted footprints, test points and
+  contacts show bare gold, as on the board as delivered.
