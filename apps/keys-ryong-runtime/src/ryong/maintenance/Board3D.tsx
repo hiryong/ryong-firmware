@@ -405,7 +405,7 @@ export default function Board3D({ src = BOARD3D_SRC }: { src?: string }) {
     const holes = board.holes ?? [];
     const walls = [
       new THREE.Mesh(wallGeo(holes.filter((h) => !h.plated)), mat("#e6e1cf", 0, 0.8, { side: THREE.DoubleSide })),
-      new THREE.Mesh(wallGeo(holes.filter((h) => h.plated)), mat("#c9ccd0", 1, 0.35, { side: THREE.DoubleSide })),
+      new THREE.Mesh(wallGeo(holes.filter((h) => h.plated)), mat("#d6b56a", 1, 0.3, { side: THREE.DoubleSide })), // ENIG gold plating
     ];
     for (const w of walls) { w.receiveShadow = true; boardG.add(w); }
     // a solid core just inside both faces, with the same holes: where the textures fade out at an edge
