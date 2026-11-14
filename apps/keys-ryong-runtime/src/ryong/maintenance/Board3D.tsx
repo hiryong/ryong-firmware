@@ -206,9 +206,13 @@ function buildPart(p: Part, M: Mats): THREE.Group {
   return g;
 }
 
-/** A part model made by tools/board3d/convert_wrl.py: one indexed mesh per colour, in the part's own frame. */
+/** A part model made by tools/board3d/convert_model.py: one indexed mesh per colour, in the part's own frame.
+ *  Stored gzipped (the host does not compress .bin files): about half the download. */
 async function loadModel(url: string): Promise<{ color: string; geo: THREE.BufferGeometry }[]> {
-  const buf = await (await fetch(url)).arrayBuffer();
+  const res = await fetch(url);
+  let buf = await res.arrayBuffer();
+  const head = new Uint8Array(buf, 0, 2);
+  if (head[0] === 0x1f && head[1] === 0x8b) buf = await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
   const dv = new DataView(buf);
   if (dv.getUint32(0, true) !== 0x314d5952) throw new Error("not a RYM1 model"); // "RYM1"
   const jl = dv.getUint32(4, true);

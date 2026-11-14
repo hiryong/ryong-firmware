@@ -12,7 +12,7 @@ Resistors are left as drawn shapes (plain 0402 chips). Each model becomes <name>
 models.json maps it to the parts that use it. Per-model fixes (a logo cut into a part, a plastic
 colour that should match the real part) are in FIXES.
 """
-import argparse, csv, hashlib, json, math, os, re, subprocess, sys, urllib.request
+import argparse, gzip, csv, hashlib, json, math, os, re, subprocess, sys, urllib.request
 here = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, here)
 from sexpr import parse, kids, kid, num
 
@@ -22,11 +22,13 @@ FIXES = {  # model file name → extra convert_model.py arguments
     "WIRELM-SMD_L18.0-W13.0-H3.0-E73-2G4M08S1C.step": ["--recolor", "#60574e=#c9ccd0"],  # the shield can is tin-plated steel
     # the vendor model's pins and tabs sit 0.5 mm in front of its own footprint's pads (found by fitting its feet to them)
     "SW-SMD_MK-11C04-G013.step": ["--shift", "0", "0.5"],
-    "Raytac_MDBT50Q.step": ["--recolor", "#383838=#c9ccd0"],  # KiCad draws the shield dark grey; it is a tin-plated can
 }
 SKIP = re.compile(r"^R\d")  # resistors: drawn shapes are enough
 # parts whose vendor model is wrong: drawn from the datasheet instead (script, centred on the part)
-BUILT = {"C356849": "make_e73.py"}  # EBYTE E73-2G4M08S1C: shield/antenna proportions from its manual
+BUILT = {  # drawn here: the vendor models are wrong (E73 proportions) or plain boxes (Raytac)
+    "C356849": "make_e73.py",  # EBYTE E73-2G4M08S1C: shield/antenna proportions from its manual
+    "C5118826": "make_mdbt50q.py",  # Raytac MDBT50Q-1MV2: from Raytac's 3D drawing, with the can, marking and antenna detail
+}
 KICAD = "https://gitlab.com/kicad/libraries/kicad-packages3D/-/raw/master/"
 
 def get(url, path):
@@ -152,7 +154,10 @@ def main():
         if os.path.basename(src)[:32].isalnum() and src.endswith(".step"): cmd.append("--no-logo")  # EasyEDA models (cached by uuid)
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode: print(f"skip {name}: {r.stderr.strip()[-200:]}"); continue
-        size = os.path.getsize(os.path.join(a.out, out))
+        path_ = os.path.join(a.out, out)  # gzipped: the host serves .bin as is, the viewer unpacks it
+        data = open(path_, "rb").read()
+        if data[:2] != b"\x1f\x8b": open(path_, "wb").write(gzip.compress(data, 9, mtime=0))
+        size = os.path.getsize(path_)
         print(f"{out}  {size // 1024} KB  {len(refs)} parts" + (f"  turned {turn}°" if turn else ""))
         same = next((m for m in models if m["file"] == out), None)
         if same: same["refs"] += refs
