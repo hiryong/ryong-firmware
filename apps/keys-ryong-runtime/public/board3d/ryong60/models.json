@@ -1,7 +1,7 @@
 {
  "models": [
   {
-   "file": "m-C_0402_1005Metric-379096.bin",
+   "file": "m-C_0402_1005Metric-a1aba950.bin",
    "source": "C_0402_1005Metric.wrl",
    "refs": [
     "C30",
@@ -12,7 +12,7 @@
    ]
   },
   {
-   "file": "m-C_0603_1608Metric-e8d925.bin",
+   "file": "m-C_0603_1608Metric-dbd4e8d9.bin",
    "source": "C_0603_1608Metric.wrl",
    "refs": [
     "C27",
@@ -24,14 +24,14 @@
    ]
   },
   {
-   "file": "m-Molex_PicoBlade_53261-0371_1x03-1MP_P1.25mm_Hori-d9abe5.bin",
+   "file": "m-Molex_PicoBlade_53261-0371_1x03-1MP_P1.25mm_Hori-6bf68321.bin",
    "source": "Molex_PicoBlade_53261-0371_1x03-1MP_P1.25mm_Horizontal.wrl",
    "refs": [
     "CN1"
    ]
   },
   {
-   "file": "m-LED_0603_1608Metric-e3c186.bin",
+   "file": "m-LED_0603_1608Metric-775852ff.bin",
    "source": "LED_0603_1608Metric.wrl",
    "refs": [
     "LED1",
@@ -39,35 +39,35 @@
    ]
   },
   {
-   "file": "m-JST_SH_SM02B-SRSS-TB_1x02-1MP_P1.00mm_Horizontal-0492d5.bin",
+   "file": "m-JST_SH_SM02B-SRSS-TB_1x02-1MP_P1.00mm_Horizontal-16b5c537.bin",
    "source": "JST_SH_SM02B-SRSS-TB_1x02-1MP_P1.00mm_Horizontal.wrl",
    "refs": [
     "J4"
    ]
   },
   {
-   "file": "m-JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal-f1b6c7.bin",
+   "file": "m-JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal-dd1dd2c8.bin",
    "source": "JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal.wrl",
    "refs": [
     "J3"
    ]
   },
   {
-   "file": "m-VQFN-16-1EP_3x3mm_P0.5mm_EP1.68x1.68mm-368efa.bin",
+   "file": "m-VQFN-16-1EP_3x3mm_P0.5mm_EP1.68x1.68mm-f156789a.bin",
    "source": "VQFN-16-1EP_3x3mm_P0.5mm_EP1.68x1.68mm.wrl",
    "refs": [
     "U5"
    ]
   },
   {
-   "file": "m-SOT-23-7b1e19.bin",
+   "file": "m-SOT-23-52355dfb.bin",
    "source": "SOT-23.wrl",
    "refs": [
     "Q5"
    ]
   },
   {
-   "file": "m-CP_EIA-7343-20_Kemet-V-20531c.bin",
+   "file": "m-CP_EIA-7343-20_Kemet-V-6530de7e.bin",
    "source": "CP_EIA-7343-20_Kemet-V.step",
    "refs": [
     "C46",
@@ -78,21 +78,21 @@
    ]
   },
   {
-   "file": "m-D_SOD-882-336bc4.bin",
+   "file": "m-D_SOD-882-7e46834b.bin",
    "source": "D_SOD-882.step",
    "refs": [
     "DZ1"
    ]
   },
   {
-   "file": "m-VSSOP-10_3x3mm_P0.5mm-fa9982.bin",
+   "file": "m-VSSOP-10_3x3mm_P0.5mm-289e1c66.bin",
    "source": "VSSOP-10_3x3mm_P0.5mm.step",
    "refs": [
     "U85"
    ]
   },
   {
-   "file": "m-MDBT50Q-1MV2.glb",
+   "file": "m-MDBT50Q-1MV2-98a2b34a.glb",
    "source": "MDBT50Q-1MV2.glb",
    "refs": [
     "U2"
@@ -100,7 +100,7 @@
    "centred": true
   },
   {
-   "file": "m-7a4b9b6e725448df9ee2451185154c27_bar_0819f05c4ee-407182.bin",
+   "file": "m-7a4b9b6e725448df9ee2451185154c27_bar_0819f05c4ee-8be13134.bin",
    "source": "7a4b9b6e725448df9ee2451185154c27{bar}0819f05c4eef4c71ace90d822a990e87.step",
    "refs": [
     "D44",
@@ -167,7 +167,7 @@
    ]
   },
   {
-   "file": "m-C0402_L1.0-W0.5-H0.5-a54a54.bin",
+   "file": "m-C0402_L1.0-W0.5-H0.5-510ba612.bin",
    "source": "C0402_L1.0-W0.5-H0.5.step",
    "refs": [
     "C2",
@@ -200,7 +200,7 @@
    ]
   },
   {
-   "file": "m-C0603_L1.6-W0.8-H0.8-e01a54.bin",
+   "file": "m-C0603_L1.6-W0.8-H0.8-9a90ae21.bin",
    "source": "C0603_L1.6-W0.8-H0.8.step",
    "refs": [
     "C4",
@@ -208,35 +208,35 @@
    ]
   },
   {
-   "file": "m-DFN-8_L2.0-W2.0-H0.8-P0.50-3e4987.bin",
+   "file": "m-DFN-8_L2.0-W2.0-H0.8-P0.50-81148ad6.bin",
    "source": "DFN-8_L2.0-W2.0-H0.8-P0.50.step",
    "refs": [
     "U1"
    ]
   },
   {
-   "file": "m-F0805_L2.1-W1.4-H0.8-576ff1.bin",
+   "file": "m-F0805_L2.1-W1.4-H0.8-1d56b8c8.bin",
    "source": "F0805_L2.1-W1.4-H0.8.step",
    "refs": [
     "BT1"
    ]
   },
   {
-   "file": "m-FC-135R_L3.2-W1.5-822c20.bin",
+   "file": "m-FC-135R_L3.2-W1.5-4933e680.bin",
    "source": "FC-135R_L3.2-W1.5.step",
    "refs": [
     "X1"
    ]
   },
   {
-   "file": "m-L0603_L1.6-W0.8-H0.5_BEAD-9ec3d2.bin",
+   "file": "m-L0603_L1.6-W0.8-H0.5_BEAD-f86f2c26.bin",
    "source": "L0603_L1.6-W0.8-H0.5_BEAD.step",
    "refs": [
     "L1"
    ]
   },
   {
-   "file": "m-LED-SMD_4P-L3.5-W3.5-BR_SK6812MINI-HS-592eee.bin",
+   "file": "m-LED-SMD_4P-L3.5-W3.5-BR_SK6812MINI-HS-9e8922d6.bin",
    "source": "LED-SMD_4P-L3.5-W3.5-BR_SK6812MINI-HS.step",
    "refs": [
     "U71",
@@ -256,7 +256,7 @@
    ]
   },
   {
-   "file": "m-SMD_KEYBOARD-SW-c4fcbe.bin",
+   "file": "m-SMD_KEYBOARD-SW-cda8f270.bin",
    "source": "SMD_KEYBOARD-SW.step",
    "refs": [
     "U12",
@@ -319,14 +319,14 @@
    ]
   },
   {
-   "file": "m-SOT-23-3P_L2.9-W1.3-H1.0-LS2.4-P0.95-0c7fee.bin",
+   "file": "m-SOT-23-3P_L2.9-W1.3-H1.0-LS2.4-P0.95-1e796ef6.bin",
    "source": "SOT-23-3P_L2.9-W1.3-H1.0-LS2.4-P0.95.step",
    "refs": [
     "Q4"
    ]
   },
   {
-   "file": "m-SOT-23-3P_L2.9-W1.3-H1.0-LS2.4-P0.95-5e4e4e.bin",
+   "file": "m-SOT-23-3P_L2.9-W1.3-H1.0-LS2.4-P0.95-1e796ef6.bin",
    "source": "SOT-23-3P_L2.9-W1.3-H1.0-LS2.4-P0.95.step",
    "refs": [
     "Q82",
@@ -335,14 +335,14 @@
    ]
   },
   {
-   "file": "m-SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95-67f77f.bin",
+   "file": "m-SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95-3acbd4e8.bin",
    "source": "SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95.step",
    "refs": [
     "D2"
    ]
   },
   {
-   "file": "m-SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95-8b6c76.bin",
+   "file": "m-SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95-72a46b67.bin",
    "source": "SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95.step",
    "refs": [
     "U84",
@@ -350,42 +350,42 @@
    ]
   },
   {
-   "file": "m-SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95-17fe17.bin",
+   "file": "m-SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95-1046f76e.bin",
    "source": "SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95.step",
    "refs": [
     "U4"
    ]
   },
   {
-   "file": "m-SW-SMD_4P-L5.2-W5.2-H1.5-LS6.4-P3.70-9b5489.bin",
+   "file": "m-SW-SMD_4P-L5.2-W5.2-H1.5-LS6.4-P3.70-f11257a6.bin",
    "source": "SW-SMD_4P-L5.2-W5.2-H1.5-LS6.4-P3.70.step",
    "refs": [
     "SW1"
    ]
   },
   {
-   "file": "m-SW-SMD_MK-11C04-G013-50024f.bin",
+   "file": "m-SW-SMD_MK-11C04-G013-76de2735.bin",
    "source": "SW-SMD_MK-11C04-G013.step",
    "refs": [
     "SW2"
    ]
   },
   {
-   "file": "m-USB-C-SMD_KH-TYPE-C-16P-dd92ca.bin",
+   "file": "m-USB-C-SMD_KH-TYPE-C-16P-3690a1b1.bin",
    "source": "USB-C-SMD_KH-TYPE-C-16P.step",
    "refs": [
     "USB1"
    ]
   },
   {
-   "file": "m-LCSC_C2961656-6886b2.bin",
+   "file": "m-LCSC_C2961656-e948e7db.bin",
    "source": "LCSC:C2961656",
    "refs": [
     "U81"
    ]
   },
   {
-   "file": "m-LCSC_C575513-0ff17f.bin",
+   "file": "m-LCSC_C575513-05082c06.bin",
    "source": "LCSC:C575513",
    "refs": [
     "BL29",

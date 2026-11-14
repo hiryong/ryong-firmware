@@ -1,0 +1,7 @@
+# Cloudflare static-asset headers (copied into the site by the build).
+# Board 3D textures and part models have content-hashed names (tools/board3d/hash_assets.py):
+# a browser keeps them for good and never asks again; board.json / models.json are still checked each visit.
+/board3d/*/t-*
+  Cache-Control: public, max-age=31536000, immutable
+/board3d/*/m-*
+  Cache-Control: public, max-age=31536000, immutable

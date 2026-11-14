@@ -1231,3 +1231,7 @@ dialog.ry-kbpick h2 { margin: 0 0 6px; font-size: 18px; }
 .ry-combo-out { justify-content: center; }
 .ry-item-head .ry-fx .ry-cap.is-sm { padding: 0 6px 1.5px; }
 .ry-item-head .ry-cap.is-long { padding: 0 5px 1.5px; }
+
+/* board 3D: a quiet note while the part models arrive (they appear all at once) */
+.ry-b3-loading { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); margin: 0; padding: 6px 12px;
+  border-radius: 999px; background: rgba(0,0,0,.55); color: rgba(255,255,255,.8); font-size: 12px; pointer-events: none; }

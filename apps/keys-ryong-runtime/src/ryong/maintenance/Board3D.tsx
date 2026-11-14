@@ -207,6 +207,9 @@ function buildPart(p: Part, M: Mats): THREE.Group {
   return g;
 }
 
+type ModelEntry = { file: string; refs: string[]; centred?: boolean };
+type LoadedMesh = { geo: THREE.BufferGeometry; mat: THREE.Material };
+
 /** A model supplied as glTF binary (tools/board3d/models): metres, y up, x across the part, z = KiCad y,
  *  centred on the part. Each mesh comes back in the part frame in mm with its own material (textures kept). */
 async function loadGltf(url: string): Promise<{ geo: THREE.BufferGeometry; mat: THREE.Material }[]> {
@@ -273,8 +276,22 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
   const [kind, setKind] = useState<string | null>(null);
   const api = useRef<{ view: (v: "parts" | "switch" | "reset") => void; mark: (ps: Part[], hover: Part | null) => void; select: (p: Part | null) => void } | null>(null);
 
+  const [partsReady, setPartsReady] = useState(false);
+  // the model list and every model download start together with the board (not after the scene is built)
+  const modelsRef = useRef<{ models: ModelEntry[]; loads: Map<string, Promise<LoadedMesh[]>> } | null>(null);
   useEffect(() => {
-    fetch(src + "board.json").then((r) => (r.ok ? r.json() : Promise.reject(r.status))).then(setBoard, () => setErr(t("Could not load the board.", "기판 데이터를 불러오지 못했어요.")));
+    setPartsReady(false);
+    const list = fetch(src + "models.json").then((r) => (r.ok ? r.json() : { models: [] })).catch(() => ({ models: [] }));
+    list.then(({ models }: { models: ModelEntry[] }) => {
+      const loads = new Map<string, Promise<LoadedMesh[]>>();
+      for (const m of models) {
+        const load = m.file.endsWith(".glb") ? loadGltf(src + m.file) : loadModel(src + m.file).then((ms) => ms.map(({ color, geo }) => ({ geo, mat: modelMaterial(color) as THREE.Material })));
+        load.catch(() => {});
+        loads.set(m.file, load);
+      }
+      modelsRef.current = { models, loads };
+      fetch(src + "board.json").then((r) => (r.ok ? r.json() : Promise.reject(r.status))).then(setBoard, () => setErr(t("Could not load the board.", "기판 데이터를 불러오지 못했어요.")));
+    });
   }, [src]);
 
   useEffect(() => {
@@ -374,6 +391,24 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
       new THREE.Mesh(wallGeo(holes.filter((h) => h.plated)), mat("#c9ccd0", 1, 0.35, { side: THREE.DoubleSide })),
     ];
     for (const w of walls) { w.receiveShadow = true; boardG.add(w); }
+    // a solid core just inside both faces, with the same holes: where the textures fade out at an edge
+    // (the outline, a hole) this shows instead of the dark background, so no black seams
+    const coreShape = (flipZ: boolean) => {
+      const sh = shapeOf(flipZ);
+      for (const h of holes) {
+        const c = Math.cos((h.rot * Math.PI) / 180), sn = Math.sin((h.rot * Math.PI) / 180);
+        const ring = holeOutline(h).map(([lx, ly]) => {
+          const x = h.x - W / 2 + lx * c + ly * sn, z = h.y - H / 2 - lx * sn + ly * c;
+          return new THREE.Vector2(x, flipZ ? -z : z);
+        });
+        sh.holes.push(new THREE.Path(ring));
+      }
+      return sh;
+    };
+    const coreMat = mat("#f1f0eb", 0, 0.62); // close to the white mask, so a faded edge reads as board
+    const coreTop = new THREE.ShapeGeometry(coreShape(true), 4); coreTop.rotateX(-Math.PI / 2); coreTop.translate(0, T - 0.03, 0);
+    const coreBot = new THREE.ShapeGeometry(coreShape(false), 4); coreBot.rotateX(Math.PI / 2); coreBot.translate(0, 0.03, 0);
+    for (const g of [coreTop, coreBot]) boardG.add(new THREE.Mesh(g, coreMat));
     scene.add(boardG);
 
     // ---- parts ----
@@ -397,19 +432,21 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
     let alive = true;
     const extraMats: THREE.Material[] = [];
     const instOf = new Map<Part, [THREE.InstancedMesh, number][]>(); // a real-model part's slot in each colour mesh
-    // models.json (tools/board3d/fetch_models.py): each model file and the parts placed with it,
-    // in KiCad footprint coordinates (so placed from each part's footprint origin)
+    // models.json (tools/board3d/fetch_models.py): each model file and the parts placed with it.
+    // Parts with a model show nothing until every model has arrived, then all appear at once
+    // (no simple stand-in shapes flashing first); a part whose model fails keeps its simple shape.
     const byRef = new Map(board.parts.map((p) => [p.ref, p]));
-    fetch(src + "models.json").then((r) => (r.ok ? r.json() : { models: [] })).catch(() => ({ models: [] })).then(({ models }: { models: { file: string; refs: string[]; centred?: boolean }[] }) => {
-    for (const m of models) {
-      const ps = m.refs.map((r) => byRef.get(r)).filter((p): p is Part => !!p);
-      if (!ps.length || !alive) continue;
-      const given = m.file.endsWith(".glb");
-      const load = given ? loadGltf(src + m.file) : loadModel(src + m.file).then((ms) => ms.map(({ color, geo }) => ({ geo, mat: modelMaterial(color) as THREE.Material })));
-      load.then((meshes) => {
-        if (!alive) return;
+    const { models, loads } = modelsRef.current ?? { models: [], loads: new Map() };
+    const stand = (p: Part, show: boolean) => { for (const c of groups.get(p)!.children) if (c.name !== "pick") c.visible = show; };
+    for (const m of models) for (const r of m.refs) { const p = byRef.get(r); if (p) stand(p, false); }
+    Promise.allSettled(models.map((m) => loads.get(m.file)!)).then((results) => {
+      if (!alive) return;
+      results.forEach((res, k) => {
+        const m = models[k];
+        const ps = m.refs.map((r) => byRef.get(r)).filter((p): p is Part => !!p);
+        if (res.status !== "fulfilled") { for (const p of ps) stand(p, true); return; }
         for (const p of ps) { const g = groups.get(p)!; for (const c of [...g.children]) if (c.name !== "pick") g.remove(c); }
-        for (const { geo, mat } of meshes) {
+        for (const { geo, mat } of res.value) {
           extraMats.push(mat);
           const inst = new THREE.InstancedMesh(geo, mat, ps.length);
           ps.forEach((p, i) => {
@@ -423,10 +460,10 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
           inst.castShadow = true; inst.receiveShadow = true;
           boardG.add(inst);
         }
-        if (selected && instOf.has(selected)) select(selected);
-        dirty = true;
-      }, () => {}); // keep the simple shapes if the model can't load
-    }
+      });
+      if (selected && instOf.has(selected)) select(selected);
+      setPartsReady(true);
+      dirty = true;
     });
 
     // ---- highlight boxes ----
@@ -630,6 +667,7 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
       <div className="ry-b3-stage" ref={host}>
         {!board && !err && <p className="ry-b3-msg">{t("Loading the board…", "기판을 불러오는 중…")}</p>}
         {err && <p className="ry-b3-msg">{err}</p>}
+        {board && !err && !partsReady && <p className="ry-b3-loading" role="status">{t("Loading parts…", "부품 불러오는 중…")}</p>}
         {hover && (
           <div className="ry-b3-tip" style={{ left: hover.x + 14, top: hover.y + 12 }}>
             <strong>{hover.p.ref}</strong> {hover.p.value}

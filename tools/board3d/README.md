@@ -43,3 +43,5 @@ fixes (the purple socket plastic from the LCSC photo, the module's tin-plated sh
   binary in metres, y up, x across the part, z = KiCad y, centred on the part. They are copied as they are
   and the viewer loads them with GLTFLoader, keeping their materials and textures (the MDBT50Q-1MV2's
   marking is a texture).
+- `hash_assets.py` (last step of build.sh) gives textures (`t-…`) and models (`m-…`) content-hashed names;
+  `public/_headers` lets browsers keep those for good, so a second visit loads nothing but board.json and models.json.
