@@ -33,7 +33,7 @@ try {
   await page.evaluate(() => document.querySelectorAll("dialog[open]").forEach((d) => d.close()));
   await page.getByRole("button", { name: "유지보수" }).click();
   await page.locator(".ry-b3-stage canvas").waitFor({ timeout: 30000 });
-  await page.getByRole("button", { name: /^저항 26/ }).waitFor();
+  await page.getByRole("button", { name: /^저항 30/ }).waitFor();
   await page.waitForTimeout(3000);
   for (const ref of ["U2", "R10"]) {
     const at = await page.evaluate((ref) => {

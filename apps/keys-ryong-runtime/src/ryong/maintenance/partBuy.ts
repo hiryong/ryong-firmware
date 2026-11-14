@@ -14,6 +14,8 @@ export function buyInfo(p: Part): Buy | null {
     case "resistor":
       return { spec: [`${size} chip resistor ${ohm(v)}, 1%`, `${size} 칩 저항 ${ohm(v)} (1%)`], query: `${size} ${v} ohm SMD resistor` };
     case "capacitor":
+      if (/7343/.test(p.footprint)) return { spec: [`Polymer tantalum capacitor ${v}, 7343 (D case)`, `고분자 탄탈 커패시터 ${v} (7343, D 케이스)`], alts: [p.part, "6TPE330MIL (2.8 mm tall)"],
+        note: ["Mind the + mark (polarised). Same or higher voltage, low ESR.", "극성(+ 표시) 방향에 주의. 전압은 같거나 높게, 낮은 ESR."], query: `${v} 7343 polymer tantalum capacitor` };
       return { spec: [`${size} ceramic capacitor (MLCC) ${v}, X5R/X7R`, `${size} 세라믹 커패시터(MLCC) ${v}, X5R/X7R`],
         note: ["Same or higher voltage rating.", "전압 정격은 원래 부품과 같거나 높게."], query: `${size} ${v} MLCC capacitor` };
     case "inductor":
@@ -28,13 +30,15 @@ export function buyInfo(p: Part): Buy | null {
         note: ["SOD-123 (1N4148W) is larger and does not fit.", "SOD-123 크기(1N4148W)는 더 커서 안 맞아요."], query: "1N4148WS SOD-323" };
     case "zener":
       return { spec: ["5.6 V zener diode, SOD-882 (0402 size)", "5.6V 제너 다이오드 (SOD-882, 0402 크기)"], alts: [v], query: `${v} zener` };
+    case "underglow":
+      return { spec: ["SK6812MINI-HS RGB LED, 3.5 × 3.5 mm", "SK6812MINI-HS RGB LED (3.5×3.5mm)"], alts: [v], query: "SK6812MINI-HS" };
     case "hotswap":
-      return { spec: ["MX hot-swap socket", "MX 핫스왑 소켓"], alts: ["Kailh CPG151101S11", "Gateron MX hot-swap socket"], query: "Kailh hot swap socket MX" };
+      return { spec: ["MX hot-swap socket", "MX 핫스왑 소켓"], alts: ["HanElectricity CPG151101S11-16", "Kailh CPG151101S11", "Gateron MX hot-swap socket"], query: "MX hot swap socket CPG151101S11" };
     case "usb":
       return { spec: ["USB-C receptacle, 16 pins, SMD", "USB-C 리셉터클 16핀 (SMD)"], alts: [v, "HRO TYPE-C-31-M-12"],
         note: ["Check the shell legs and pins match the footprint before swapping makers.", "다른 제조사 것은 다리·핀 위치가 같은지 도면으로 확인하세요."], query: "KH-TYPE-C-16P" };
     case "module":
-      return { spec: ["EBYTE nRF52840 module", "EBYTE nRF52840 모듈"], alts: [v],
+      return { spec: [/MDBT50Q/.test(v) ? "Raytac nRF52840 module" : "EBYTE nRF52840 module", /MDBT50Q/.test(v) ? "Raytac nRF52840 모듈" : "EBYTE nRF52840 모듈"], alts: [v],
         note: ["Comes blank: it needs the bootloader flashed (SWD) after replacement.", "새 모듈은 비어 있어서 교체 후 부트로더를 SWD로 써야 해요."], query: v };
     case "transistor":
       return { spec: [`${v} MOSFET, SOT-23`, `${v} MOSFET (SOT-23)`], alts: [v], query: `${v} SOT-23` };

@@ -16,7 +16,10 @@
    "source": "C_0603_1608Metric.wrl",
    "refs": [
     "C27",
+    "C40",
     "C26",
+    "C47",
+    "C31",
     "C38"
    ]
   },
@@ -64,10 +67,35 @@
    ]
   },
   {
+   "file": "m-CP_EIA-7343-20_Kemet-V-20531c.bin",
+   "source": "CP_EIA-7343-20_Kemet-V.step",
+   "refs": [
+    "C46",
+    "C45",
+    "C44",
+    "C43",
+    "C42"
+   ]
+  },
+  {
    "file": "m-D_SOD-882-336bc4.bin",
    "source": "D_SOD-882.step",
    "refs": [
     "DZ1"
+   ]
+  },
+  {
+   "file": "m-VSSOP-10_3x3mm_P0.5mm-8fb63f.bin",
+   "source": "VSSOP-10_3x3mm_P0.5mm.step",
+   "refs": [
+    "U85"
+   ]
+  },
+  {
+   "file": "m-Raytac_MDBT50Q-a21d34.bin",
+   "source": "Raytac_MDBT50Q.step",
+   "refs": [
+    "U2"
    ]
   },
   {
@@ -141,15 +169,33 @@
    "file": "m-C0402_L1.0-W0.5-H0.5-afee85.bin",
    "source": "C0402_L1.0-W0.5-H0.5.step",
    "refs": [
+    "C41",
     "C2",
+    "C18",
     "C5",
+    "C12",
+    "C24",
     "C1",
+    "C21",
+    "C22",
+    "C17",
+    "C28",
+    "C19",
+    "C20",
     "C7",
     "C3",
+    "C16",
+    "C15",
     "C8",
+    "C23",
     "C39",
+    "C13",
+    "C11",
+    "C29",
+    "C49",
     "C6",
-    "C10"
+    "C10",
+    "C14"
    ]
   },
   {
@@ -186,6 +232,26 @@
    "source": "L0603_L1.6-W0.8-H0.5_BEAD.step",
    "refs": [
     "L1"
+   ]
+  },
+  {
+   "file": "m-LED-SMD_4P-L3.5-W3.5-BR_SK6812MINI-HS-7ec744.bin",
+   "source": "LED-SMD_4P-L3.5-W3.5-BR_SK6812MINI-HS.step",
+   "refs": [
+    "U71",
+    "U70",
+    "U72",
+    "U80",
+    "U79",
+    "U69",
+    "U67",
+    "U74",
+    "U75",
+    "U68",
+    "U77",
+    "U78",
+    "U76",
+    "U73"
    ]
   },
   {
@@ -266,6 +332,8 @@
    "source": "SOT-23-6_L2.9-W1.6-H1.5-LS2.8-P0.95.step",
    "refs": [
     "D2",
+    "U4",
+    "U84",
     "U83"
    ]
   },
@@ -284,24 +352,10 @@
    ]
   },
   {
-   "file": "m-TSSOP-8_L3.0-W4.4-H1.0-LS6.4-P0.65-cae34b.bin",
-   "source": "TSSOP-8_L3.0-W4.4-H1.0-LS6.4-P0.65.step",
-   "refs": [
-    "U3"
-   ]
-  },
-  {
    "file": "m-USB-C-SMD_KH-TYPE-C-16P-60a2bb.bin",
    "source": "USB-C-SMD_KH-TYPE-C-16P.step",
    "refs": [
     "USB1"
-   ]
-  },
-  {
-   "file": "m-WIRELM-SMD_L18.0-W13.0-H3.0-E73-2G4M08S1C-a3266b.bin",
-   "source": "WIRELM-SMD_L18.0-W13.0-H3.0-E73-2G4M08S1C.step",
-   "refs": [
-    "U2"
    ]
   },
   {

@@ -47,7 +47,7 @@ interface Board {
 const KIND_EN: Record<string, string> = {
   hotswap: "Hot-swap socket", backlight: "Backlight LED", diode: "Diode", resistor: "Resistor", capacitor: "Capacitor",
   ic: "IC / transistor", led: "Status LED", connector: "Connector", button: "Push button", slide: "Slide switch",
-  fuse: "Fuse (PPTC)", inductor: "Inductor", crystal: "Crystal", usb: "USB-C receptacle", module: "Bluetooth module",
+  fuse: "Fuse (PPTC)", inductor: "Inductor", crystal: "Crystal", usb: "USB-C receptacle", module: "Bluetooth module", underglow: "Underglow RGB LED", transistor: "Transistor (MOSFET)", esd: "ESD protection", zener: "Zener diode",
 };
 const KIND_ROLE: Record<string, [string, string]> = {
   resistor: ["Sets a current or a voltage. Any resistor of the same value and size can replace it.", "전류를 제한하거나 전압을 나눠요. 같은 값·같은 크기 저항이면 교체할 수 있어요."],

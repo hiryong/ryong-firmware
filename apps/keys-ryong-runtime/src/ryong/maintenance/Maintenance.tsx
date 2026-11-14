@@ -25,7 +25,7 @@ export const Maintenance = ({ open, onClose }: { open: boolean; onClose: () => v
         </button>
         <div className="ry-maint-title">
           <strong>{t("Maintenance", "유지보수")}</strong>
-          <span className="ry-faint">{t("Board in 3D · ryong60", "기판 3D · ryong60")}</span>
+          <span className="ry-faint">{t("Board in 3D · geist rev1.0", "기판 3D · geist rev1.0")}</span>
         </div>
         <div className="ry-hub-top-end">
           <LangToggle />

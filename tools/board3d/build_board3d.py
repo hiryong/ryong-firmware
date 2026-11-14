@@ -29,6 +29,7 @@ KINDS = {
     "transistor": ("트랜지스터 (MOSFET)", 1.0, "ic"),
     "ic":        ("칩", 0.9, "ic"),
     "module":    ("Bluetooth 모듈 (nRF52840)", 1.9, "module"),
+    "underglow": ("언더글로우 RGB LED", 1.0, "led"),
     "usb":       ("USB-C 커넥터", 3.2, "usb"),
     "connector": ("커넥터", 2.9, "connector"),
     "hotswap":   ("핫스왑 소켓", 1.8, "hotswap"),
@@ -38,30 +39,42 @@ KINDS = {
     "fuse":      ("퓨즈 (PPTC)", 0.8, "fuse"),
 }
 
-# what each part does, in plain Korean (by designator or part number)
-ROLE = {
-    "BL": "키 밑에서 위로 비추는 백라이트 LED. 기판 구멍을 통해 스위치 쪽으로 빛이 나가요.",
-    "D3": "키 매트릭스 다이오드. 여러 키를 동시에 눌러도 잘못 읽히지 않게 해요.",
-    "U8": "스위치를 납땜 없이 꽂는 핫스왑 소켓 (MX 호환).",
-    "U2": "nRF52840 Bluetooth·USB 모듈. 키보드의 두뇌예요.",
-    "U5": "배터리 충전 칩 (BQ24075).",
-    "U1": "배터리 잔량 측정 칩 (MAX17048).",
-    "U3": "설정 저장용 EEPROM (24C128).",
-    "U81": "키별 LED 드라이버 (IS31FL3746A).",
-    "U83": "USB 전원 스위치 (TPS2553).",
-    "USB1": "USB-C 포트.",
-    "D2": "USB 정전기(ESD) 보호.",
-    "DZ1": "과전압 보호 제너 다이오드.",
-    "BT1": "배터리 쪽 과전류 퓨즈 (PPTC, 1.5A).",
-    "CN1": "배터리 커넥터 (Molex PicoBlade 3핀).",
-    "J3": "I2C 확장 커넥터 (JST SH 4핀).",
-    "J4": "외부 스위치용 커넥터 (JST SH 2핀).",
-    "SW1": "리셋 버튼.",
-    "SW2": "전원 스위치 (ON/OFF).",
-    "X1": "저전력 시계용 32.768kHz 크리스털.",
-    "LED1": "상태 표시 LED (빨강).",
-    "L1": "전원 회로 인덕터.",
-}
+# what each part does, in plain Korean: by part number / value first (boards change designators)
+ROLE_BY_PART = [
+    (r"MDBT50Q", "nRF52840 Bluetooth·USB 모듈 (Raytac MDBT50Q-1MV2). 키보드의 두뇌예요."),
+    (r"E73-2G4M08S1C", "nRF52840 Bluetooth·USB 모듈 (EBYTE E73). 키보드의 두뇌예요."),
+    (r"BQ24075", "배터리 충전 칩 (BQ24075). USB 전원으로 배터리를 충전하면서 키보드에도 전원을 줘요."),
+    (r"MAX17048", "배터리 잔량 측정 칩 (MAX17048)."),
+    (r"IS31FL3746", "키별 백라이트 LED 드라이버 (IS31FL3746A). 61개 LED 밝기를 하나씩 조절해요."),
+    (r"TPS2553", "LED 전원 스위치 (TPS2553). 전류를 제한해 합선 때도 보드를 지키고, 끄면 대기 전류가 0이 돼요."),
+    (r"SN74LVC1T45", "언더글로우 신호 레벨 변환 (3.3V → 5V)."),
+    (r"FDC1004", "손 근접 감지 센서 (FDC1004). 손이 다가오면 백라이트를 켜는 스마트 백라이트용이에요."),
+    (r"SK6812", "언더글로우 RGB LED (SK6812MINI-HS). 키보드 아래쪽을 비춰요."),
+    (r"CPG151101S11", "스위치를 납땜 없이 꽂는 핫스왑 소켓 (MX 호환)."),
+    (r"KH-TYPE-C", "USB-C 포트."),
+    (r"USBLC6", "USB 정전기(ESD) 보호."),
+    (r"BZX884", "과전압 보호 제너 다이오드."),
+    (r"0805L150", "배터리 쪽 과전류 퓨즈 (PPTC, 1.5A)."),
+    (r"53261", "배터리 커넥터 (Molex PicoBlade 3핀)."),
+    (r"SM04B-SRSS", "USB 보조 커넥터 (JST SH 4핀, 케이스용 USB 보드 연결)."),
+    (r"SM02B-SRSS", "JST SH 2핀 커넥터 (외부 스위치·배터리 보조)."),
+    (r"TS-1187", "리셋 버튼."),
+    (r"MK-11C04", "전원 스위치 (ON/OFF)."),
+    (r"32\.768", "저전력 시계용 32.768kHz 크리스털."),
+    (r"1N4148", "키 매트릭스 다이오드. 여러 키를 동시에 눌러도 잘못 읽히지 않게 해요."),
+    (r"^WHITE$", "키 밑에서 위로 비추는 백라이트 LED. 기판 구멍을 통해 스위치 쪽으로 빛이 나가요."),
+    (r"^RED$", "상태 표시 LED (빨강)."),
+    (r"AO3401|AO3400", "배터리 역극성 보호 MOSFET. 배터리를 거꾸로 꽂아도 보드가 상하지 않게 해요."),
+    (r"BSS138", "I2C 분리용 MOSFET."),
+    (r"2N7002", "신호 스위칭용 MOSFET."),
+    (r"330uF", "언더글로우 전원 저장 커패시터 (고분자 탄탈 330µF). LED가 한꺼번에 켜질 때 전압이 처지지 않게 해요."),
+    (r"10uH", "전원 회로 인덕터."),
+]
+
+def role_by_part(value: str) -> str:
+    for pat, text in ROLE_BY_PART:
+        if re.search(pat, value): return text
+    return ""
 
 def kind_of(ref: str, fp: str, comment: str) -> str:
     p = re.match(r"[A-Z]+", ref).group(0)
@@ -80,19 +93,14 @@ def kind_of(ref: str, fp: str, comment: str) -> str:
     if p in ("CN", "J"): return "connector"
     if p == "SW": return "slide" if "mk-11" in f else "button"
     if p == "U":
-        if "keyboard-sw" in f: return "hotswap"
-        if "wirelm" in f or "e73" in comment.lower(): return "module"
+        c = comment.lower()
+        if "keyboard-sw" in f or "cpg151101s11" in f + c: return "hotswap"
+        if "wirelm" in f or "e73" in c or "mdbt50q" in f + c: return "module"
+        if "sk6812" in c: return "underglow"
         return "ic"
     return "ic"
 
-def role_of(ref: str) -> str:
-    if ref in ROLE: return ROLE[ref]
-    p = re.match(r"[A-Z]+", ref).group(0)
-    if p == "BL": return ROLE["BL"]
-    if p == "D" and ref not in ("D2",): return ROLE["D3"]
-    if p == "U" and ref.startswith("U") and 8 <= int(re.sub(r"\D", "", ref) or 0) <= 66: return ROLE["U8"]
-    if p == "LED": return ROLE["LED1"]
-    return ""
+
 
 def rot(x, y, deg):
     """KiCad footprint-local to board: y points down, angles counter-clockwise on screen."""
@@ -221,7 +229,7 @@ def main():
             pads.append([round(num(pat[1]) - cx, 3), round(num(pat[2]) - cy, 3), round(num(sz[1]), 3), round(num(sz[2]), 3)])
         parts.append({
             "ref": ref, "value": value or row["Comment"], "part": row["Comment"], "lcsc": row["LCSC Part #"],
-            "footprint": fpname, "kind": k, "kindName": kname, "look": look, "role": role_of(ref),
+            "footprint": fpname, "kind": k, "kindName": kname, "look": look, "role": role_by_part(value or "") or role_by_part(row["Comment"]),
             "x": gx, "y": gy, "rot": round(fr, 2), "side": side,
             "w": round(bw, 3), "l": round(bl, 3), "h": height, "pads": pads[:40],
             # the footprint's own origin, local to the part centre: KiCad 3D models are placed from it
