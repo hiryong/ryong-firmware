@@ -54,7 +54,7 @@ jobs:
           npx vite build --config vite.runtime.config.ts --outDir dist-runtime
           # Open to search engines (owner's choice, 2026-11-04); only /admin stays out.
           printf 'User-agent: *\nDisallow: /admin\n' > dist-runtime/robots.txt
-          printf '/admin*\n  X-Robots-Tag: noindex\n' > dist-runtime/_headers
+          printf '/admin*\n  X-Robots-Tag: noindex\n' >> dist-runtime/_headers  # appended: public/_headers has the board 3D cache rules
       - name: Deploy to the Worker (static assets + admin API)
         if: steps.gate.outputs.enabled == 'true'
         env:
