@@ -3,8 +3,10 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { gunzipSync } from "three/examples/jsm/libs/fflate.module.js";
 import { t } from "../i18n";
 import { aliUrl, buyInfo } from "./partBuy";
+import { BOARD3D_SRC, board3dData } from "./board3dData";
 
 // The assembled board in 3D: the bare board from the factory Gerbers (textures), and every part the
 // assembler places drawn from its BOM/CPL position and package size (public/board3d/<name>/board.json,
@@ -212,8 +214,8 @@ type LoadedMesh = { geo: THREE.BufferGeometry; mat: THREE.Material };
 
 /** A model supplied as glTF binary (tools/board3d/models): metres, y up, x across the part, z = KiCad y,
  *  centred on the part. Each mesh comes back in the part frame in mm with its own material (textures kept). */
-async function loadGltf(url: string): Promise<{ geo: THREE.BufferGeometry; mat: THREE.Material }[]> {
-  const gltf = await new GLTFLoader().loadAsync(url);
+async function loadGltf(buf: ArrayBuffer): Promise<{ geo: THREE.BufferGeometry; mat: THREE.Material }[]> {
+  const gltf = await new GLTFLoader().parseAsync(buf, "");
   gltf.scene.updateMatrixWorld(true);
   const toMm = new THREE.Matrix4().makeScale(1000, 1000, 1000);
   const out: { geo: THREE.BufferGeometry; mat: THREE.Material }[] = [];
@@ -228,11 +230,13 @@ async function loadGltf(url: string): Promise<{ geo: THREE.BufferGeometry; mat: 
 
 /** A part model made by tools/board3d/convert_model.py: one indexed mesh per colour, in the part's own frame.
  *  Stored gzipped (the host does not compress .bin files): about half the download. */
-async function loadModel(url: string): Promise<{ color: string; geo: THREE.BufferGeometry }[]> {
-  const res = await fetch(url);
-  let buf = await res.arrayBuffer();
+async function loadModel(buf: ArrayBuffer): Promise<{ color: string; geo: THREE.BufferGeometry }[]> {
   const head = new Uint8Array(buf, 0, 2);
-  if (head[0] === 0x1f && head[1] === 0x8b) buf = await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+  if (head[0] === 0x1f && head[1] === 0x8b) {
+    // the browser's own gunzip where it has one (Safari before 16.4 has not): the small bundled one otherwise
+    if (typeof DecompressionStream !== "undefined") buf = await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+    else { const u = gunzipSync(new Uint8Array(buf)); buf = u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer; }
+  }
   const dv = new DataView(buf);
   if (dv.getUint32(0, true) !== 0x314d5952) throw new Error("not a RYM1 model"); // "RYM1"
   const jl = dv.getUint32(4, true);
@@ -267,7 +271,7 @@ export function partTitle(p: Part) {
   return `${p.ref} · ${p.value}`;
 }
 
-export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string }) {
+export default function Board3D({ src = BOARD3D_SRC }: { src?: string }) {
   const host = useRef<HTMLDivElement>(null);
   const [board, setBoard] = useState<Board | null>(null);
   const [err, setErr] = useState("");
@@ -277,29 +281,42 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
   const api = useRef<{ view: (v: "parts" | "switch" | "reset") => void; mark: (ps: Part[], hover: Part | null) => void; select: (p: Part | null) => void } | null>(null);
 
   const [partsReady, setPartsReady] = useState(false);
-  // the model list and every model download start together with the board (not after the scene is built)
+  // board, model list and every model's bytes come from board3dData: already downloading (or done) if the
+  // footer link warmed them; the models are turned into meshes here while the board is set up
   const modelsRef = useRef<{ models: ModelEntry[]; loads: Map<string, Promise<LoadedMesh[]>> } | null>(null);
   useEffect(() => {
     setPartsReady(false);
-    const list = fetch(src + "models.json").then((r) => (r.ok ? r.json() : { models: [] })).catch(() => ({ models: [] }));
-    list.then(({ models }: { models: ModelEntry[] }) => {
+    const d = board3dData(src);
+    let live = true;
+    // never wait silently: if the data has not come in 25 s, say so (with the reason, for a bug report)
+    const late = setTimeout(() => live && setErr(t("The board data did not arrive. Reload the page to try again.", "기판 데이터가 오지 않았어요. 페이지를 새로 고쳐 다시 열어 주세요.")), 25000);
+    Promise.all([d.board, d.models]).then(([b, models]) => {
+      clearTimeout(late);
+      if (!live) return;
       const loads = new Map<string, Promise<LoadedMesh[]>>();
       for (const m of models) {
-        const load = m.file.endsWith(".glb") ? loadGltf(src + m.file) : loadModel(src + m.file).then((ms) => ms.map(({ color, geo }) => ({ geo, mat: modelMaterial(color) as THREE.Material })));
+        const load = d.bytes(m.file).then((buf) => m.file.endsWith(".glb") ? loadGltf(buf) : loadModel(buf).then((ms) => ms.map(({ color, geo }) => ({ geo, mat: modelMaterial(color) as THREE.Material }))));
         load.catch(() => {});
         loads.set(m.file, load);
       }
       modelsRef.current = { models, loads };
-      fetch(src + "board.json").then((r) => (r.ok ? r.json() : Promise.reject(r.status))).then(setBoard, () => setErr(t("Could not load the board.", "기판 데이터를 불러오지 못했어요.")));
-    });
+      setBoard(b as Board);
+    }, (e) => { clearTimeout(late); console.error("board 3D:", e); if (live) setErr(t("Could not load the board.", "기판 데이터를 불러오지 못했어요.") + ` (${e})`); });
+    return () => { live = false; clearTimeout(late); };
   }, [src]);
 
   useEffect(() => {
     const el = host.current;
     if (!board || !el) return;
     const W = board.width, H = board.height, T = board.thickness;
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    // phones and tablets get a lighter setup: their browsers (iOS Safari above all) drop a WebGL page
+    // that asks for too much graphics memory
+    const small = matchMedia("(pointer: coarse)").matches;
+    let renderer: THREE.WebGLRenderer;
+    try { renderer = new THREE.WebGLRenderer({ antialias: true }); }
+    catch { setErr(t("This browser can't show 3D (WebGL is off or unavailable).", "이 브라우저에서는 3D를 표시할 수 없어요(WebGL을 쓸 수 없음).")); return; }
+    renderer.setPixelRatio(Math.min(devicePixelRatio, small ? 1.5 : 2));
+    renderer.domElement.addEventListener("webglcontextlost", (e) => { e.preventDefault(); setErr(t("The 3D view was stopped by the browser (graphics memory). Close and open it again.", "브라우저가 3D 화면을 멈췄어요(그래픽 메모리 부족). 닫았다가 다시 열어 주세요.")); });
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -312,7 +329,7 @@ export default function Board3D({ src = "/board3d/ryong60/" }: { src?: string })
     const sun = new THREE.DirectionalLight("#ffffff", 1.35);
     sun.position.set(-90, 220, 120);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(4096, 4096);
+    sun.shadow.mapSize.set(small ? 2048 : 4096, small ? 2048 : 4096);
     Object.assign(sun.shadow.camera, { left: -W / 2 - 10, right: W / 2 + 10, top: H / 2 + 10, bottom: -H / 2 - 10, near: 10, far: 600 });
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.03;

@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { t } from "./ryong/i18n";
+import { warmBoard3D, warmBoard3DWhenIdle } from "./ryong/maintenance/board3dData";
 
 export interface AppFooterProps {
   onShowAbout: () => void;
@@ -12,10 +14,12 @@ export const AppFooter = ({
   onShowLicenseNotice,
   onShowMaintenance,
 }: AppFooterProps) => {
+  // the 3D board page's downloads start before it is opened (idle time, or the pointer on its link)
+  useEffect(() => warmBoard3DWhenIdle(), []);
   return (
     <footer className="ry-footer">
       <a href="https://ryong.com/">© ryong.com</a>
-      <button type="button" onClick={onShowMaintenance}>
+      <button type="button" onClick={onShowMaintenance} onPointerEnter={warmBoard3D} onFocus={warmBoard3D}>
         {t("Maintenance", "유지보수")}
       </button>
       <span>
