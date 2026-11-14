@@ -20,6 +20,8 @@ FIXES = {  # model file name → extra convert_model.py arguments
     # purple, as in the LCSC photo; the logo cut into its side covered (filling it still shows the letters)
     "SMD_KEYBOARD-SW.step": ["--recolor", "#230092=#5a50b4", "--cover", "1.4", "1.05", "0.38", "3.75", "1.062", "1.18", "#230092"],
     "WIRELM-SMD_L18.0-W13.0-H3.0-E73-2G4M08S1C.step": ["--recolor", "#60574e=#c9ccd0"],  # the shield can is tin-plated steel
+    # the vendor model's pins and tabs sit 0.5 mm in front of its own footprint's pads (found by fitting its feet to them)
+    "SW-SMD_MK-11C04-G013.step": ["--shift", "0", "0.5"],
     "Raytac_MDBT50Q.step": ["--recolor", "#383838=#c9ccd0"],  # KiCad draws the shield dark grey; it is a tin-plated can
 }
 SKIP = re.compile(r"^R\d")  # resistors: drawn shapes are enough
@@ -33,6 +35,9 @@ def get(url, path):
         with urllib.request.urlopen(req, timeout=120) as r: data = r.read()
         open(path, "wb").write(data)
     return path
+
+# kinds whose body sits centred on its pads (not connectors, switches, sockets or modules)
+CENTRED = {"capacitor", "resistor", "inductor", "fuse", "diode", "zener", "esd", "transistor", "ic", "crystal", "led"}
 
 def easyeda_model(lcsc, cache):
     """the part's STEP, and its placement on the EasyEDA footprint (offset mm, KiCad y up; z rotation)"""
@@ -64,6 +69,20 @@ def best_turn(theirs, ours):
         return sum(d(p, rt) for p in ours) + sum(d(p, ours) for p in rt)
     return min((0, 90, 180, 270), key=cost)
 
+def pad_shift(theirs, ours, turn, off):
+    """The model offset that also lays EasyEDA's pads, turned, onto the board's pads by their centres.
+    EasyEDA's model origin and the board footprint's origin need not be the same point."""
+    if not theirs or not ours: return off
+    num_t = {n: (x, y) for x, y, n in theirs if n}; num_o = {n: (x, y) for x, y, n in ours if n}
+    common = sorted(set(num_t) & set(num_o))
+    pt, po = ([num_t[n] for n in common], [num_o[n] for n in common]) if len(common) >= 2 else ([(x, y) for x, y, _ in theirs], [(x, y) for x, y, _ in ours])
+    c, s_ = round(math.cos(math.radians(turn))), round(math.sin(math.radians(turn)))
+    mean = lambda ps: (sum(p[0] for p in ps) / len(ps), sum(p[1] for p in ps) / len(ps))
+    (tx, ty), (ox, oy) = mean(pt), mean(po)
+    tx, ty = tx * c - ty * s_, tx * s_ + ty * c  # their pad centre, turned
+    dx, dy = ox - tx, oy - ty  # the shift wanted after the turn, back into the model frame before it
+    return (off[0] + dx * c + dy * s_, off[1] - dx * s_ + dy * c, off[2])
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pcb", required=True); ap.add_argument("--bom", required=True)
@@ -76,7 +95,7 @@ def main():
             for ref in re.split(r"[,\s]+", row["Designator"].strip()):
                 if ref: lcsc[ref] = row["LCSC Part #"].strip()
     board = parse(open(a.pcb).read())
-    jobs = {}  # (model, offset, rotation) → refs
+    jobs = {}  # (model, offset, rotation, footprint for EasyEDA-placed) → refs
     boardpads = {}  # ref → its footprint's pads (mm, model frame: y up)
     for fp in kids(board, "footprint"):
         props = {p[1]: p[2] for p in kids(fp, "property")}
@@ -84,13 +103,17 @@ def main():
         if ref not in lcsc or SKIP.match(ref): continue
         boardpads[ref] = [(num(kid(p, "at")[1]), -num(kid(p, "at")[2]), p[1]) for p in kids(fp, "pad") if p[2] in ("smd", "thru_hole")]
         if not kids(fp, "model"):  # no model in the design: the part's own, as EasyEDA places it
-            jobs.setdefault(("LCSC:" + lcsc[ref], None, 0.0), []).append(ref)
+            jobs.setdefault(("LCSC:" + lcsc[ref], None, 0.0, (fp[1], lcsc[ref])), []).append(ref)
         for m in kids(fp, "model"):
             off = tuple(num(x) for x in kid(kid(m, "offset"), "xyz")[1:]) if kid(m, "offset") else (0, 0, 0)
             rz = num(kid(kid(m, "rotate"), "xyz")[3]) if kid(m, "rotate") else 0.0
-            jobs.setdefault((m[1], off, rz), []).append(ref)
-    models = []
-    for (path, off, rz), refs in sorted(jobs.items()):
+            # EasyEDA-placed models are turned onto each footprint's own pads from that part's own EasyEDA footprint,
+            # so footprint variants (…-BL, …-TL) and different parts sharing one model each get their own turn
+            fpkey = (fp[1], lcsc[ref]) if (m[1].startswith("LCSC:") or "EASYEDA_MODELS" in m[1]) else ""
+            jobs.setdefault((m[1], off, rz, fpkey), []).append(ref)
+    models, turns = [], {}
+    kinds = {p["ref"]: p["kind"] for p in json.load(open(os.path.join(a.out, "board.json")))["parts"]}
+    for (path, off, rz, _fp), refs in sorted(jobs.items(), key=lambda j: repr(j[0])):
         name = path.split("/")[-1]
         stem = re.sub(r"[^A-Za-z0-9._-]+", "_", os.path.splitext(name)[0])[:48]
         tag = hashlib.sha1(repr((path, off, rz)).encode()).hexdigest()[:6]
@@ -106,6 +129,7 @@ def main():
                 # the part's current EasyEDA model, placed on EasyEDA's own footprint, then turned onto ours
                 src, off, rz, pads = easyeda_model(lcsc[refs[0]], a.cache)
                 turn = best_turn(pads, boardpads[refs[0]])
+                off = pad_shift(pads, boardpads[refs[0]], turn, off)
             else:
                 rel = re.sub(r"^\$\{[^}]+\}/", "", path)
                 rel = re.sub(r"\.wrl$", ".step", rel)  # the library repository keeps STEP sources
@@ -114,18 +138,28 @@ def main():
                 except Exception:  # not in the library any more: the part's own model
                     src, off, rz, pads = easyeda_model(lcsc[refs[0]], a.cache)
                     turn = best_turn(pads, boardpads[refs[0]])
+                    off = pad_shift(pads, boardpads[refs[0]], turn, off)
         except Exception as e:
             print(f"skip {name} ({', '.join(refs)}): {e}"); continue
         out = f"m-{stem}-{hashlib.sha1(repr((src, off, rz, turn)).encode()).hexdigest()[:6]}.bin"
         cmd = [sys.executable, os.path.join(here, "convert_model.py"), src, os.path.join(a.out, out),
                "--offset", *map(str, off), "--rotate", str(rz), "--turn", str(turn), *FIXES.get(name, [])]
+        if turn is not None and src.endswith(".step") and kinds.get(refs[0]) in CENTRED and boardpads[refs[0]]:
+            # EasyEDA's model origin is not always where its footprint says (D2 sat 1.3 mm off, SOT-23s metres off):
+            # parts that are symmetric about their pads are simply centred on them
+            px = [x for x, _, _ in boardpads[refs[0]]]; py = [y for _, y, _ in boardpads[refs[0]]]
+            cmd += ["--centre", str((min(px) + max(px)) / 2), str((min(py) + max(py)) / 2)]
         if os.path.basename(src)[:32].isalnum() and src.endswith(".step"): cmd.append("--no-logo")  # EasyEDA models (cached by uuid)
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode: print(f"skip {name}: {r.stderr.strip()[-200:]}"); continue
         size = os.path.getsize(os.path.join(a.out, out))
         print(f"{out}  {size // 1024} KB  {len(refs)} parts" + (f"  turned {turn}°" if turn else ""))
-        models.append({"file": out, "source": name, "refs": refs})
+        same = next((m for m in models if m["file"] == out), None)
+        if same: same["refs"] += refs
+        else: models.append({"file": out, "source": name, "refs": refs})
+        for ref in refs: turns[ref] = turn
     json.dump({"models": models}, open(os.path.join(a.out, "models.json"), "w"), indent=1)
+    json.dump(turns, open(os.path.join(a.cache, "turns.json"), "w"))  # for checking against the CPL
 
 if __name__ == "__main__":
     main()

@@ -28,3 +28,12 @@ Each model becomes `m-*.bin` (`convert_model.py`), listed with its parts in `mod
 fixes (the purple socket plastic from the LCSC photo, the module's tin-plated shield) are in `FIXES`.
 
     python3 fetch_models.py --pcb board.kicad_pcb --bom BOM.csv --out <board3d dir> --cache <dir>
+
+## Placement checks (geist rev1.0 S4)
+- EasyEDA models are grouped per footprint *and* LCSC part, and each group gets its own quarter turn from
+  that part's EasyEDA footprint pads (footprint variants such as `…-BL` / `…-TL` differ).
+- EasyEDA's model origin is sometimes wrong (D2 was 1.3 mm off, the SOT-23 MOSFETs metres off), so parts
+  that are symmetric about their pads (`CENTRED` kinds) are centred on their pads (`convert_model.py --centre`).
+- A vendor model whose feet sit off its own footprint is moved with `--shift` in `FIXES` (MK-11C04 slide switch).
+- The turns written to `<cache>/turns.json` were checked against the order CPL: board rotation + turn equals
+  the CPL rotation for every EasyEDA-placed part.

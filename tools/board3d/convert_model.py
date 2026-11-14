@@ -26,6 +26,8 @@ ap.add_argument("--patch", nargs=6, action="append", default=[], metavar=("X0", 
 ap.add_argument("--recolor", nargs="*", default=[], help="FROM=TO colour pairs, e.g. to match the real part's plastic")
 ap.add_argument("--cover", nargs=7, action="append", default=[], metavar=("X0", "Y0", "Z0", "X1", "Y1", "Z1", "COLOR"), help="a thin box (model mm) over a printed logo, in the colour of the surface under it")
 ap.add_argument("--no-logo", action="store_true", help="EasyEDA models: leave out the LCEDA logo (a small, finely triangulated white or flat piece) and seat chips modelled centred on z = 0")
+ap.add_argument("--centre", type=float, nargs=2, help="finally move the model so its outline is centred here (footprint mm, y up): for parts whose vendor placement is off")
+ap.add_argument("--shift", type=float, nargs=2, help="finally move the model this far (footprint mm, y up): a vendor model whose feet sit off its own footprint's pads")
 ap.add_argument("--thickness", type=float, default=1.6); ap.add_argument("--flip", action="store_true")
 a = ap.parse_args()
 groups = defaultdict(lambda: {"P": [], "I": []})
@@ -107,6 +109,13 @@ for *v, color in a.cover:
     pts = [(x, y, z) for z in (z0, z1) for y in (y0, y1) for x in (x0, x1)]  # index = x + 2y + 4z
     quads = [(0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (0, 4, 6, 2), (1, 3, 7, 5)]  # outward, CCW
     add(color, pts, [t for q in quads for t in ((q[0], q[1], q[2]), (q[0], q[2], q[3]))])
+
+if a.centre:  # view frame: x, and z = -y
+    xs = [p[0] for g in groups.values() for p in g["P"]]; zs = [p[2] for g in groups.values() for p in g["P"]]
+    sx, sz = a.centre[0] - (min(xs) + max(xs)) / 2, -a.centre[1] - (min(zs) + max(zs)) / 2
+    for g in groups.values(): g["P"] = [(x + sx, y, z + sz) for x, y, z in g["P"]]
+if a.shift:
+    for g in groups.values(): g["P"] = [(x + a.shift[0], y, z - a.shift[1]) for x, y, z in g["P"]]
 
 span = max(abs(c) for g in groups.values() for p in g["P"] for c in p)
 scale = span / 32767
