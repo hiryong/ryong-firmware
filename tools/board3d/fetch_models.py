@@ -28,6 +28,13 @@ SKIP = re.compile(r"^R\d")  # resistors: drawn shapes are enough
 BUILT = {  # drawn here: the vendor model is wrong
     "C356849": "make_e73.py",  # EBYTE E73-2G4M08S1C: shield/antenna proportions from its manual
 }
+# makers' own STEP files that the owner downloaded (not redistributed here: put them in <cache>/given/),
+# with how to place them; they replace the design's library model for that part
+MAKER_STEP = {
+    # Panasonic POSCAP 6TPE330MAP, case D2E (7.3 x 4.3 x 1.9): Panasonic's D2E.STEP has -y as its height
+    # (board side at y = +0.95) and its length along z; its tinned terminals are white in the file
+    "C79112": ("D2E.STEP", ["--height-is-minus-y", "--offset", "0", "0", "0.95", "--rotate", "90", "--recolor", "#ffffff=#c9ccd0"]),
+}
 # models supplied by the board's owner, used as they are: glTF binary (textures kept), metres, y up,
 # x across the part, z = KiCad y, centred on the part. The viewer loads them with three.js' GLTFLoader.
 GIVEN = {
@@ -132,8 +139,16 @@ def main():
             print(f"{out}  {os.path.getsize(src) // 1024} KB  {len(refs)} parts  (given)")
             models.append({"file": out, "source": os.path.basename(src), "refs": refs, "centred": True})
             continue
+        maker = MAKER_STEP.get(lcsc[refs[0]])
+        if maker and os.path.exists(os.path.join(a.cache, "given", maker[0])):
+            src, off, rz, name = os.path.join(a.cache, "given", maker[0]), (0, 0, 0), 0.0, maker[0]
+            stem = re.sub(r"[^A-Za-z0-9._-]+", "_", "maker_" + os.path.splitext(maker[0])[0])
+            FIXES[name] = maker[1]  # placement given above (later options win)
+        else:
+            maker = None
         try:
-            if lcsc[refs[0]] in BUILT:
+            if maker: pass
+            elif lcsc[refs[0]] in BUILT:
                 src = os.path.join(a.cache, lcsc[refs[0]] + ".glb")
                 subprocess.run([sys.executable, os.path.join(here, BUILT[lcsc[refs[0]]]), os.path.join(a.out, "board.json"), refs[0], src], check=True, capture_output=True)
                 part = next(p for p in json.load(open(os.path.join(a.out, "board.json")))["parts"] if p["ref"] == refs[0])
@@ -157,7 +172,7 @@ def main():
         out = f"m-{stem}-{hashlib.sha1(repr((src, off, rz, turn)).encode()).hexdigest()[:6]}.bin"
         cmd = [sys.executable, os.path.join(here, "convert_model.py"), src, os.path.join(a.out, out),
                "--offset", *map(str, off), "--rotate", str(rz), "--turn", str(turn), *FIXES.get(name, [])]
-        if turn is not None and src.endswith(".step") and kinds.get(refs[0]) in CENTRED and boardpads[refs[0]]:
+        if turn is not None and src.lower().endswith(".step") and kinds.get(refs[0]) in CENTRED and boardpads[refs[0]]:
             # EasyEDA's model origin is not always where its footprint says (D2 sat 1.3 mm off, SOT-23s metres off):
             # parts that are symmetric about their pads are simply centred on them
             px = [x for x, _, _ in boardpads[refs[0]]]; py = [y for _, y, _ in boardpads[refs[0]]]

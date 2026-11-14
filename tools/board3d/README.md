@@ -45,3 +45,6 @@ fixes (the purple socket plastic from the LCSC photo, the module's tin-plated sh
   marking is a texture).
 - `hash_assets.py` (last step of build.sh) gives textures (`t-…`) and models (`m-…`) content-hashed names;
   `public/_headers` lets browsers keep those for good, so a second visit loads nothing but board.json and models.json.
+- Makers' own STEP files that the owner downloads (e.g. Panasonic's `D2E.STEP` for the POSCAP 6TPE330MAP,
+  C42–C46) go in `<cache>/given/` and are placed by `MAKER_STEP` (fetch_models.py). They are not committed
+  here; only the converted mesh is. Without the file, the design's library model is used.

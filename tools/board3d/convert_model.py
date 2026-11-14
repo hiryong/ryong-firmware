@@ -29,11 +29,13 @@ ap.add_argument("--no-logo", action="store_true", help="EasyEDA models: leave ou
 ap.add_argument("--centre", type=float, nargs=2, help="finally move the model so its outline is centred here (footprint mm, y up): for parts whose vendor placement is off")
 ap.add_argument("--shift", type=float, nargs=2, help="finally move the model this far (footprint mm, y up): a vendor model whose feet sit off its own footprint's pads")
 ap.add_argument("--thickness", type=float, default=1.6); ap.add_argument("--flip", action="store_true")
+ap.add_argument("--height-is-minus-y", action="store_true", help="a model drawn with -y as its height and z along it (board side at +y): stand it up first")
 a = ap.parse_args()
 groups = defaultdict(lambda: {"P": [], "I": []})
 
 def place(mx, my, mz):
     """model mm (KiCad 3D frame: x right, y up = -KiCad y, z up off the footprint side) → view frame"""
+    if a.height_is_minus_y: my, mz = mz, -my
     if a.rotate:
         t = math.radians(a.rotate); mx, my = mx * math.cos(t) - my * math.sin(t), mx * math.sin(t) + my * math.cos(t)
     mx, my, mz = mx + a.offset[0], my + a.offset[1], mz + a.offset[2]
