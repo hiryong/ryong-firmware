@@ -105,7 +105,7 @@ export function ViaKeyGrid({ behaviors, layers, binding, onChange, detail, onDet
       ...simple("bootloader", "Boot", t("Bootloader (firmware update drive)", "부트로더(펌웨어 드라이브)")),
       ...simple("reset", "Reset", t("Restart keyboard", "키보드 재시작")),
       ...simple("softoff", t("Power off", "전원 끄기"), "Soft Off"),
-      ...simple("bleupdate", t("BT update", "BT 업데이트"), t("Restart into Bluetooth firmware update mode (development)", "Bluetooth 펌웨어 업데이트 모드로 다시 시작 (개발용)")),
+      ...simple("bleupdate", t("BT update", "BT 업데이트"), t("Restart to wait for a wireless firmware update", "무선 펌웨어 업데이트를 기다리는 상태로 다시 시작")),
     ];
     // Lights: only what this keyboard's firmware has (ZMK &bl / &rgb_ug commands, dt-bindings/zmk/*.h).
     const lights: Tile[] = [

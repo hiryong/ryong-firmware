@@ -1,4 +1,4 @@
-// Wireless firmware install from this computer (development): the build's -bluetooth.zip is sent to a
+// Wireless firmware install from this computer: the build's -bluetooth.zip is sent to a
 // keyboard that is waiting for an update (Keyboard settings → "Wait for update"), over Web Bluetooth.
 // Lives at the app level so it stays open while the keyboard restarts and its normal connection drops.
 import {useContext, useEffect, useRef, useState} from "react";
@@ -80,7 +80,7 @@ export function BleUpdateDialog() {
     aria-label={t("Wireless firmware install", "무선 펌웨어 설치")}>
     <div className="ry-bledfu-in">
       <div className="ry-row" style={{justifyContent: "space-between"}}>
-        <h2 className="ry-card-t">{t("Wireless firmware install (for developers)", "무선 펌웨어 설치 (개발자용)")}</h2>
+        <h2 className="ry-card-t">{t("Wireless firmware install", "무선 펌웨어 설치")}</h2>
         <button className="ry-icon" disabled={running} onClick={() => setOpen(false)} aria-label={t("Close", "닫기")}><X /></button>
       </div>
       <p className="ry-note">{t("Only in Chromium browsers (Chrome, Edge, Whale, Opera…). Safari and Firefox can't reach Bluetooth devices from a web page.",

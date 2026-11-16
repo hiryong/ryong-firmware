@@ -200,8 +200,8 @@ export function DeviceSettingsPanel() {
       {state.caps!.underglow && light("underglow")}
       {state.caps!.btIndicator && draft.btIndicator && indicator()}
       {!state.caps!.backlight && !state.caps!.underglow && <p className="ry-faint">{t("This firmware has no lights built in.", "이 펌웨어에는 조명 기능이 없어요.")}</p>}
-      {state.caps!.bleUpdate && <section className="ry-card ry-setcard" aria-label={t("Wireless firmware update (for developers)", "무선 펌웨어 업데이트 (개발자용)")}>
-        <Row title={t("Wireless firmware update (for developers)", "무선 펌웨어 업데이트 (개발자용)")}
+      {state.caps!.bleUpdate && <section className="ry-card ry-setcard" aria-label={t("Wireless firmware update", "무선 펌웨어 업데이트")}>
+        <Row title={t("Wireless firmware update", "무선 펌웨어 업데이트")}
           hint={t("Restarts the keyboard so it waits for new firmware, then send it the new firmware file (ending in -bluetooth.zip) from this computer (Chromium browsers only: Chrome, Edge…) or with Nordic's iPhone app “nRF Device Firmware Update”. If that doesn't work, connect USB and copy the .uf2 file onto the drive that appears.",
             "키보드가 새 펌웨어를 기다리는 상태로 다시 켜져요. 그다음 새 펌웨어 파일(이름이 -bluetooth.zip으로 끝남)을 이 컴퓨터에서 보내거나(크롬·엣지 같은 크로미움 계열 브라우저 전용), Nordic의 아이폰 앱 “nRF Device Firmware Update”로 보내면 설치돼요. 잘 안 되면 USB로 연결하고, 나타나는 드라이브에 .uf2 파일을 복사하세요.")}>
           {confirmDfu ? <span className="ry-gap">
