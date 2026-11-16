@@ -28,7 +28,7 @@ const UF2 = Buffer.from("UF2\n".repeat(300)), BLE = Buffer.from("PK-ble-package"
 const SHA = createHash("sha256").update(UF2).digest("hex"); // artifact name carries the UF2 hash
 const gh = {
   runs: [{ id: 101, display_title: "Firmware build · bt60 · test · req-0001", status: "completed", conclusion: "success", html_url: "https://github.com/x/101",
-    created_at: new Date().toISOString(), updated_at: "", head_sha: "f".repeat(40), head_branch: "dev", path: ".github/workflows/firmware-build.yml", event: "workflow_dispatch" }],
+    created_at: new Date().toISOString(), updated_at: "", head_sha: "f".repeat(40), head_branch: "dev/keys-ryong-runtime", path: ".github/workflows/firmware-build.yml", event: "workflow_dispatch" }],
   files: new Map(), releases: new Set(), dispatches: [], calls: [],
 };
 const reply = (data, status = 200, headers = {}) => new Response(data === null ? null : JSON.stringify(data), { status, headers: { "Content-Type": "application/json", ...headers } });
@@ -149,7 +149,7 @@ assert.equal(r.json.builds.find((b) => b.id === 101).target, "bt60");
 /* ---------- bench-test record ---------- */
 r = await call(h.build, "GET", "/api/admin/builds/101", { params: { id: "101" } });
 assert.equal(r.json.artifact.uf2_sha256, SHA);
-assert.ok(r.json.blockers.beta.includes("실기 검증 기록이 없어요."));
+assert.deepEqual(r.json.blockers, { beta: [], stable: [] }, "no bench test needed (owner, 2026-11-16)");
 assert.equal((await call(h.download, "GET", "/api/admin/builds/101/download", { params: { id: "101" } })).headers.get("Location"), "https://download.example/zip");
 for (const [file, want, name] of [["uf2", UF2, "bt60-r101-fffffff.uf2"], ["ble", BLE, "bt60-r101-fffffff-bluetooth.zip"]]) {
   const res = await h.download.onRequestGet({ request: new Request(`https://x/api/admin/builds/101/download?file=${file}`), env, params: { id: "101" } });
@@ -162,24 +162,26 @@ r = await call(h.validation, "PUT", "/api/admin/validation/101", { params: { id:
 assert.equal(r.status, 200);
 assert.equal(r.json.record.result, "incomplete", "server computes the result");
 assert.equal(r.json.record.uf2_sha256, SHA, "hash comes from the build, not the browser");
-r = await call(h.releases, "POST", "/api/admin/releases", { body: { run_id: 101, channel: "beta" } });
-assert.equal(r.status, 409);
-assert.ok(r.json.blockers.length);
-assert.equal(gh.dispatches.filter((x) => x.p.includes("firmware-release.yml")).length, 0, "nothing dispatched while blocked");
-// wrong board
-await call(h.validation, "PUT", "/api/admin/validation/101", { params: { id: "101" }, body: { tested_board: "ryong60", items: allPass } });
-assert.ok((await call(h.releases, "POST", "/api/admin/releases", { body: { run_id: 101, channel: "beta" } })).json.blockers.some((x) => x.includes("대상 보드")));
-// all required pass on the right board → beta allowed, stable not yet
-r = await call(h.validation, "PUT", "/api/admin/validation/101", { params: { id: "101" }, body: { tested_board: "bt60", items: allPass, notes: "ok" } });
-assert.equal(r.json.record.result, "pass");
-assert.equal(r.json.record.stable_ready, false);
+// an incomplete (or failed) record decides nothing: beta and stable go straight out, each once
 r = await call(h.releases, "POST", "/api/admin/releases", { body: { run_id: 101, channel: "stable" } });
-assert.ok(r.json.blockers.some((x) => x.includes("베타")));
+assert.equal(r.status, 200, "stable without beta or a bench test");
+assert.deepEqual(gh.dispatches.at(-1).body.inputs, { build_run_id: "101", channel: "stable" });
 r = await call(h.releases, "POST", "/api/admin/releases", { body: { run_id: 101, channel: "beta" } });
 assert.equal(r.status, 200);
 assert.deepEqual(gh.dispatches.at(-1).body.inputs, { build_run_id: "101", channel: "beta" });
 gh.releases.add("fw-bt60-beta-r101");
-assert.ok((await call(h.releases, "POST", "/api/admin/releases", { body: { run_id: 101, channel: "beta" } })).json.blockers.some((x) => x.includes("이미")));
+const before = gh.dispatches.length;
+r = await call(h.releases, "POST", "/api/admin/releases", { body: { run_id: 101, channel: "beta" } });
+assert.equal(r.status, 409);
+assert.ok(r.json.blockers.some((x) => x.includes("이미")));
+assert.equal(gh.dispatches.length, before, "nothing dispatched while blocked");
+// the record is still saved and evaluated for the owner's notes
+r = await call(h.validation, "PUT", "/api/admin/validation/101", { params: { id: "101" }, body: { tested_board: "bt60", items: allPass, notes: "ok" } });
+assert.equal(r.json.record.result, "pass");
+// builds from another branch are refused (the release workflow refuses them too)
+gh.runs[gh.runs.findIndex((x) => x.id === 101)].head_branch = "zmk-fix/x";
+assert.ok((await call(h.releases, "POST", "/api/admin/releases", { body: { run_id: 101, channel: "stable" } })).json.blockers.some((x) => x.includes("작업 브랜치")));
+gh.runs[gh.runs.findIndex((x) => x.id === 101)].head_branch = "dev/keys-ryong-runtime";
 // a run that isn't an admin build is refused
 gh.runs.push({ ...gh.runs.at(-1), id: 300, path: ".github/workflows/zmk-validation.yml" });
 assert.equal((await call(h.build, "GET", "/api/admin/builds/300", { params: { id: "300" } })).status, 404);
@@ -204,4 +206,4 @@ cookie = savedCookie;
 /* ---------- logout ---------- */
 r = await call(h.logout, "POST", "/api/admin/logout");
 assert.match(r.headers.get("Set-Cookie"), /Max-Age=0/);
-console.log("PASS: admin API sign-in/lockout/cookie tamper, server-side settings validation, dispatch, server-computed bench records, release gate, no dispatch while blocked, Korean/English messages");
+console.log("PASS: admin API sign-in/lockout/cookie tamper, server-side settings validation, dispatch, server-computed bench records, release without bench test (board check only), no dispatch while blocked, Korean/English messages");

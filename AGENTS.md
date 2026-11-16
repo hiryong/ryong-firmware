@@ -22,6 +22,7 @@ Build the firmware and settings site for user-designed, non-split keyboards. Fir
 - Customer-facing firmware release needs board identity checks, signature verification and a practical recovery path. Do not pretend ordinary UF2 MSC alone enables automatic browser flashing.
 - No split keyboard support, third-party keyboards or broad MCU compatibility work in phase one.
 - NEVER flash hardware or distribute an installable firmware image without explicit validation of its real board.
+  - **Owner's decision 2026-11-16 (fewer than 5 users):** the owner may release any successful admin build from keys.ryong.com/admin without a bench-test record. Kept: the board check in `scripts/firmware_release_gate.py` (admin build of `dev/keys-ryong-runtime`, its own UF2 by SHA-256, a known board, a well-formed nRF52840 UF2, once per channel). Agents still never flash hardware or start a release themselves.
 
 ## Process
 1. Read README and docs before changing code.

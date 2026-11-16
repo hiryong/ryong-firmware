@@ -206,7 +206,7 @@ function ZmkNotice({ z }: { z: ZmkUpdate }) {
         {(c.builds ?? []).map((b) => <span key={b.run} className="ry-faint">{TARGET_LABEL[b.target] ?? b.target} r{b.run}</span>)}
         {c.details_url?.startsWith("https://github.com/") && <a className="ry-text" href={c.details_url} target="_blank" rel="noreferrer">{t("Details", "자세히")}</a>}
       </div>
-      <p className="ry-faint">{t("As always, an installable release needs a bench-test record first.", "설치용 배포는 지금처럼 검증 기록을 남긴 뒤에만 할 수 있어요.")}</p>
+      <p className="ry-faint">{t("The builds are in Recent builds; release one in the Release tab when you are ready.", "빌드는 최근 빌드에 있어요. 준비되면 배포 탭에서 배포하세요.")}</p>
     </div>
   </Section>;
 }
@@ -270,7 +270,7 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (to: "test"
           <div className="kc-seg" role="radiogroup" aria-label={t("Board", "보드")}>
             {Object.entries(TARGET_LABEL).map(([id, l]) => <button type="button" key={id} role="radio" aria-checked={target === id} onClick={() => setTarget(id)}>{l}</button>)}
           </div>
-          {target === "ryong60" && <p className="ry-faint">{t("The physical Ryong60 board isn't verified yet. It builds, but can't be released until it has a bench-test record on real hardware.", "Ryong60 실물 보드는 아직 검증 전이에요. 빌드는 되지만, 실물에서 검증 기록을 남기기 전에는 배포할 수 없어요.")}</p>}
+          {target === "ryong60" && <p className="ry-faint">{t("The physical Ryong60 board hasn't been tested yet. It can be built and released, but nobody has checked it on a real board.", "Ryong60 실물 보드는 아직 시험 전이에요. 빌드·배포는 되지만, 실물에서 확인한 적은 없어요.")}</p>}
         </div>
         <label className="kc-field"><span className="ry-label">{t("Name", "이름")}</span>
           <input type="text" maxLength={40} placeholder={t("e.g. sleep 10 min test", "예: 절전 10분 테스트")} value={label} onChange={(e) => setLabel(e.target.value)} /></label>
@@ -295,7 +295,7 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (to: "test"
     </Section>
     <Section title={t("Builds", "빌드 목록")} action={<button className="ry-text" onClick={list.reload} disabled={list.loading}>{list.loading ? t("Loading…", "불러오는 중…") : t("Refresh", "새로고침")}</button>}>
       <BuildList rows={list.data?.builds ?? []} go={go} />
-      <p className="ry-faint">{t("Build files are kept on GitHub for 30 days and can only be downloaded here. Nothing reaches anyone before it's bench-tested.", "빌드 파일은 GitHub에 30일 보관되고, 이 화면에서만 받을 수 있어요. 검증 전에는 누구에게도 배포되지 않아요.")}</p>
+      <p className="ry-faint">{t("Build files are kept on GitHub for 30 days and can only be downloaded here. Nothing reaches anyone until you release it.", "빌드 파일은 GitHub에 30일 보관되고, 이 화면에서만 받을 수 있어요. 배포하기 전에는 누구에게도 가지 않아요.")}</p>
     </Section>
   </>;
 }
@@ -399,17 +399,18 @@ function Release({ onError, focus, setFocus }: { onError: (e: unknown) => void; 
     </Section>
     <Section title={t("Release a build", "빌드 배포")}>
       <div className="ry-card kc-form">
-        <BuildPicker focus={focus} setFocus={setFocus} onError={onError} filter={(b) => !!b.validated} />
+        <BuildPicker focus={focus} setFocus={setFocus} onError={onError} />
         {d && (["beta", "stable"] as const).map((ch) => {
           const why = d.blockers[ch];
           const done = d.released.includes(ch);
           return <div key={ch} className="kc-release">
             <div><b>{ch === "beta" ? t("Beta channel", "베타 채널") : t("Stable channel", "정식 채널")}</b>
-              <span className="ry-faint"> {ch === "beta" ? t("· for early testers", "· 미리 써 보는 사람용") : t("· for all users (only builds that went through beta)", "· 모든 사용자용 (베타를 거친 빌드만)")}</span></div>
+              <span className="ry-faint"> {ch === "beta" ? t("· for early testers", "· 미리 써 보는 사람용") : t("· for all users", "· 모든 사용자용")}</span></div>
             {done ? <span className="kc-verdict is-pass">{t("Released", "배포됨")}</span> : why.length ? <ul className="kc-why">{why.map((w) => <li key={w}>{w}</li>)}</ul>
               : confirm === ch ? <div className="kc-actions">
                 <span>{ch === "beta" ? t("Release r{id} ({board}) to beta?", "r{id}({board})를 베타로 배포할까요?", { id: d.id, board: TARGET_LABEL[d.target] })
-                  : t("Release r{id} ({board}) to stable?", "r{id}({board})를 정식으로 배포할까요?", { id: d.id, board: TARGET_LABEL[d.target] })}</span>
+                  : t("Release r{id} ({board}) to stable?", "r{id}({board})를 정식으로 배포할까요?", { id: d.id, board: TARGET_LABEL[d.target] })}
+                  {!d.record && <span className="ry-faint"> {t("No bench test recorded.", "실기 검증 기록 없이 배포해요.")}</span>}</span>
                 <button className="ry-text" onClick={() => setConfirm(null)}>{t("Cancel", "취소")}</button>
                 <button className="ry-primary" disabled={busy} onClick={() => go(ch)}>{busy ? t("Requesting…", "요청 중…") : t("Release", "배포하기")}</button>
               </div> : <button className="ry-outline" onClick={() => setConfirm(ch)}>{ch === "beta" ? t("Release to beta", "베타로 배포") : t("Release to stable", "정식으로 배포")}</button>}

@@ -1,5 +1,6 @@
 // Release rules shared by the admin API (for the screen) and mirrored in
 // scripts/firmware_release_gate.py (which the release workflow enforces — the API check is only advisory).
+// The bench-test record (evaluate/sanitize) is kept for the owner's notes; releasing no longer needs it.
 import checklist from "./checklist.json";
 import { fail, Lang } from "./lang";
 
@@ -47,22 +48,19 @@ export function sanitize(body: unknown, build: { run_id: number; target: string;
     tester, tested_at: now.toISOString(), items, notes, ...evaluate(items) };
 }
 
-export function releaseBlockers(channel: Channel, build: { conclusion: string; target: string; uf2_sha256?: string } | null,
-  record: ValidationRecord | null, released: Channel[], lang: Lang = "ko"): string[] {
+/** Owner's decision 2026-11-16: a bench-test record is optional; only the board check remains
+ *  (a successful build with its file info, a known board, once per channel). The record is still accepted
+ *  so the screen can show it, but it decides nothing. */
+export function releaseBlockers(channel: Channel, build: { conclusion: string; target: string; uf2_sha256?: string; branch?: string; release_branch?: string } | null,
+  _record: ValidationRecord | null, released: Channel[], lang: Lang = "ko"): string[] {
   const why: string[] = [];
   const t = (en: string, ko: string) => (lang === "en" ? en : ko);
   if (!build) return [t("Build not found.", "빌드를 찾을 수 없어요.")];
   if (build.conclusion !== "success") why.push(t("The build did not succeed.", "빌드가 성공하지 않았어요."));
   if (!build.uf2_sha256) why.push(t("Couldn't read the build file info (build-info).", "빌드 파일 정보(build-info)를 읽지 못했어요."));
-  if (!record) { why.push(t("No bench-test record yet.", "실기 검증 기록이 없어요.")); return why; }
-  if (build.uf2_sha256 && record.uf2_sha256 !== build.uf2_sha256) why.push(t("The tested file differs from this build's file.", "검증한 파일과 이 빌드의 파일이 달라요."));
-  if (record.tested_board !== build.target) why.push(t("Not tested on this build's target board.", "이 빌드의 대상 보드에서 검증하지 않았어요."));
-  const { result, stable_ready } = evaluate(record.items);
-  if (result !== "pass") why.push(result === "fail" ? t("Some test items failed.", "실패한 검증 항목이 있어요.") : t("Not all required test items have passed yet.", "필수 검증 항목이 아직 다 통과하지 않았어요."));
-  if (channel === "stable") {
-    if (!stable_ready) why.push(t("Items needed for stable (settings kept, battery) have not passed.", "정식 배포에 필요한 항목(설정 유지·배터리)이 통과하지 않았어요."));
-    if (!released.includes("beta")) why.push(t("Release to beta first.", "먼저 베타로 배포해야 해요."));
-  }
+  if (build.branch && build.release_branch && build.branch !== build.release_branch)
+    why.push(t("Only builds of the work branch can be released. Build it again from this page.", "작업 브랜치에서 만든 빌드만 배포할 수 있어요. 이 화면에서 다시 빌드하세요."));
+  if (build.conclusion === "success" && !BOARDS.includes(build.target)) why.push(t("Unknown target board.", "어느 보드용인지 알 수 없어요."));
   if (released.includes(channel)) why.push(t("Already released to this channel.", "이미 이 채널에 배포했어요."));
   return why;
 }

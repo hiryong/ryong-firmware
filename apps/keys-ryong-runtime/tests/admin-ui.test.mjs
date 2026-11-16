@@ -26,14 +26,8 @@ let signedIn = false, record = null, released = [], langSent = "ko";
 const sent = [];
 const build = { id: 501, target: "bt60", label: "절전 테스트", status: "completed", conclusion: "success", at: new Date().toISOString(), sha: "abc1234", url: "https://github.com/x", validated: false };
 const required = ["boots", "all_keys", "usb_typing", "ble_pair", "ble_switch", "studio_save", "runtime_features", "device_settings", "sleep_wake", "recovery"];
-const blockers = (ch) => {
-  const why = [];
-  if (!record) return ["실기 검증 기록이 없어요."];
-  if (!required.every((k) => record.items[k] === "pass")) why.push("필수 검증 항목이 아직 다 통과하지 않았어요.");
-  if (ch === "stable" && !released.includes("beta")) why.push("먼저 베타로 배포해야 해요.");
-  if (released.includes(ch)) why.push("이미 이 채널에 배포했어요.");
-  return why;
-};
+// Owner's decision 2026-11-16: no bench test needed; only "once per channel" (and the board check on the server).
+const blockers = (ch) => released.includes(ch) ? ["이미 이 채널에 배포했어요."] : [];
 const json = (route, data, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(data) });
 
 const browser = await pw[process.env.RYONG_BROWSER ?? "chromium"].launch();
@@ -95,6 +89,14 @@ for (const viewport of [{ width: 1280, height: 860 }, { width: 390, height: 844 
     assert.equal(b.target, "bt60"); assert.equal(b.label, "Oreo 조명 테스트"); assert.equal(b.keyboard_name, "Cheeto"); assert.equal(b.idle_timeout_s, 30); assert.equal(b.tx_power, "default");
     await page.screenshot({ path: `${output}/${tag}-2-build.png`, fullPage: true });
   });
+  await step("release offered without a bench test, and says so", async () => {
+    await page.getByRole("button", { name: "배포", exact: true }).click();
+    await page.getByRole("button", { name: "정식으로 배포" }).click();
+    await page.getByText("정식으로 배포할까요?", { exact: false }).waitFor();
+    await page.getByText("실기 검증 기록 없이 배포해요.").waitFor();
+    await page.getByRole("button", { name: "취소", exact: true }).click();
+    await page.getByRole("button", { name: "빌드", exact: true }).click();
+  });
   await step("bench-test record: verdict follows the checklist, then saved", async () => {
     await page.getByRole("button", { name: "검증", exact: true }).first().click();
     await page.getByText("SHA-256 bbbbbbbbbbbbbbbb", { exact: false }).waitFor();
@@ -113,10 +115,10 @@ for (const viewport of [{ width: 1280, height: 860 }, { width: 390, height: 844 
     assert.ok(!("result" in b), "the browser never sends a verdict");
     await page.screenshot({ path: `${output}/${tag}-3-test.png`, fullPage: true });
   });
-  await step("release to beta with confirmation; stable explains why not", async () => {
+  await step("release to beta with confirmation; stable offered too", async () => {
     await page.getByRole("button", { name: "배포하러 가기" }).click();
     await page.getByRole("button", { name: "베타로 배포" }).waitFor();
-    await page.getByText("먼저 베타로 배포해야 해요.").waitFor();
+    await page.getByRole("button", { name: "정식으로 배포" }).waitFor();  // stable no longer waits for beta
     await page.getByRole("button", { name: "베타로 배포" }).click();
     await page.getByText("베타로 배포할까요?", { exact: false }).waitFor();
     await page.getByRole("button", { name: "배포하기", exact: true }).click();

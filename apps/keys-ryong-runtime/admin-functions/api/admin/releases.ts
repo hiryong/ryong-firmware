@@ -3,7 +3,7 @@ import { buildArtifact, getRun, gh, GitHubError, readRecord, ref, releasedChanne
 import { Channel, releaseBlockers } from "../../_lib/rules";
 import { langOf, msg } from "../../_lib/lang";
 
-/** Asks the release workflow to publish a validated build. The workflow re-checks every rule itself. */
+/** Asks the release workflow to publish a build (bench test optional since 2026-11-16). The workflow re-checks every rule itself. */
 export const onRequestPost: PagesFunction<AdminEnv> = async ({ request, env }) => {
   const body = (await request.json().catch(() => ({}))) as { run_id?: unknown; channel?: unknown };
   const id = Number(body.run_id), channel = body.channel as Channel;
@@ -12,7 +12,7 @@ export const onRequestPost: PagesFunction<AdminEnv> = async ({ request, env }) =
   const art = run.conclusion === "success" ? await buildArtifact(env, id) : null;
   const rec = await readRecord(env, id);
   const released = art ? await releasedChannels(env, id, art.target) : [];
-  const why = releaseBlockers(channel, { conclusion: run.conclusion ?? run.status, target: art?.target ?? "", uf2_sha256: art?.uf2_sha256 }, rec?.data ?? null, released, langOf(request));
+  const why = releaseBlockers(channel, { conclusion: run.conclusion ?? run.status, target: art?.target ?? "", uf2_sha256: art?.uf2_sha256, branch: run.head_branch, release_branch: ref(env) }, rec?.data ?? null, released, langOf(request));
   if (art?.expired) why.push(msg(request, "The build file has expired. Build again and test again.", "빌드 파일 보관 기간이 지났어요. 다시 빌드하고 다시 검증하세요."));
   if (why.length) return json({ error: msg(request, "Can't release.", "배포할 수 없어요."), blockers: why }, 409);
   const r = await gh(env, `/repos/${repo(env)}/actions/workflows/${RELEASE_WORKFLOW}/dispatches`, {

@@ -1,6 +1,7 @@
-# Publishes ONE bench-tested firmware build to the beta or stable channel, started from
-# keys.ryong.com/admin. Refuses unless scripts/firmware_release_gate.py passes:
-# same file (SHA-256) as was bench-tested, on its own board, every required check passed.
+# Publishes ONE firmware build to the beta or stable channel, started from keys.ryong.com/admin.
+# Refuses unless scripts/firmware_release_gate.py passes (board check: a successful admin build of the
+# development branch, its own UF2 by SHA-256, a known board, a well-formed nRF52840 UF2). A bench-test
+# record is optional since the owner's decision of 2026-11-16; it is attached when there is one.
 # Output: a GitHub Release in this (private) repository + channels.json on the firmware-registry branch.
 # Customer web updates additionally need signed packages; this workflow does not sign anything.
 name: Firmware release
@@ -32,7 +33,7 @@ jobs:
       CHANNEL: ${{ inputs.channel }}
     steps:
       - uses: actions/checkout@v4
-      - name: Collect the build, its file and its bench-test record
+      - name: Collect the build, its file and its bench-test record (if any)
         id: collect
         shell: bash
         run: |
@@ -64,20 +65,24 @@ jobs:
           set -euo pipefail
           tag="fw-$TARGET-$CHANNEL-r$RUN"
           sha=$(python3 -c 'import json;print(json.load(open("/tmp/rel/run.json"))["head_sha"])')
-          cp /tmp/rel/record.json "/tmp/rel/bench-test-r$RUN.json"
+          extra=()
+          if [ -f /tmp/rel/record.json ]; then cp /tmp/rel/record.json "/tmp/rel/bench-test-r$RUN.json"; extra+=("/tmp/rel/bench-test-r$RUN.json"); fi
           python3 - > /tmp/rel/notes.md <<'PY'
           import json
-          info = json.load(open("/tmp/rel/art/build-info.json")); rec = json.load(open("/tmp/rel/record.json"))
+          import os
+          info = json.load(open("/tmp/rel/art/build-info.json"))
+          rec = json.load(open("/tmp/rel/record.json")) if os.path.exists("/tmp/rel/record.json") else None
           print(f"Board: **{info['target']}** · build r{info['run_id']} · `{info['git_sha'][:7]}`\n")
           print(f"UF2 SHA-256: `{info['uf2_sha256']}`\n")
-          print(f"Bench test: {rec['result']} on {rec['tested_board']} at {rec['tested_at']}\n")
+          if rec: print(f"Bench test: {rec['result']} on {rec['tested_board']} at {rec['tested_at']}\n")
+          else: print("Bench test: none (released without one, owner's decision 2026-11-16)\n")
           print("Settings:\n" + "\n".join(f"- `{s}`" for s in info["settings"]))
-          if rec.get("notes"): print("\nNotes: " + rec["notes"])
+          if rec and rec.get("notes"): print("\nNotes: " + rec["notes"])
           print("\n_Unsigned. Not offered to customers through the web updater until package signing is set up._")
           PY
           flags=(); [ "$CHANNEL" = beta ] && flags+=(--prerelease)
           gh release create "$tag" --target "$sha" --title "${TARGET} ${CHANNEL} · r$RUN" --notes-file /tmp/rel/notes.md "${flags[@]}" \
-            "/tmp/rel/art/$UF2" /tmp/rel/art/build-info.json "/tmp/rel/bench-test-r$RUN.json"
+            "/tmp/rel/art/$UF2" /tmp/rel/art/build-info.json "${extra[@]}"
           echo "url=$(gh release view "$tag" --json url -q .url)" >> /tmp/rel/url
       - name: Record the channel on firmware-registry
         shell: bash

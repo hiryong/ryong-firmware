@@ -134,3 +134,13 @@ against current saved entries after a dynamic restore, never reused as stale
 numeric slots. Missing/ambiguous names are skipped with a report. Host-profile
 choices are retained in the backup for review; they are not blindly copied to
 different BLE bonds. No settings reset or automatic downgrade occurs.
+
+
+## 배포 규칙 변경 (2026-11-16, 소유자 결정)
+
+사용자가 5명 미만이라 /admin 배포 탭에서 실기 검증 기록 없이 원하는 빌드를 바로
+베타·정식으로 배포할 수 있게 했습니다. 베타를 먼저 거칠 필요도 없습니다.
+남긴 안전장치(보드 확인): 이 화면에서 만든 작업 브랜치(dev/keys-ryong-runtime) 빌드일 것,
+배포 파일이 그 빌드의 파일과 같을 것(SHA-256), 대상 보드가 Cheeto·Oreo·ryong60 중 하나일 것,
+UF2가 nRF52840용으로 온전할 것, 같은 채널에는 한 번만. 검증 기록이 있으면 배포 노트에 첨부합니다.
+배포는 GitHub Release와 channels.json 기록을 만듭니다. 사용자 웹 자동 업데이트는 아직 연결 전입니다.
