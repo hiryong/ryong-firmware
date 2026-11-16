@@ -23,7 +23,7 @@ def main():
     module_root = Path(__file__).resolve().parents[1] / "modules/ryong-holdtap"
     extra = ";".join([*(str(workspace / name) for name in modules), str(module_root)])
     cases = {
-        "zmk-feature-runtime-combo": ["test", "studio", "overrides", "defaults", "discard"],
+        "zmk-feature-runtime-combo": ["test", "studio", "overrides", "defaults", "discard", "reschedule"],
         "zmk-feature-runtime-macro": ["test", "studio"],
         "zmk-feature-runtime-tapdance": ["runtime-tapdance", "studio"],
         "ryong-holdtap": ["balanced/1-dn-up", "balanced/2-dn-timer-up", "balanced/4c-dn-kcdn-kcup-up"],

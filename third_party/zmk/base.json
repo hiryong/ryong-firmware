@@ -14,6 +14,13 @@
       "repo_path": "modules/msgs/zmk-studio-messages",
       "applies_to": "6cb4c283e76209d59c45fbcb218800cd19e9339d",
       "sha256": "ada228e63c5eb1faffa3737e7ad0355a226dcabfef99cdc9d7916ece6cd48f28"
+    },
+    {
+      "file": "zephyr-ble-ctlr-rx-node-leak.patch",
+      "repo_path": "zephyr",
+      "applies_to": "10ba6d0cb38bc3d258775d27982f707599320085",
+      "sha256": "0972af850a9c021d3c3ca9bfd769efc7dff2d71b13e9f7da6fc87686a7b303b6",
+      "ryong_changes": "2026-11-16: Zephyr BLE controller security fix GHSA-rgw4-3qr8-pp36 (CVE-2026-19740), backported from upstream 7b60012 + 06bf10e3 (v4.3-branch PR #116513): release the retained RX node when an invalid LL Control PDU arrives during a Connection/PHY Update, so a nearby unpaired device cannot crash the keyboard or exhaust controller RX buffers. Applies to zmkfirmware/zephyr v4.1.0+zmk-fixes at 10ba6d0 (the revision ZMK main still uses)."
     }
   ],
   "modules": {
@@ -31,7 +38,8 @@
     "zmk-feature-runtime-combo": {
       "from": "cormoran/zmk-feature-runtime-combo@d9490e7",
       "from_revision": "d9490e7b5d41c516221d131241009e81740efcee",
-      "tree_sha256": "235b0c339b6fe2e397bfd91dd67643c28e261bccf28d592ae937333b861492e6"
+      "tree_sha256": "83a70be490413c2b8e0ac3dfef0a38c26af10e7ccbeab1fdfbfe48a42f4e30b9",
+      "ryong_changes": "2026-11-16: combo timeout uses k_work_reschedule (port of upstream ZMK 6a7590c1, #3514): a stale earlier deadline no longer leaves a pending combo unresolved until the next key event; test tests/reschedule"
     },
     "zmk-feature-runtime-macro": {
       "from": "cormoran/zmk-feature-runtime-macro@3853096",

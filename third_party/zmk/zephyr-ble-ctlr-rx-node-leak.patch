@@ -1,0 +1,71 @@
+Bluetooth: Controller: release the retained RX node on an invalid LL Control PDU
+
+Backport to zmkfirmware/zephyr v4.1.0+zmk-fixes (10ba6d0) of upstream Zephyr
+7b60012 (Connection Update) and 06bf10e3de16 (PHY Update), as merged into
+v4.3-branch by PR #116513 (ff1be62d, e9fb7bc2). Fixes GHSA-rgw4-3qr8-pp36 /
+CVE-2026-19740: a nearby, unpaired BLE central could make the controller assert
+(device reset) or leak RX nodes until Bluetooth stops, by sending another LL
+Control PDU before a PHY/Connection Update instant. Only the two release calls
+are taken; llcp_rx_node_release() already exists in 10ba6d0 with the same body.
+The CIS Create part of the backport is not taken (no ISO in our builds).
+
+diff --git a/subsys/bluetooth/controller/ll_sw/ull_llcp_conn_upd.c b/subsys/bluetooth/controller/ll_sw/ull_llcp_conn_upd.c
+index b107371dc7..9e3bb715ff 100644
+--- a/subsys/bluetooth/controller/ll_sw/ull_llcp_conn_upd.c
++++ b/subsys/bluetooth/controller/ll_sw/ull_llcp_conn_upd.c
+@@ -785,6 +785,12 @@ void llcp_lp_cu_rx(struct ll_conn *conn, struct proc_ctx *ctx, struct node_rx_pd
+ 		/* Invalid behaviour */
+ 		/* Invalid PDU received so terminate connection */
+ 		conn->llcp_terminate.reason_final = BT_HCI_ERR_LMP_PDU_NOT_ALLOWED;
++
++		/* Release any retained RX node before completing the procedure,
++		 * the node would otherwise be leaked
++		 */
++		llcp_rx_node_release(ctx);
++
+ 		lp_cu_complete(conn, ctx);
+ 		break;
+ 	}
+@@ -1380,6 +1386,12 @@ void llcp_rp_cu_rx(struct ll_conn *conn, struct proc_ctx *ctx, struct node_rx_pd
+ 		/* Invalid behaviour */
+ 		/* Invalid PDU received so terminate connection */
+ 		conn->llcp_terminate.reason_final = BT_HCI_ERR_LMP_PDU_NOT_ALLOWED;
++
++		/* Release any retained RX node before completing the procedure,
++		 * the node would otherwise be leaked
++		 */
++		llcp_rx_node_release(ctx);
++
+ 		rp_cu_complete(conn, ctx);
+ 		break;
+ 	}
+diff --git a/subsys/bluetooth/controller/ll_sw/ull_llcp_phy.c b/subsys/bluetooth/controller/ll_sw/ull_llcp_phy.c
+index bee1b48ae1..1d4a3078d9 100644
+--- a/subsys/bluetooth/controller/ll_sw/ull_llcp_phy.c
++++ b/subsys/bluetooth/controller/ll_sw/ull_llcp_phy.c
+@@ -895,6 +895,12 @@ void llcp_lp_pu_rx(struct ll_conn *conn, struct proc_ctx *ctx, struct node_rx_pd
+ 		/* Invalid behaviour */
+ 		/* Invalid PDU received so terminate connection */
+ 		conn->llcp_terminate.reason_final = BT_HCI_ERR_LMP_PDU_NOT_ALLOWED;
++
++		/* Release any retained RX node before completing the procedure,
++		 * the node would otherwise be leaked
++		 */
++		llcp_rx_node_release(ctx);
++
+ 		llcp_lr_complete(conn);
+ 		ctx->state = LP_PU_STATE_IDLE;
+ 		break;
+@@ -1308,6 +1314,12 @@ void llcp_rp_pu_rx(struct ll_conn *conn, struct proc_ctx *ctx, struct node_rx_pd
+ 		/* Invalid behaviour */
+ 		/* Invalid PDU received so terminate connection */
+ 		conn->llcp_terminate.reason_final = BT_HCI_ERR_LMP_PDU_NOT_ALLOWED;
++
++		/* Release any retained RX node before completing the procedure,
++		 * the node would otherwise be leaked
++		 */
++		llcp_rx_node_release(ctx);
++
+ 		llcp_rr_complete(conn);
+ 		ctx->state = RP_PU_STATE_IDLE;
+ 		break;

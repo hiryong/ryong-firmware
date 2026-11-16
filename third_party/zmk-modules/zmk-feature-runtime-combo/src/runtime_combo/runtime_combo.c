@@ -1012,8 +1012,11 @@ static void update_timeout_task(void) {
         }
         return;
     }
+    /* Ryong: k_work_reschedule, not k_work_schedule - the latter keeps an already armed
+     * (stale) deadline, after which the handler finds "not yet due" and nothing re-arms it
+     * (port of upstream ZMK 6a7590c1, #3514; see tests/reschedule). */
     if (timeout_task_timeout_at != timeout_at &&
-        k_work_schedule(&timeout_task, K_MSEC(MAX(timeout_at - k_uptime_get(), 0))) >= 0) {
+        k_work_reschedule(&timeout_task, K_MSEC(MAX(timeout_at - k_uptime_get(), 0))) >= 0) {
         timeout_task_timeout_at = timeout_at;
     }
 }
