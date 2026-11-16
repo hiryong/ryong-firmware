@@ -477,7 +477,7 @@ await step("keyboard settings: backlight use switch, brightness applies at once,
   await page.waitForFunction(() => window.__ryongVirtual.flash.device?.settings.backlight.use === true, null, { timeout: 5000 });
   await power(); // on at start → lit
   await page.waitForFunction(() => window.__ryongVirtual.flash.device.blOn === true, null, { timeout: 5000 });
-  await pane.getByRole("button", { name: "키보드에서 다시 읽기" }).click();
+  await pane.getByRole("button", { name: "키보드 설정 다시 불러오기" }).click();
   const slider = bl.getByRole("slider", { name: "백라이트 밝기" });
   await slider.waitFor();
   await page.waitForTimeout(500); // the re-read finishes (it re-renders the pane and would take the focus)
@@ -511,7 +511,7 @@ await step("keyboard settings: underglow on at start survives a power cycle", as
   await page.waitForFunction(() => { const u = window.__ryongVirtual.flash.device.settings.underglow; return u.use && u.onAtStart && !u.usbOnly; }, null, { timeout: 5000 });
   await power();
   assert.equal(await page.evaluate(() => window.__ryongVirtual.flash.device.ugOn), true, "on at start");
-  await pane.getByRole("button", { name: "키보드에서 다시 읽기" }).click();
+  await pane.getByRole("button", { name: "키보드 설정 다시 불러오기" }).click();
   await pane.getByLabel("RGB 언더글로우", { exact: true }).getByText(/지금 켜져 있어요/).waitFor({ timeout: 5000 });
 });
 

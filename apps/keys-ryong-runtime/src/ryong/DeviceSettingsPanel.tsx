@@ -175,8 +175,8 @@ export function DeviceSettingsPanel() {
   return <div className="ry-beh">
     <div><h1 className="ry-h1">{t("Keyboard settings", "키보드 설정")}</h1>
       <p className="ry-lead">{t("Saved on the keyboard itself and applied right away — no firmware update.", "키보드에 바로 저장되고 곧바로 적용돼요. 펌웨어를 다시 올릴 필요가 없어요.")}</p>
-      {build && <p className="ry-faint">{t("Firmware build {b}", "펌웨어 빌드 {b}", { b: build.slice(0, 7) })}</p>}
-      {loaded && dev && <button className="ry-text" disabled={busy} onClick={() => setReload((x) => x + 1)}>{t("Reload from keyboard", "키보드에서 다시 읽기")}</button>}</div>
+      {build && <p className="ry-faint">{t("Firmware version {b} (mention it when asking for help)", "펌웨어 버전 {b} (문의할 때 알려 주세요)", { b: build.slice(0, 7) })}</p>}
+      {loaded && dev && <button className="ry-text" disabled={busy} onClick={() => setReload((x) => x + 1)} title={t("Shows the settings now saved on the keyboard again; changes not saved yet are dropped.", "키보드에 지금 저장된 설정을 다시 보여 줘요. 아직 저장하지 않은 변경은 사라져요.")}>{t("Load the keyboard's settings again", "키보드 설정 다시 불러오기")}</button>}</div>
     {!ready && <p>{t("Connect and unlock the keyboard to change its settings.", "키보드를 연결하고 잠금을 풀면 설정을 바꿀 수 있어요.")}</p>}
     {error && <p role="alert" className="ry-note ry-danger">{error} <button className="ry-text" onClick={() => setReload((x) => x + 1)}>{t("Reload", "다시 읽기")}</button></p>}
     {busy && !loaded && <p role="status">{t("Reading the keyboard…", "키보드를 읽는 중…")}</p>}
@@ -199,10 +199,10 @@ export function DeviceSettingsPanel() {
       {state.caps!.underglow && light("underglow")}
       {state.caps!.btIndicator && draft.btIndicator && indicator()}
       {!state.caps!.backlight && !state.caps!.underglow && <p className="ry-faint">{t("This firmware has no lights built in.", "이 펌웨어에는 조명 기능이 없어요.")}</p>}
-      {state.caps!.bleUpdate && <section className="ry-card ry-setcard" aria-label={t("Bluetooth update (development)", "Bluetooth 업데이트 (개발용)")}>
-        <Row title={t("Bluetooth update mode (development)", "Bluetooth 업데이트 모드 (개발용)")}
-          hint={t("Restarts into the bootloader. Send the build's -bluetooth.zip with the “nRF Device Firmware Update” app. If it fails, plug in USB and copy the .uf2.",
-            "키보드가 부트로더로 다시 시작해요. 빌드의 -bluetooth.zip을 아이폰 “nRF Device Firmware Update” 앱으로 보내세요. 실패하면 USB로 연결해 .uf2를 복사하면 돼요.")}>
+      {state.caps!.bleUpdate && <section className="ry-card ry-setcard" aria-label={t("Wireless firmware update (for developers)", "무선 펌웨어 업데이트 (개발자용)")}>
+        <Row title={t("Wireless firmware update (for developers)", "무선 펌웨어 업데이트 (개발자용)")}
+          hint={t("Restarts the keyboard so it waits for new firmware. In the iPhone app “nRF Device Firmware Update”, send it the new firmware file (ending in -bluetooth.zip). If that doesn't work, connect USB and copy the .uf2 file onto the drive that appears.",
+            "키보드가 새 펌웨어를 받을 수 있는 상태로 다시 켜져요. 아이폰 “nRF Device Firmware Update” 앱에서 새 펌웨어 파일(이름이 -bluetooth.zip으로 끝남)을 보내면 설치돼요. 잘 안 되면 USB로 연결하고, 나타나는 드라이브에 .uf2 파일을 복사하세요.")}>
           {confirmDfu ? <span className="ry-gap">
             <button className="ry-text" onClick={() => setConfirmDfu(false)}>{t("Cancel", "취소")}</button>
             <button className="ry-primary" disabled={busy} onClick={async () => {
@@ -210,12 +210,12 @@ export function DeviceSettingsPanel() {
               try { await dev!.bleUpdate(); setDfuSent(true); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
               setConfirmDfu(false);
             }}>{t("Restart now", "지금 다시 시작")}</button></span>
-            : <button className="ry-outline" disabled={busy || dirty} onClick={() => setConfirmDfu(true)}>{t("Enter update mode", "업데이트 모드로")}</button>}
+            : <button className="ry-outline" disabled={busy || dirty} onClick={() => setConfirmDfu(true)}>{t("Wait for update", "업데이트 대기로 켜기")}</button>}
         </Row>
-        {dfuSent && <p className="ry-note" role="status">{t("The keyboard is restarting into update mode. It appears as a DFU device in the app.", "키보드가 업데이트 모드로 다시 시작하고 있어요. 앱에서 DFU 장치로 보여요.")}</p>}
+        {dfuSent && <p className="ry-note" role="status">{t("The keyboard is restarting to wait for new firmware. In the app it shows up as a “DFU” device.", "키보드가 새 펌웨어를 기다리는 상태로 다시 켜지고 있어요. 앱에서는 “DFU” 장치로 보여요.")}</p>}
       </section>}
-      <p className="ry-faint">{t("Some things are fixed when the firmware is built (N-key rollover, mouse keys, Bluetooth signal strength, asking to unlock before editing). They are set by the keyboard maker.",
-        "N키 롤오버, 마우스 키, Bluetooth 신호 세기, 편집 전 잠금 해제 요구는 펌웨어를 만들 때 정해져요. 키보드 제작자가 정해요.")}</p>
+      <p className="ry-faint">{t("Not changeable here: how many keys can be pressed at once (N-key rollover), mouse-movement keys, Bluetooth signal strength, and the unlock step before editing. These are set when the firmware is made, by the keyboard maker.",
+        "여기서 바꿀 수 없는 것: 동시에 누를 수 있는 키 개수(N키 롤오버), 마우스를 움직이는 키, Bluetooth 신호 세기, 편집 전 잠금 해제 단계. 이건 펌웨어를 만들 때 키보드 제작자가 정해요.")}</p>
       <div className="ry-savebar">
         {saved && !dirty && <p className="ry-note">{t("Saved to the keyboard.", "키보드에 저장했어요.")}</p>}
         <div className="ry-row">
