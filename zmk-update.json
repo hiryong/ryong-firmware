@@ -1,9 +1,51 @@
 {
-  "checked_at": "2026-11-09T00:49:01Z",
+  "checked_at": "2026-11-16T01:50:00Z",
   "current": {
     "zmk": "ed56d81",
     "label": "공식 ZMK main 2026-05-26 + 자체 보관 확장"
   },
   "latest_release": "v0.3.0",
-  "note": "v0.3.0 (2025-08-01) is older than our base; nothing to port."
+  "note": "v0.3.0 (2025-08-01) is older than our base; nothing to port.",
+  "fixes": {
+    "checked_at": "2026-11-16T01:50:00Z",
+    "last_zmk_commit": "4de31336",
+    "last_zephyr_commit": "10ba6d0cb38bc3d258775d27982f707599320085",
+    "advisories_checked_through": "2026-11-16",
+    "important": [
+      {
+        "source": "advisory",
+        "ref": "GHSA-rgw4-3qr8-pp36 (CVE-2026-19740; Zephyr 7b60012 + 06bf10e3)",
+        "what": "근처의 페어링 안 된 블루투스 기기가 특정 신호를 보내 키보드를 재시작시키거나 블루투스를 멈추게 할 수 있던 보안 문제 → 우리 Zephyr에 수정 반영",
+        "already_ours": false
+      },
+      {
+        "source": "zmk",
+        "ref": "6a7590c1 (#3514)",
+        "what": "길이가 다른 콤보가 겹칠 때 콤보 대기 시간이 갱신되지 않아 키가 늦게 나오거나 뗄 때까지 안 나오던 문제 → 우리 런타임 콤보에 같은 수정 반영(기본 내장 콤보는 겹치지 않아 해당 없음)",
+        "already_ours": false
+      }
+    ],
+    "candidate": {
+      "branch": "zmk-fix/2026-11-16",
+      "status": "ready",
+      "summary": "블루투스 보안 수정 1건(근처 기기가 키보드를 재시작시킬 수 있던 문제)을 넣었습니다.\n웹에서 만든 콤보가 겹칠 때 키가 늦게 나오던 문제도 고쳤습니다.\n저장된 키맵·콤보·블루투스 연결 정보는 그대로 유지됩니다.\n모든 자동 검사와 3종 펌웨어 빌드가 통과해 작업 브랜치에 합쳤습니다.\n빌드 성공은 실제 키보드 시험이 아닙니다. 벤치 테스트 후 /admin에서 배포해 주세요.",
+      "builds": [
+        {
+          "target": "bt60",
+          "run": 43785089842
+        },
+        {
+          "target": "bt60-oreo",
+          "run": 43785093173
+        },
+        {
+          "target": "ryong60",
+          "run": 43785096516
+        }
+      ],
+      "prepared_at": "2026-11-16T01:25:20Z",
+      "details_url": "https://github.com/hiryong/ryong-firmware/compare/7f13f089f7f30b77b834475a3bbf1210dcc3f5e1...7f4c04c0488604a9c4e4101d6d70862d464a5ac8",
+      "merged": "d29635ce947df1322f788df97b0dadfb7b8933ef"
+    }
+  }
 }
