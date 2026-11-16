@@ -1,0 +1,65 @@
+#include <dt-bindings/zmk/keys.h>
+#include <behaviors.dtsi>
+#include <dt-bindings/zmk/kscan_mock.h>
+
+/*
+ * Ryong port of upstream ZMK 6a7590c1 ("fix(combo): reschedule timeout timer, not just
+ * schedule it", #3514) for the runtime combo engine.
+ *
+ * The pending-combo timeout must move when the earliest candidate deadline changes.
+ * k_work_schedule() keeps an already armed deadline, so pressing A arms T+15 (slot 0),
+ * pressing B leaves only slots 1/2 (deadline T+205), and the stale T+15 run then finds
+ * "not yet due" and nothing re-arms the timer: A+B would stay pending until the next key
+ * event. With k_work_reschedule() the timer fires at T+205 and slot 1 (Y) is pressed
+ * while both keys are still held.
+ */
+
+/ {
+    runtime_combo_defaults {
+        compatible = "cormoran,runtime-combo-defaults";
+
+        combo_short_timeout {
+            slot = <0>;
+            timeout-ms = <10>;
+            key-positions = <0 2>;
+            bindings = <&kp X>;
+        };
+
+        combo_two_keys {
+            slot = <1>;
+            timeout-ms = <200>;
+            key-positions = <0 1>;
+            bindings = <&kp Y>;
+        };
+
+        combo_three_keys {
+            slot = <2>;
+            timeout-ms = <200>;
+            key-positions = <0 1 3>;
+            bindings = <&kp Z>;
+        };
+    };
+
+    keymap {
+        compatible = "zmk,keymap";
+
+        default_layer {
+            bindings = <
+                &kp A &kp B
+                &kp C &kp D
+            >;
+        };
+    };
+};
+
+&kscan {
+    rows = <2>;
+    columns = <2>;
+    events = <
+        /* T+5: press A. All three combos are candidates; slot 0 (10 ms) is the earliest. */
+        ZMK_MOCK_PRESS(0,0,5)
+        /* T+10: press B. Slot 0 drops out; slots 1 and 2 time out at T+205. Wait past
+         * that with no key events, so only the timeout task can resolve the combo. */
+        ZMK_MOCK_PRESS(0,1,250)
+    >;
+};

@@ -1,6 +1,6 @@
 # Vendored ZMK Studio extension and feature modules
 
-Our firmware is **official ZMK** plus these two patches. We no longer fetch the cormoran fork, so
+Our firmware is **official ZMK** plus these patches (two for ZMK, one Zephyr security backport). We no longer fetch the cormoran fork, so
 its future changes (or its removal) cannot reach our builds. `scripts/vendor_zmk.py` points the
 west manifest at the official repositories and applies the patches after `west update`.
 
@@ -8,6 +8,7 @@ west manifest at the official repositories and applies the patches after `west u
 |---|---|---|---|
 | `zmk-custom-studio.patch` | zmkfirmware/zmk `ed56d81` (main, 2026-05-26) | cormoran/zmk `1fc72aa` (branch `main+custom-studio-protocol`), minus `app/west.yml` and `docs/` | Studio custom subsystems (`custom_subsystem.c`, `zmk/studio/custom.h`, linker section), RPC TX back-pressure and deadlock fixes, BLE advertising while Studio is unlocked, split relay events (split boards only; unused by BT60/Ryong60) |
 | `zmk-studio-messages-custom.patch` | zmkfirmware/zmk-studio-messages `6cb4c28` | cormoran/zmk-studio-messages `89b81d2` | `custom.proto` (list/call custom subsystems), its field in `studio.proto` |
+| `zephyr-ble-ctlr-rx-node-leak.patch` | zmkfirmware/zephyr `10ba6d0` (`v4.1.0+zmk-fixes`, the revision ZMK main uses) | upstream Zephyr `7b60012` + `06bf10e3` (v4.3-branch backport PR #116513) | Security fix GHSA-rgw4-3qr8-pp36 / CVE-2026-19740 (2026-11-16): the BLE controller releases its retained RX node when an invalid LL Control PDU arrives during a Connection/PHY Update, so a nearby unpaired device cannot crash the keyboard. `apply` refuses to run if the Zephyr branch has moved off `10ba6d0`; re-review the patch then. |
 
 Checked 2026-11-03: base + patches is identical to the cormoran trees we built on before
 (0 differing lines), so firmware behaviour is unchanged. License: MIT (The ZMK Contributors).
