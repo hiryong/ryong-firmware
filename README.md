@@ -1,8 +1,8 @@
 # Ryong Firmware · Keys · ryong
 
-Private development repository for owner-designed **non-split keyboards**, starting with **Ryong60**.
+Private development repository for owner-designed **non-split keyboards**, starting with **geist**.
 
-> **2026-11-14:** the 60% target is now **geist** (`hardware/geist`, `geist//zmk`), replacing the old Ryong60 rev1.0 board. See `docs/GEIST.md`.
+> **2026-11-14:** the 60% target is now **geist** (`hardware/geist`, `geist//zmk`), replacing the old rev1.0 board. See `docs/GEIST.md`.
 
 ## Objective
 
@@ -14,7 +14,7 @@ Build a VIA-like runtime configuration experience on top of **ZMK**, retaining i
 - Major firmware updates are provided by the **Keys · ryong** website through a distinct, verified update workflow.
 - Customers never need to build firmware, open GitHub, drag UF2 files, or use SWD.
 
-**Deliberately excluded:** split-keyboard support, third-party keyboard support, broad MCU portability. Prioritize Ryong60 and future boards built by the same maker.
+**Deliberately excluded:** split-keyboard support, third-party keyboard support, broad MCU portability. Prioritize geist and future boards built by the same maker.
 
 ## Engineering status
 
@@ -22,7 +22,7 @@ Build a VIA-like runtime configuration experience on top of **ZMK**, retaining i
 
 Host-testable C prototype covers bounded profile validation, RAM edit transactions and pure combo matching. It does NOT implement live ZMK key-event interception, HID output, flash persistence, USB settings RPC or browser firmware updating.
 
-Actual Ryong60 and BT60 baseline/runtime builds pass. The isolated original editor now supports runtime combo, macro, Tap Dance and existing Hold-Tap timing configuration, with dynamic backup/recovery review. Browser/mock tests and native snapshots pass; live-device persistence, upgrade migration and recovery are still unverified. No installable development image is distributed. See the [integration checkpoint](docs/RUNTIME_INTEGRATION.md) and [Korean update guide](docs/FIRMWARE_UPDATES.ko.md) for evidence and limits.
+Actual geist and BT60 baseline/runtime builds pass. The isolated original editor now supports runtime combo, macro, Tap Dance and existing Hold-Tap timing configuration, with dynamic backup/recovery review. Browser/mock tests and native snapshots pass; live-device persistence, upgrade migration and recovery are still unverified. No installable development image is distributed. See the [integration checkpoint](docs/RUNTIME_INTEGRATION.md) and [Korean update guide](docs/FIRMWARE_UPDATES.ko.md) for evidence and limits.
 
 See [AGENTS.md](AGENTS.md), [docs/ROADMAP.md](docs/ROADMAP.md), and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Do not claim a ZMK/Zephyr build or hardware test unless one has actually passed.
 
@@ -36,7 +36,7 @@ ctest --test-dir build --output-on-failure
 
 ### Hardware
 
-Ryong60 reference design includes nRF52840, 61 switches, 5 row × 14 column matrix, USB-C, BLE and white key backlight. **Do not guess actual GPIO numbers** from the counts here; obtain verified original board source before a device build.
+geist reference design includes nRF52840, 61 switches, 5 row × 14 column matrix, USB-C, BLE and white key backlight. **Do not guess actual GPIO numbers** from the counts here; obtain verified original board source before a device build.
 
 This repository is private, but external dependencies and their licenses must still be respected.
 

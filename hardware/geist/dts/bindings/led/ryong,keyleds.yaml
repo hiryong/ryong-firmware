@@ -1,6 +1,6 @@
 # geist Ver2: all 61 key LEDs on one IS31FL3733 matrix driver, exposed as one LED device.
 # LED index 0 = every key at once (what ZMK backlight uses); index 1 + n = key n in keymap order.
-description: Ryong60 Ver2 per-key white LEDs (one IS31FL3733)
+description: geist Ver2 per-key white LEDs (one IS31FL3733)
 
 compatible: "ryong,keyleds"
 

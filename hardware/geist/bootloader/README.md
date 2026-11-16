@@ -1,4 +1,4 @@
-# ryong60 geist-UG4 / geist-UG4-S4 전용 부트로더 (MDBT50Q-1MV2)
+# geist-UG4 / geist-UG4-S4 전용 부트로더 (MDBT50Q-1MV2)
 
 **Ver2(E73) 부트로더를 이 보드에 쓰면 안 됩니다.** Ver2 부트로더는 P0.04를 상태 LED로 깜빡이는데,
 이 보드의 P0.04는 I2C 클럭(BMS_SCL)입니다. 상태 LED는 P0.02(모듈 11번 패드)에 있습니다.

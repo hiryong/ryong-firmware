@@ -17,7 +17,7 @@ OAuth login or production deployment.
 
 BT60 hardware source is an isolated copy from hiryong/zmk-config-bt60 at
 dbf49fcdf3e5c45b0960859919b91361e33fa36f. Build target is bt60//zmk,
-with its own board and power code. Never flash a Ryong60 image to it.
+with its own board and power code. Never flash a geist image to it.
 
 ## Modules and bounds
 
@@ -50,7 +50,7 @@ registrations fail. Its selected upstream raw NVS record still needs a product
 schema migration/downgrade policy before release.
 
 The BT60 fixture uses the archived frozen 59-project dependency graph plus the
-pinned Tap Dance project. Ryong60's experiment still imports a Zephyr maintenance
+pinned Tap Dance project. geist's experiment still imports a Zephyr maintenance
 ref through the pinned fork and records the resolved graph in CI. Freeze that
 transitive graph and the build container before any product release. Both
 comparison variants use the custom fork; official-ZMK comparison remains open.
@@ -112,7 +112,7 @@ See FIRMWARE_UPDATES.ko.md for the Korean user/developer update and recovery gui
   Source 0c1bd79a7d715584f6b0ac313763e4987d8ff033.
   Runtime static linker usage: Flash 294,164 B / 792 KiB, RAM 104,160 B / 256 KiB.
   These are not measured stack peaks.
-- Ryong60 compile + 9 native combo/macro/Tap Dance snapshots:
+- geist compile + 9 native combo/macro/Tap Dance snapshots:
   https://github.com/hiryong/ryong-firmware/actions/runs/41384115070
 - Final explicit-slot firmware and 12 native snapshots: https://github.com/hiryong/ryong-firmware/actions/runs/41384769725
   Source 0c1bd79a7d715584f6b0ac313763e4987d8ff033.
@@ -138,7 +138,7 @@ The baseline .config confirms SETTINGS_TABLE and the runtime .config confirms
 CRC16 (recorded in docs/build-evidence/bt60-*-id-scheme.txt). That keymap migration and BLE bond retention
 still require an upgrade/rollback test. Do not use settings reset as a shortcut.
 
-Ryong60 has a separate unresolved DCDC/LDO source discrepancy. Do not apply
+geist has a separate unresolved DCDC/LDO source discrepancy. Do not apply
 its electrical choices to BT60. No installable UF2/HEX/BIN/ELF is uploaded,
 no hardware test is requested, and no signed release/browser DFU is claimed.
 

@@ -1,7 +1,7 @@
 """Run pinned modules' native_sim event snapshots, without a physical board.
 
 Fixture sources and expected snapshots belong to cormoran's MIT modules.
-This validates those fixtures only, not Ryong60 hardware or power-loss safety.
+This validates those fixtures only, not geist hardware or power-loss safety.
 """
 from pathlib import Path
 import re

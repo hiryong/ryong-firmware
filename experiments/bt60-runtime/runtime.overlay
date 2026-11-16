@@ -1,4 +1,4 @@
-/* Behavior definition only: no Ryong60 pins, partitions or power code. */
+/* Behavior definition only: no geist pins, partitions or power code. */
 #include <behaviors/runtime_macro.dtsi>
 
 #include <behaviors/runtime_tapdance.dtsi>

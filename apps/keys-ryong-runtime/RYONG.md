@@ -91,7 +91,7 @@ Workers & Pages → keys-ryong → Settings → Variables and Secrets (Productio
 
 ## 나중에 할 일
 
-- ryong60 보드가 나오면 펌웨어 화면을 다시 구성해요. ryong60 카드를 크게 맨 위에 두고, 다른 키보드(BT60 V2 등)는 "다른 키보드"로 접어요. 실제 보드를 연결해서 확인하면서 맞춰요.
+- geist 보드가 나오면 펌웨어 화면을 다시 구성해요. geist 카드를 크게 맨 위에 두고, 다른 키보드(BT60 V2 등)는 "다른 키보드"로 접어요. 실제 보드를 연결해서 확인하면서 맞춰요.
 - 2열 카드 시안은 `firmware-two-columns` 브랜치에 있어요(키보드가 여러 대일 때를 위한 것, main에는 없음).
 
 ## 배포 (Cloudflare Pages)

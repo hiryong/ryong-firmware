@@ -90,7 +90,7 @@ export function BleUpdateDialog() {
           <li>{t("In Keyboard settings, press “Wait for update”. The keyboard restarts and waits for new firmware.", "키보드 설정에서 “업데이트 대기로 켜기”를 눌러요. 키보드가 새 펌웨어를 기다리는 상태로 다시 켜져요.")}</li>
           <li>{t("Choose the new firmware file (the build's file ending in -bluetooth.zip).", "새 펌웨어 파일을 골라요(빌드에서 받은, 이름이 -bluetooth.zip으로 끝나는 파일).")}
             <input type="file" accept=".zip,application/zip" disabled={running} onChange={(e) => void choose(e.target.files?.[0])} aria-label={t("Firmware file", "펌웨어 파일")} /></li>
-          <li>{t("Press Install and pick the keyboard in the browser's list (often named “AdaDFU”).", "“설치”를 누르고 브라우저 목록에서 키보드를 골라요(보통 “AdaDFU”라는 이름으로 보여요).")}</li>
+          <li>{t("Press Install and pick the keyboard in the browser's list (geist shows as “Ryong60DFU”, the bootloader's fixed name; other boards as “AdaDFU”).", "“설치”를 누르고 브라우저 목록에서 키보드를 골라요(geist는 부트로더에 고정된 이름 “Ryong60DFU”로, 다른 보드는 “AdaDFU”로 보여요).")}</li>
         </ol>
         {pkg && <p className="ry-faint">{t("{f} · {kb} KB · for {b}", "{f} · {kb}KB · {b}용", {f: pkg.name, kb: Math.ceil(pkg.application.length / 1024), b: pkg.target ? TARGET_NAMES[pkg.target] : t("unknown board (check the file name)", "알 수 없는 보드(파일 이름 확인)")})}</p>}
         {pkg && <p className="ry-note">{t("Make sure this file is for this keyboard. A file for another board makes it stop working until the right .uf2 is copied over USB.",

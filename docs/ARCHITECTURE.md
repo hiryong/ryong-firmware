@@ -1,7 +1,7 @@
 # Architecture — Ryong Firmware v0 design
 
 ## Scope
-Owner-designed, non-split keyboards. Ryong60 / nRF52840 first. **Not** a fork of ZMK. Reuse ZMK BLE, USB, power and keys. Avoid replacing existing ZMK Studio functionality.
+Owner-designed, non-split keyboards. geist / nRF52840 first. **Not** a fork of ZMK. Reuse ZMK BLE, USB, power and keys. Avoid replacing existing ZMK Studio functionality.
 
 ## Boundary layers
 
@@ -24,10 +24,10 @@ Owner-designed, non-split keyboards. Ryong60 / nRF52840 first. **Not** a fork of
 - Firmware update security: board ID + version + signature + atomic recovery are prerequisites, not retroactive enhancements.
 
 ## Source hardware baseline (provided ZIP)
-Ryong60 reference firmware extracted from `ryong60_rev1.zip`:
-- ZMK board target: `ryong60//zmk`.
+geist reference firmware extracted from `ryong60_rev1.zip`:
+- ZMK board target: `geist//zmk`.
 - 5 ROW × 14 COL, row-to-column diode direction; 61 actual keys.
-- Existing source: `firmware/boards/ryong/ryong60/` containing board DTS, pinctrl, keymap, soft-off wake definitions and power C source.
+- Existing source: `firmware/boards/ryong/geist/` containing board DTS, pinctrl, keymap, soft-off wake definitions and power C source.
 - Existing `firmware/build.yaml` uses `studio-rpc-usb-uart` snippet.
 - Existing firmware tracks ZMK `main`; product releases should pin a verified upstream SHA.
 - Existing UF2 bootloader may be incompatible with browser-based one-click updates. **Do not ship DFU until proven.**

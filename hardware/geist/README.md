@@ -1,6 +1,6 @@
-# ryong60 ZMK 펌웨어
+# geist ZMK 펌웨어
 
-ryong60 **Ver2**(61키 무선, Rule60 v3 6.25u 기반 + 키별 흰색 LED IS31FL3746A) 용 ZMK 설정입니다. **rev1.0 보드와 핀이 달라 서로 바꿔 쓸 수 없습니다.**
+geist **Ver2**(61키 무선, Rule60 v3 6.25u 기반 + 키별 흰색 LED IS31FL3746A) 용 ZMK 설정입니다. **rev1.0 보드와 핀이 달라 서로 바꿔 쓸 수 없습니다.**
 보드 정의는 chcbaram 님의 [zmk-config / zmk-rule60](https://github.com/chcbaram/zmk-config/tree/main/zmk-rule60)(MIT)을 그대로 가져와서 아래만 바꿨습니다.
 
 ## 바뀐 점
@@ -17,7 +17,7 @@ ryong60 **Ver2**(61키 무선, Rule60 v3 6.25u 기반 + 키별 흰색 LED IS31FL
 | 절전 | 15분 동안 입력이 없으면 잠듦 (BT60 V2 설정과 같음), 아무 키나 누르면 깸 |
 | 전원 끄기/켜기 | **Fn + 왼쪽 Ctrl 3초** 누르고 떼면 꺼짐 (ZMK 공식 Soft Off — ZMK Studio로 다른 키에 옮길 수 있고, 시간은 keys.ryong.com 설정 탭). 끈 뒤에는 **Fn만 키보드를 깨우고**, Fn + Soft Off 키를 3초 누르면 켜짐(백라이트가 한 번 깜빡임) — 아니면 8초 안에 다시 꺼짐. USB 연결·리셋 버튼·슬라이드 스위치로는 바로 켜짐. Fn + Esc = ` |
 | ZMK Studio | `CONFIG_ZMK_STUDIO=y` (USB 연결로 키 배치 변경) |
-| ZMK 버전 | 항상 최신(`main`). 보드 폴더는 새 형식(`boards/ryong/ryong60`, 빌드 대상 `ryong60//zmk`) |
+| ZMK 버전 | 항상 최신(`main`). 보드 폴더는 새 형식(`boards/ryong/geist`, 빌드 대상 `geist//zmk`) |
 | 키맵 | 사용자의 BT60 V2 키맵([hiryong/zmk-config-studio](https://github.com/hiryong/zmk-config-studio))을 그대로 옮김 |
 
 ## 키 조작 (BT60 V2 와 같음)
@@ -40,8 +40,8 @@ ryong60 **Ver2**(61키 무선, Rule60 v3 6.25u 기반 + 키별 흰색 LED IS31FL
 ## 빌드 (GitHub Actions, 가장 쉬움)
 
 1. 이 폴더를 GitHub 새 저장소로 올립니다 (폴더 구조 그대로).
-2. 저장소의 **Actions** 탭에서 빌드가 자동으로 돌고, 끝나면 `ryong60` 아티팩트(.uf2)가 생깁니다.
-3. 빌드 목록은 `build.yaml` (보드 `ryong60//zmk`, Studio 용 snippet `studio-rpc-usb-uart`).
+2. 저장소의 **Actions** 탭에서 빌드가 자동으로 돌고, 끝나면 `geist` 아티팩트(.uf2)가 생깁니다.
+3. 빌드 목록은 `build.yaml` (보드 `geist//zmk`, Studio 용 snippet `studio-rpc-usb-uart`).
 
 > **빌드 확인 (2026-11-07, Ver2)**: 플래시 28.9% · RAM 27.5%. 키 LED 전류 한도 255, 슬롯 밝기 8, 배터리 자동 상한 켜짐을 빌드 결과 `.config`·DTS에서 확인. 완성 펌웨어는 패키지의 `ryong60_ver2.uf2`.
 

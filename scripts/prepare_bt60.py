@@ -1,4 +1,4 @@
-"""Prepare only the user's pinned BT60 test fixture; no Ryong60 hardware code."""
+"""Prepare only the user's pinned BT60 test fixture; no geist hardware code."""
 from pathlib import Path
 import shutil
 import sys

@@ -114,7 +114,7 @@ export const webBluetoothAvailable = () => typeof navigator !== "undefined" && "
 /** Must run from a click: the browser shows its device chooser. Lists only keyboards waiting for an update. */
 export async function connectWaitingKeyboard(): Promise<{ link: DfuLink; name: string; close(): void }> {
   const bt = (navigator as unknown as { bluetooth: { requestDevice(o: unknown): Promise<Gatt["device"]> } }).bluetooth;
-  const device = await bt.requestDevice({filters: [{services: [DFU_SERVICE]}, {namePrefix: "AdaDFU"}], optionalServices: [DFU_SERVICE]});
+  const device = await bt.requestDevice({filters: [{services: [DFU_SERVICE]}, {namePrefix: "AdaDFU"}, {namePrefix: "Ryong60DFU"}], optionalServices: [DFU_SERVICE]});
   const server = await device.gatt!.connect() as { getPrimaryService(u: string): Promise<{ getCharacteristic(u: string): Promise<BluetoothChar> }> };
   const service = await server.getPrimaryService(DFU_SERVICE);
   const cp = await service.getCharacteristic(DFU_CONTROL_POINT), pk = await service.getCharacteristic(DFU_PACKET);
