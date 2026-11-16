@@ -18,6 +18,6 @@
   "boards": [
     { "id": "bt60", "label": "BT60 v2 Cheeto (LED 없음)", "label_en": "BT60 v2 Cheeto (no LEDs)" },
     { "id": "bt60-oreo", "label": "BT60 v2 Oreo (백라이트·언더글로우)", "label_en": "BT60 v2 Oreo (backlight, underglow)" },
-    { "id": "ryong60", "label": "Ryong60", "label_en": "Ryong60" }
+    { "id": "geist", "label": "geist", "label_en": "geist" }
   ]
 }

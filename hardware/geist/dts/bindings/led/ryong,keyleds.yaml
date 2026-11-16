@@ -1,0 +1,21 @@
+# geist Ver2: all 61 key LEDs on one IS31FL3733 matrix driver, exposed as one LED device.
+# LED index 0 = every key at once (what ZMK backlight uses); index 1 + n = key n in keymap order.
+description: Ryong60 Ver2 per-key white LEDs (one IS31FL3733)
+
+compatible: "ryong,keyleds"
+
+properties:
+  driver:
+    type: phandle
+    required: true
+    description: The IS31FL3733 node (U81, 0x51).
+  sdb-gpios:
+    type: phandle-array
+    required: true
+    description: SDB pin of the driver (P0.03). Driven low while every key LED is off.
+
+child-binding:
+  description: One child so ZMK backlight counts one channel (index 0 = all keys).
+  properties:
+    label:
+      type: string

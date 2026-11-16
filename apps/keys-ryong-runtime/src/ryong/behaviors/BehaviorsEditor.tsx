@@ -50,7 +50,7 @@ import { makePreviewView } from "../runtime/preview";
 const RUNTIME_BOARD: Board = {
   id: "runtime-development", name: "Runtime", note: "", repo: "hiryong/ryong-firmware",
   branch: "dev/keys-ryong-runtime", workflow: "", artifact: "", keymap: "device",
-  match: ["BT60 V2", "ryong60"], layout: "60-ansi",
+  match: ["BT60 V2", "geist"], layout: "60-ansi",
 };
 
 type Section = "combos" | "macros" | "tapDances";

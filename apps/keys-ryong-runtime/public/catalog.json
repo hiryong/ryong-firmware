@@ -1,7 +1,7 @@
 [
   {
-    "id": "ryong60",
-    "name": "ryong60",
+    "id": "geist",
+    "name": "geist",
     "note": "61-key wireless 60% PCB (GH60 size)",
     "repo": "hiryong/zmk-config-ryong60",
     "branch": "main",
@@ -9,7 +9,7 @@
     "artifact": "firmware",
     "keymap": "boards/ryong/ryong60/ryong60.keymap",
     "match": [
-      "ryong60"
+      "geist"
     ],
     "unlockKey": "Fn + \\",
     "bootloaderKey": "Fn + Enter",

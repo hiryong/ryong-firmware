@@ -21,15 +21,10 @@ class BuildTools(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             dest = Path(temp) / 'workspace'
             subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_zmk.py'), str(dest)], check=True)
-            for source in (ROOT / 'hardware/ryong60').rglob('*'):
+            for source in (ROOT / 'hardware/geist').rglob('*'):
                 if source.is_file():
-                    copied = dest / 'board' / source.relative_to(ROOT / 'hardware/ryong60')
-                    if source.name == 'ryong60_nrf52840_zmk_defconfig':
-                        expected = "".join(line for line in source.read_text().splitlines(keepends=True)
-                                           if not line.startswith(("CONFIG_ZMK_RGB_UNDERGLOW_AUTO_OFF_USB=", "CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX=")))
-                        self.assertEqual(expected, copied.read_text())
-                    else:
-                        self.assertEqual(source.read_bytes(), copied.read_bytes())
+                    copied = dest / 'board' / source.relative_to(ROOT / 'hardware/geist')
+                    self.assertEqual(source.read_bytes(), copied.read_bytes())
             result = subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_zmk.py'), str(dest)], capture_output=True)
             self.assertNotEqual(result.returncode, 0)
 
@@ -56,15 +51,16 @@ class BuildTools(unittest.TestCase):
             self.assertNotIn('    os {', generated)
             self.assertIn('&bl BL_TOG', generated)  # Oreo's backlight keys stay
 
-    def test_ryong60_gets_the_same_adaptive_rows(self):
+    def test_geist_gets_the_same_adaptive_rows(self):
         with tempfile.TemporaryDirectory() as temp:
             dest = Path(temp) / 'workspace'
             subprocess.run([sys.executable, str(ROOT / 'scripts/prepare_zmk.py'), str(dest), '--host-layout'], check=True, capture_output=True)
-            generated = (dest / 'board/boards/ryong/ryong60/ryong60.keymap').read_text()
+            generated = (dest / 'board/boards/ryong/geist/geist.keymap').read_text()
             base = generated.split('    base {', 1)[1].split('    raise {', 1)[0]
             self.assertIn('&kp LCTRL &ry_host LGUI LALT &ry_host LALT LGUI &kp SPACE &ry_host RALT RGUI &ry_host K_APP RALT &kp RCTRL', base)
             self.assertNotIn('    os {', generated)
-            self.assertNotIn('&ry_host', (ROOT / 'hardware/ryong60/boards/ryong/ryong60/ryong60.keymap').read_text())
+            self.assertNotIn('&ry_host', (ROOT / 'hardware/geist/boards/ryong/geist/geist.keymap').read_text())
+            self.assertIn('&sbl SBL_TOG', generated)  # smart backlight keys stay
 
     def test_simulation_requires_hardened_metadata(self):
         spec = importlib.util.spec_from_file_location("sim_runner", ROOT / "scripts/run_module_simulations.py")

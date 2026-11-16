@@ -1,0 +1,13 @@
+file_format: "1"
+id: geist//zmk
+name: geist
+type: board
+arch: arm
+features:
+  - keys
+  - underglow
+  - studio
+outputs:
+  - usb
+  - ble
+url: 

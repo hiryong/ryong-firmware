@@ -1,6 +1,0 @@
-board:
-  name: ryong60
-  socs:
-    - name: nrf52840
-      variants:
-        - name: zmk

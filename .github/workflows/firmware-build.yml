@@ -11,7 +11,7 @@ on:
     paths: ['.github/workflows/firmware-build.yml']
   workflow_dispatch:
     inputs:
-      target: { description: "bt60 (Cheeto layout) | bt60-oreo (Oreo: Mac layout, LEDs) | ryong60", required: true, type: choice, options: [bt60, bt60-oreo, ryong60] }
+      target: { description: "bt60 (Cheeto layout) | bt60-oreo (Oreo: Mac layout, LEDs) | geist", required: true, type: choice, options: [bt60, bt60-oreo, geist] }
       label: { description: "Short name", required: false, default: build }
       idle_timeout_s: { description: "Idle after (s)", required: false, default: "30" }
       sleep_min: { description: "Default deep sleep (min, 0 = off); users change it on the keyboard", required: false, default: "15" }
@@ -47,7 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           int() { [[ "$1" =~ ^[0-9]{1,5}$ ]] && (( 10#$1 >= $2 && 10#$1 <= $3 )) || { echo "::error::$4 out of range ($2-$3): $1"; exit 1; }; }
-          [[ "$TARGET" == bt60 || "$TARGET" == bt60-oreo || "$TARGET" == ryong60 ]] || { echo "::error::bad target"; exit 1; }
+          [[ "$TARGET" == bt60 || "$TARGET" == bt60-oreo || "$TARGET" == geist ]] || { echo "::error::bad target"; exit 1; }
           [[ "$REQ" =~ ^req-[A-Za-z0-9-]{1,40}$ ]] || { echo "::error::bad request id"; exit 1; }
           # characters, not bytes (Korean labels are 3 bytes per character)
           python3 -c 'import os,sys; sys.exit(len(os.environ["LABEL"]) > 40)' || { echo "::error::label too long"; exit 1; }
@@ -64,15 +64,15 @@ jobs:
             if [ "$TX" = plus4 ]; then echo "CONFIG_BT_CTLR_TX_PWR_PLUS_4=y"; fi
             if [ "$TX" = plus8 ]; then echo "CONFIG_BT_CTLR_TX_PWR_PLUS_8=y"; fi
             # Empty name = the board's product name (BT60 builds used to come out as "BT60 V2").
-            if [ -z "$KBNAME" ]; then case "$TARGET" in bt60) KBNAME=Cheeto ;; bt60-oreo) KBNAME=Oreo ;; ryong60) KBNAME=ryong60 ;; esac; fi
+            if [ -z "$KBNAME" ]; then case "$TARGET" in bt60) KBNAME=Cheeto ;; bt60-oreo) KBNAME=Oreo ;; geist) KBNAME=geist ;; esac; fi
             echo "CONFIG_ZMK_KEYBOARD_NAME=\"$KBNAME\""
             # Users rename the keyboard on the web page; the USB name follows from the next start
             # (modules/ryong-runtime-settings/src/usb_name.c). Its room is this string's length, so
             # reserve 16 characters; the padding is never shown (the stored or built name replaces it).
             printf 'CONFIG_USB_DEVICE_PRODUCT="%-16s"\n' "$KBNAME"
-            # Oreo and Ryong60 have a backlight: its keyboard-side "use" switch starts ON (otherwise the light key turns
+            # Oreo and geist have a backlight: its keyboard-side "use" switch starts ON (otherwise the light key turns
             # it on and the 1 s rule turns it straight off). Underglow always starts unused, every board.
-            if [ "$TARGET" = bt60-oreo ] || [ "$TARGET" = ryong60 ]; then echo "CONFIG_RYONG_RUNTIME_SETTINGS_LIGHTS_DEFAULT_USE=y"; fi
+            if [ "$TARGET" = bt60-oreo ] || [ "$TARGET" = geist ]; then echo "CONFIG_RYONG_RUNTIME_SETTINGS_LIGHTS_DEFAULT_USE=y"; fi
           } > /tmp/admin-settings.conf
           cat /tmp/admin-settings.conf
       - name: Prepare workspace
@@ -89,7 +89,7 @@ jobs:
             /tmp/fw/modules
             /tmp/fw/tools
             /tmp/fw/bootloader
-          key: fw-${{ inputs.target == 'ryong60' && 'ryong60' || 'bt60' }}-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'experiments/dya-runtime/west.yml', 'third_party/zmk/base.json', 'third_party/zmk-modules/**') }}
+          key: fw-${{ inputs.target == 'geist' && 'geist' || 'bt60' }}-${{ runner.os }}-${{ hashFiles('docs/build-evidence/34a0f3d-baseline-west.yml', 'experiments/dya-runtime/west.yml', 'third_party/zmk/base.json', 'third_party/zmk-modules/**') }}
       - name: Resolve pinned dependencies
         working-directory: /tmp/fw
         run: |
@@ -108,18 +108,18 @@ jobs:
           W="$GITHUB_WORKSPACE"
           # Firmware-built combos/macros become editable runtime defaults (listed on keys.ryong.com).
           if [[ "${{ inputs.target }}" == bt60* ]]; then python3 "$W/scripts/runtime_defaults.py" /tmp/fw/config/ryong-behaviors.dtsi /tmp/fw/runtime-defaults.overlay /tmp/fw/config/ryong-behaviors.json
-          else python3 "$W/scripts/runtime_defaults.py" "$W/hardware/ryong60/boards/ryong/ryong60/ryong-behaviors.dtsi" /tmp/fw/runtime-defaults.overlay "$W/hardware/ryong60/boards/ryong/ryong60/ryong-behaviors.json"; fi
+          else python3 "$W/scripts/runtime_defaults.py" "$W/hardware/geist/boards/ryong/geist/ryong-behaviors.dtsi" /tmp/fw/runtime-defaults.overlay "$W/hardware/geist/boards/ryong/geist/ryong-behaviors.json"; fi
           if [[ "${{ inputs.target }}" == bt60* ]]; then
             west build -s zmk/app -d build -b bt60//zmk -S studio-rpc-usb-uart -- -DCONFIG_ZMK_STUDIO=y -DZMK_CONFIG=/tmp/fw/config \
               "-DZMK_EXTRA_MODULES=/tmp/fw/bt60-module;$W/modules/ryong-holdtap;$W/modules/ryong-host-layout;$W/modules/ryong-update;$W/modules/ryong-ble-profiles;$W/modules/ryong-runtime-settings;$W/modules/ryong-named-macro" \
-              "-DEXTRA_CONF_FILE=$W/experiments/dya-runtime/ryong60-runtime.conf;$W/experiments/host-layout/host-layout.conf;$W/experiments/host-layout/update.conf;$W/experiments/host-layout/ble-profiles.conf;$W/experiments/host-layout/runtime-settings.conf;$W/experiments/bt60-runtime/lights.conf;$W/experiments/bt60-runtime/ble-dfu.conf;/tmp/admin-settings.conf" \
+              "-DEXTRA_CONF_FILE=$W/experiments/dya-runtime/geist-runtime.conf;$W/experiments/host-layout/host-layout.conf;$W/experiments/host-layout/update.conf;$W/experiments/host-layout/ble-profiles.conf;$W/experiments/host-layout/runtime-settings.conf;$W/experiments/bt60-runtime/lights.conf;$W/experiments/bt60-runtime/ble-dfu.conf;/tmp/admin-settings.conf" \
               "-DEXTRA_DTC_OVERLAY_FILE=$W/experiments/bt60-runtime/runtime.overlay;$W/experiments/host-layout/host-layout.overlay;/tmp/fw/runtime-defaults.overlay;$W/experiments/bt60-runtime/ble-dfu.overlay" \
               "-DCONFIG_RYONG_UPDATE_BUILD_ID=\"${GITHUB_SHA}\""
           else
-            west build -s zmk/app -d build -b ryong60//zmk -S studio-rpc-usb-uart -- -DZMK_CONFIG=/tmp/fw/config \
+            west build -s zmk/app -d build -b geist//zmk -S studio-rpc-usb-uart -- -DZMK_CONFIG=/tmp/fw/config \
               "-DZMK_EXTRA_MODULES=/tmp/fw/board;$W/modules/ryong-holdtap;$W/modules/ryong-host-layout;$W/modules/ryong-ble-profiles;$W/modules/ryong-runtime-settings;$W/modules/ryong-named-macro" \
-              "-DEXTRA_CONF_FILE=$W/experiments/dya-runtime/ryong60-runtime.conf;$W/experiments/host-layout/host-layout.conf;$W/experiments/host-layout/ble-profiles.conf;$W/experiments/host-layout/runtime-settings.conf;/tmp/admin-settings.conf" \
-              "-DEXTRA_DTC_OVERLAY_FILE=$W/experiments/dya-runtime/ryong60-runtime.overlay;$W/experiments/host-layout/host-layout.overlay;/tmp/fw/runtime-defaults.overlay"
+              "-DEXTRA_CONF_FILE=$W/experiments/dya-runtime/geist-runtime.conf;$W/experiments/host-layout/host-layout.conf;$W/experiments/host-layout/ble-profiles.conf;$W/experiments/host-layout/runtime-settings.conf;/tmp/admin-settings.conf" \
+              "-DEXTRA_DTC_OVERLAY_FILE=$W/experiments/dya-runtime/geist-runtime.overlay;$W/experiments/host-layout/host-layout.overlay;/tmp/fw/runtime-defaults.overlay"
           fi
       - name: Confirm every requested setting reached the firmware
         shell: bash
@@ -144,7 +144,7 @@ jobs:
           cp /tmp/fw/build/zephyr/zmk.uf2 "/tmp/out/$uf2"
           sha=$(sha256sum "/tmp/out/$uf2" | cut -d' ' -f1)
           dfu=""
-          if [[ "$TARGET" == bt60* ]]; then
+          if [[ "$TARGET" == bt60* || "$TARGET" == geist ]]; then
             # Bluetooth update package for the Adafruit bootloader (legacy Nordic DFU). Development only: unsigned.
             python3 -m pip --version >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq python3-pip >/dev/null; }
             python3 -m pip install --quiet adafruit-nrfutil==0.5.3.post16 2>/dev/null || python3 -m pip install --quiet --break-system-packages adafruit-nrfutil==0.5.3.post16

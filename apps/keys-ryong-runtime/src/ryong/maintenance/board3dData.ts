@@ -4,7 +4,7 @@
 // The texture and model files have content-hashed names and are cached by the browser for good
 // (public/_headers), so on later visits this is read from the disk cache.
 
-export const BOARD3D_SRC = "/board3d/ryong60/";
+export const BOARD3D_SRC = "/board3d/geist/";
 
 type ModelEntry = { file: string; refs: string[]; centred?: boolean };
 export type Board3DData = {

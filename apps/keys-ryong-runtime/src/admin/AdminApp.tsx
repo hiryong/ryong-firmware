@@ -24,7 +24,7 @@ type Detail = {
 /** A checklist item or board in the current language ("label" is Korean, "label_en" English). */
 const labelOf = (x: { label: string; label_en?: string }) => t(x.label_en ?? x.label, x.label);
 
-const TARGET_LABEL: { [k: string]: string } = { bt60: "BT60 Cheeto", "bt60-oreo": "BT60 Oreo", ryong60: "Ryong60" };
+const TARGET_LABEL: { [k: string]: string } = { bt60: "BT60 Cheeto", "bt60-oreo": "BT60 Oreo", geist: "geist" };
 const ago = (iso?: string | null) => {
   if (!iso) return "";
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -243,7 +243,7 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (to: "test"
   const [vals, setVals] = useState<{ [k: string]: number }>(() => Object.fromEntries(FIELDS.map((f) => [f.id, f.def])));
   const [tx, setTx] = useState("default");
   // Each keyboard keeps its own Bluetooth name; switching boards never carries the previous one over.
-  const [names, setNames] = useState<{ [target: string]: string }>({ bt60: "Cheeto", "bt60-oreo": "Oreo", ryong60: "" });
+  const [names, setNames] = useState<{ [target: string]: string }>({ bt60: "Cheeto", "bt60-oreo": "Oreo", geist: "" });
   const kbName = names[target] ?? "";
   const setKbName = (v: string) => setNames((n) => ({ ...n, [target]: v }));
   const [busy, setBusy] = useState(false);
@@ -270,7 +270,7 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (to: "test"
           <div className="kc-seg" role="radiogroup" aria-label={t("Board", "보드")}>
             {Object.entries(TARGET_LABEL).map(([id, l]) => <button type="button" key={id} role="radio" aria-checked={target === id} onClick={() => setTarget(id)}>{l}</button>)}
           </div>
-          {target === "ryong60" && <p className="ry-faint">{t("The physical Ryong60 board hasn't been tested yet. It can be built and released, but nobody has checked it on a real board.", "Ryong60 실물 보드는 아직 시험 전이에요. 빌드·배포는 되지만, 실물에서 확인한 적은 없어요.")}</p>}
+          {target === "geist" && <p className="ry-faint">{t("The physical geist board hasn't been tested yet. It can be built and released, but nobody has checked it on a real board.", "geist 실물 보드는 아직 시험 전이에요. 빌드·배포는 되지만, 실물에서 확인한 적은 없어요.")}</p>}
         </div>
         <label className="kc-field"><span className="ry-label">{t("Name", "이름")}</span>
           <input type="text" maxLength={40} placeholder={t("e.g. sleep 10 min test", "예: 절전 10분 테스트")} value={label} onChange={(e) => setLabel(e.target.value)} /></label>
@@ -280,7 +280,7 @@ function Build({ onError, go }: { onError: (e: unknown) => void; go: (to: "test"
               onChange={(e) => setVals({ ...vals, [f.id]: Number(e.target.value) })} /><span className="ry-faint">{f.unit}</span></span>
             {f.hint && <span className="ry-faint">{f.hint}</span>}</label>)}
           <label className="kc-field"><span className="ry-label">{t("Bluetooth name", "Bluetooth 이름")}</span>
-            <input type="text" maxLength={16} placeholder={target === "ryong60" ? t("Empty = Ryong60", "비우면 Ryong60") : t("Empty = BT60 V2 (e.g. Cheeto, Oreo)", "비우면 BT60 V2 (예: Cheeto, Oreo)")} value={kbName}
+            <input type="text" maxLength={16} placeholder={target === "geist" ? t("Empty = geist", "비우면 geist") : t("Empty = BT60 V2 (e.g. Cheeto, Oreo)", "비우면 BT60 V2 (예: Cheeto, Oreo)")} value={kbName}
               onChange={(e) => setKbName(e.target.value)} pattern="[A-Za-z0-9][A-Za-z0-9 _\-]{0,15}" />
             <span className="ry-faint">{t("The name computers and phones show. Up to 16 English letters or digits (e.g. Cheeto)", "컴퓨터·폰에 보이는 이름. 영문·숫자 16자 (예: Cheeto)")}</span></label>
           <label className="kc-field"><span className="ry-label">{t("Bluetooth signal strength", "Bluetooth 신호 세기")}</span>

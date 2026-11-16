@@ -78,7 +78,7 @@ for (const viewport of [{ width: 1280, height: 860 }, { width: 390, height: 844 
     await page.getByLabel("Bluetooth 이름").fill("Cheeto2");
     await page.getByRole("radio", { name: "BT60 Oreo" }).click();
     assert.equal(await page.getByLabel("Bluetooth 이름").inputValue(), "Oreo");  // not carried over
-    await page.getByRole("radio", { name: "Ryong60" }).click();
+    await page.getByRole("radio", { name: "geist" }).click();
     assert.equal(await page.getByLabel("Bluetooth 이름").inputValue(), "");
     await page.getByRole("radio", { name: "BT60 Cheeto" }).click();
     assert.equal(await page.getByLabel("Bluetooth 이름").inputValue(), "Cheeto2");  // its own edit kept

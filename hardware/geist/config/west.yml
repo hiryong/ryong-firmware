@@ -1,0 +1,11 @@
+manifest:
+  remotes:
+    - name: zmkfirmware
+      url-base: https://github.com/zmkfirmware
+  projects:
+    - name: zmk
+      remote: zmkfirmware
+      revision: 4dd95d7840eb3d5a3f59bb29fbf1ab054715ef85  # pinned: verified Ryong60 build (2026-11-02). Change to main to follow ZMK updates.
+      import: app/west.yml
+  self:
+    path: config

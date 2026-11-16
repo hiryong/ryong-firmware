@@ -2,7 +2,7 @@
 # Rebuild the board 3D assets: build.sh <package dir with .kicad_pcb, BOM_*.csv, gerber/> [name]
 # Output: apps/keys-ryong-runtime/public/board3d/<name>/{board.json,top.webp,bottom.webp}
 set -euo pipefail
-pkg=$1; name=${2:-ryong60}
+pkg=$1; name=${2:-geist}
 here=$(cd "$(dirname "$0")" && pwd); out=$here/../../apps/keys-ryong-runtime/public/board3d/$name
 mkdir -p "$out"; tmp=$(mktemp -d)
 # vias are plugged and covered (the board's order: Via Covering = Plugged): their drill sizes, from the design

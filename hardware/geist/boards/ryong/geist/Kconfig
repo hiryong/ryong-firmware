@@ -1,0 +1,276 @@
+# Copyright (c) 2021 Nick Winans
+# SPDX-License-Identifier: MIT
+
+config BOARD_ENABLE_DCDC
+    bool "Enable DCDC mode"
+    select SOC_DCDC_NRF52X
+    default y
+    depends on BOARD_GEIST
+
+config RYONG_WAKE_POSITION
+    int "Key position of the wake key (set on keys.ryong.com; must match ryong-wake.dtsi)"
+    default 60
+    depends on BOARD_GEIST
+
+config RYONG_LED_BUDGET_USB_MA
+    int "Ver2 LED current budget on USB (mA, key LEDs + underglow reserve)"
+    range 20 450
+    default 400
+    depends on BOARD_GEIST
+    help
+      BQ24075 takes at most about 450 mA from USB (USB500 mode, any cable or charger). The key LED
+      driver lowers its global current so the estimated average key LED current stays under this
+      budget (minus RYONG_UNDERGLOW_RESERVE_MA while underglow is on). 400 mA is the rev1.0 full
+      backlight worst case. If a battery is connected, BQ24075 tops up from it; without one a budget
+      above the USB limit would brown the board out.
+
+config RYONG_LED_BUDGET_USB_FAST_MA
+    int "Ver2 LED current budget on a USB-C 1.5 A / 3 A source (mA)"
+    range 20 800
+    default 700
+    depends on BOARD_GEIST
+    help
+      With a USB-C source that advertises 1.5 A or 3 A (CC voltage), ryong_charger.c puts BQ24075 in
+      ILIM mode (R14 1.8k, about 0.86 A; EN1 = NOT EN2 in hardware). 700 mA is the V3 value and leaves
+      room for the MCU and some charging. Ordinary USB ports and A-to-C cables stay at RYONG_LED_BUDGET_USB_MA.
+
+config RYONG_LED_BUDGET_BAT_MA
+    int "Ver2 LED current budget on battery (mA)"
+    range 20 1500
+    default 600
+    depends on BOARD_GEIST
+    help
+      61 key LEDs at full brightness average about 0.28 A (IS31FL3746A, RISET 18k, 19 mA peak per LED).
+      600 mA lets them run at full brightness alone; with underglow on the reserve below is taken out first.
+      Lower it for small cells (the pack's discharge rating and PCM limit apply).
+
+config RYONG_UNDERGLOW_RESERVE_MA
+    int "Current kept for the underglow while it is on (mA)"
+    default 300
+    depends on BOARD_GEIST
+    help
+      14 SK6812MINI-HS at full white draw about 0.5 A; ZMK_RGB_UNDERGLOW_BRT_MAX=50 halves the average (0.25 A).
+      U84 (TPS2553, R40 75k) limits the underglow feed to 0.31-0.40 A and C42-C46 carry the 1 kHz pulses.
+      300 keeps plain USB (400 mA budget) at 100 mA for the keys, so 0.40 A + keys + MCU stays near the
+      BQ24075 450 mA input limit and VDD ripple stays under 100 mV (verification ug4_pi2.py, worst corner).
+
+config RYONG_KEYLED_SELFTEST
+    bool "Check every key LED for an open joint at boot (IS31FL3746A open detection)"
+    default y
+    depends on BOARD_GEIST
+
+config RYONG_SLOT_LED
+    bool "Light the Bluetooth slot key of the active profile"
+    default y
+    depends on BOARD_GEIST
+    help
+      The key bound to the active profile's slot (&bt BT_SEL n, or a macro named BT_Profile<n>), on
+      any key position and any layer, shows the connection state with its own LED: fast blink while
+      the slot is open for pairing, slow blink while reconnecting, two short flashes once connected.
+
+config RYONG_SLOT_KEY_INDICATOR
+    bool "Show ZMK's Bluetooth slot light on the slot key instead of the whole backlight"
+    default y
+    depends on BOARD_GEIST && ZMK_BLE_BACKLIGHT_INDICATOR && !RYONG_SLOT_LED
+    help
+      The key(s) bound to the active slot (&bt_slot N, &bt BT_SEL N or a BT_Profile<N> macro) blink /
+      light with ZMK's slot patterns, using the on/off, signals and brightness set on keys.ryong.com.
+      With no such key in the keymap the whole backlight is used as before.
+
+config RYONG_SLOT_LED_LEVEL
+    int "Slot key LED brightness (1-100)"
+    range 1 100
+    default 8
+    depends on RYONG_SLOT_LED
+
+config RYONG_LED_BAT_AUTO_CAP
+    bool "Cap key LED peak current on battery by state of charge"
+    default y
+    depends on BOARD_GEIST && ZMK_BATTERY_REPORTING
+    help
+      No boost converter: on battery VCC_LED is the cell voltage. Above the cap the high-Vf LEDs run
+      out of current-sink headroom and go dim on their own (uneven backlight). The cap lowers GCC for
+      the whole board instead, so every key stays the same brightness. USB power is not capped.
+
+config RYONG_UG_BAT_GUARD
+    bool "Turn the underglow off on a low battery (SK6812MINI-HS runs from the cell, no boost)"
+    default y
+    depends on BOARD_GEIST && ZMK_RGB_UNDERGLOW && ZMK_BATTERY_REPORTING
+
+config RYONG_UG_BAT_OFF_PCT
+    int "Underglow off at or below this state of charge (%)"
+    default 40
+    depends on BOARD_GEIST
+
+config RYONG_UG_BAT_ON_PCT
+    int "Underglow allowed again at or above this state of charge (%)"
+    default 50
+    depends on BOARD_GEIST
+
+DT_COMPAT_RYONG_SMART_BACKLIGHT := ryong,smart-backlight
+
+config RYONG_SMART_BACKLIGHT
+    bool "geist-UG4-SB Smart Backlight (SX9324 hand proximity lights the key backlight)"
+    default $(dt_compat_enabled,$(DT_COMPAT_RYONG_SMART_BACKLIGHT))
+    depends on BOARD_GEIST && I2C
+    help
+      Board type geist-UG4-SB only (U85 FDC1004, electrodes under the bottom key rows). While the backlight was on before
+      ZMK turned it off for idle, hands near the front edge fade it in again (RYONG_SBL_FADE_IN_MS); RYONG_SBL_HOLD_MS after they
+      leave it fades out (RYONG_SBL_FADE_OUT_MS) and goes dark. ZMK's idle / deep sleep timing is not changed.
+
+config RYONG_SBL_DEFAULT_ON
+    bool "Smart Backlight on until changed with &sbl"
+    default y
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_DEFAULT_SENS
+    int "Starting sensitivity step (1 least .. 7 most; 6 and 7 are for hovering hands and may react to other things)"
+    range 1 7
+    default 4
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_PERIOD_MS
+    int "Waiting for hands: time between measurements (ms)"
+    default 250
+    help
+      Each measurement powers the sensor for about 10 ms (supply from an MCU pin) and is the only time it draws current.
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_PERIOD_SLOW_MS
+    int "Waiting for hands for longer than RYONG_SBL_SLOW_AFTER_S: time between measurements (ms)"
+    default 500
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_SLOW_AFTER_S
+    int "Seconds without keys or hands before the slower measurement period is used"
+    default 60
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_PERIOD_LIT_MS
+    int "Lit by hands: time between measurements, to see them leave (ms)"
+    default 500
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_KEY_PAUSE_MS
+    int "No measurement for this long after a key press (the key press itself keeps the light on) (ms)"
+    default 2000
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_TYPING_REF_S
+    int "While typing: one reference measurement this often, to learn what hands read on this case (s)"
+    default 10
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_KEEP_POWERED
+    bool "Keep the sensor supplied between measurements while it is in use"
+    default n
+    help
+      Fallback, not the default: the FDC1004 then stays in standby (29 uA) between measurements instead of being
+      switched off each time. Only for the case that readings taken right after power-on turn out to wander on
+      real hardware. Off / sleep / suspended still cut the supply.
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_ALWAYS_POWERED
+    bool "Never cut the sensor supply (bus safety fallback)"
+    default n
+    help
+      Fallback, not the default: the enable pin goes high at boot and stays high, also while the feature is off,
+      on USB, suspended or asleep (FDC1004 standby, about 29 uA). Only for the case that an unpowered FDC1004
+      turns out to load SDA/SCL on real hardware (fuel gauge or key LED chip stop answering while the sensor
+      is off). The data sheet rates SDA/SCL to 6 V independent of VDD, so this is not expected.
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_CONV_US
+    int "Wait for one conversion at 400 S/s before polling DONE (us)"
+    default 2600
+    depends on RYONG_SMART_BACKLIGHT
+    help
+      400 S/s is a nominal rate (2.5 ms); the data sheet gives no tolerance, so DONE is polled after this wait and the
+      LED chip is started again as soon as DONE is seen.
+
+config RYONG_SBL_BATTERY_ONLY
+    bool "Smart Backlight: sense hands on battery only (USB power: plain backlight, no measurement, no learning)"
+    default y
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_NEAR_COUNT
+    int "Readings in a row over the threshold before 'near' (the second one is taken 40 ms after the first)"
+    default 2
+    range 1 8
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_FAR_COUNT
+    int "Readings in a row under 60 % of the threshold before 'far'"
+    default 2
+    range 1 8
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_FAR_QUICK
+    bool "Confirm 'far' 40 ms after the first low reading (n: one reading per RYONG_SBL_PERIOD_LIT_MS)"
+    default y
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_BLANK
+    bool "Stop the LED chip while the sensor converts (n = experiment: measure with the LEDs scanning)"
+    default y
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_NOBLANK_AVG
+    int "RYONG_SBL_BLANK=n: conversions averaged per channel while the LEDs are lit"
+    default 4
+    range 1 16
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_COMP
+    bool "Experiment: raise the LED current shortly before and after the dark gap of a measurement"
+    default n
+    depends on RYONG_SMART_BACKLIGHT && RYONG_SBL_BLANK
+
+config RYONG_SBL_COMP_PCT
+    int "RYONG_SBL_COMP: LED current raised by this much (percent; limited by the driver's current limit)"
+    default 20
+    range 1 100
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_COMP_MS
+    int "RYONG_SBL_COMP: time before and after the gap (ms)"
+    default 8
+    range 1 30
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_HOLD_MS
+    int "Backlight stays on this long after the hands leave, then fades out (ms)"
+    default 2000
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_FADE_IN_MS
+    int "Fade-in time when hands come near (ms)"
+    range 20 5000
+    default 600
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_FADE_OUT_MS
+    int "Fade-out time after the hold, and when ZMK switches the backlight off for idle (ms)"
+    range 20 10000
+    default 1500
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_POWER_ON_MS
+    int "Wait after switching the sensor supply on (ms)"
+    default 5
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_FAIL_RETRY_S
+    int "Measurement failed (no answer, or every electrode out of range): wait before the next try (s)"
+    default 2
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_FAIL_TRIES
+    int "Failed measurements in a row before Smart Backlight suspends itself (sensor supply off, no retries)"
+    default 4
+    depends on RYONG_SMART_BACKLIGHT
+
+config RYONG_SBL_STUCK_S
+    int "Near this long without a key press: take a new baseline (s)"
+    default 600
+    depends on RYONG_SMART_BACKLIGHT

@@ -30,8 +30,8 @@ export function VirtualPanel({ onDisconnect }: { onDisconnect: () => void }) {
       <span className="ry-faint">{v.locked ? t("locked", "잠김") : t("unlocked", "잠금 해제됨")}</span>
     </button>
     {open && <div className="ry-virtual-body">
-      <p className="ry-faint">{t("A simulated Ryong60 in this browser. Saved changes stay in this browser only; nothing proves real firmware behaviour.",
-        "이 브라우저 안의 가상 Ryong60입니다. 저장한 내용은 이 브라우저에만 남고, 실제 펌웨어 동작을 증명하지 않습니다.")}</p>
+      <p className="ry-faint">{t("A simulated geist in this browser. Saved changes stay in this browser only; nothing proves real firmware behaviour.",
+        "이 브라우저 안의 가상 geist입니다. 저장한 내용은 이 브라우저에만 남고, 실제 펌웨어 동작을 증명하지 않습니다.")}</p>
       <div className="ry-virtual-row">
         <button className="ry-chip" onClick={() => v.setLock(!v.locked)}>{v.locked ? t("Press unlock key", "잠금 해제 키") : t("Lock", "잠그기")}</button>
         <button className="ry-chip" onClick={() => v.reboot()}>{t("Unplug & replug", "껐다 켜기")}</button>

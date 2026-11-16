@@ -230,6 +230,10 @@ ZMK_SUBSCRIPTION(ryong_rs, zmk_usb_conn_state_changed);
 
 static int init(void) {
     ry_rs_defaults(&cur, CONFIG_RYONG_RUNTIME_SETTINGS_SLEEP_DEFAULT_MIN, IS_ENABLED(CONFIG_RYONG_RUNTIME_SETTINGS_LIGHTS_DEFAULT_USE));
+#if IS_ENABLED(CONFIG_RYONG_RUNTIME_SETTINGS_UNDERGLOW_DEFAULT_ON)
+    cur.underglow.use = true; /* first-board check image only: underglow lit from the start (USB rule kept) */
+    cur.underglow.on_at_start = true;
+#endif
     last_activity = k_uptime_get_32();
     /* Fallback if settings never commit (e.g. empty storage on some backends). */
     k_work_schedule(&start_work, K_SECONDS(3));

@@ -1,0 +1,11 @@
+description: |
+  geist geist-UG4-SB Smart Backlight. TI FDC1004 capacitance converter (U85, I2C 0x50) with two electrodes on
+  the switch-side copper under the bottom key rows (geist-UG4-S4: CIN1 left, CIN4 right) and an active shield on L3 (SHLD1).
+compatible: "ryong,smart-backlight"
+include: i2c-device.yaml
+properties:
+  enable-gpios:
+    type: phandle-array
+    description: |
+      Net SB_EN = VDD of the FDC1004, supplied by this pin (high drive). It is high only while a measurement
+      runs; low otherwise (0 V, no current).

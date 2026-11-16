@@ -8,8 +8,8 @@ import {crc16} from "./serialDfuCodec";
 export type BleDfuPackage = {name: string; target: string | null; application: Uint8Array; init: Uint8Array};
 
 /** build targets, longest first (the file name starts with one: bt60-r123-abc1234-bluetooth.zip) */
-export const BUILD_TARGETS = ["bt60-oreo", "bt60", "ryong60"] as const;
-export const TARGET_NAMES: Record<string, string> = {"bt60": "BT60 (Cheeto)", "bt60-oreo": "BT60 (Oreo)", "ryong60": "ryong60"};
+export const BUILD_TARGETS = ["bt60-oreo", "bt60", "geist"] as const;
+export const TARGET_NAMES: Record<string, string> = {"bt60": "BT60 (Cheeto)", "bt60-oreo": "BT60 (Oreo)", "geist": "geist"};
 /** application area of the Adafruit bootloader with S140: 0x26000 .. 0xF4000 */
 const MAX_APPLICATION = 0xf4000 - 0x26000;
 

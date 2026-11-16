@@ -1,0 +1,24 @@
+# geist Ver2: ISSI/Lumissil IS31FL3746A 18x4 matrix LED driver (own Zephyr driver, see drivers/led/is31fl3746a.c)
+description: IS31FL3746A 72-dot matrix LED driver (18 CS sinks x 4 SW sources)
+
+compatible: "issi,is31fl3746a"
+
+include: i2c-device.yaml
+
+properties:
+  sdb-gpios:
+    type: phandle-array
+    required: true
+    description: SDB pin, also VIO on geist (high = run). The I2C isolation FET gates sit on VCC_LED.
+  power-gpios:
+    type: phandle-array
+    description: |
+      Enable of the current-limited switch that feeds VCC (U83 TPS2553, EN pin, 0.89 A min limit). The driver turns
+      VCC on before VIO/SDB and off after it; while VCC is off the chip draws no current and its I2C pins are isolated.
+  current-limit:
+    type: int
+    default: 255
+    description: Global current control (GCC, page 1 51h) upper bound, 0-255.
+  spread-spectrum:
+    type: boolean
+    description: Enable the scan clock spread spectrum (60h = 0x10, +-5 %, 1980 us) to lower EMI peaks.

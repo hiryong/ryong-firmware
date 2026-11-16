@@ -22,7 +22,7 @@ import { LAYOUTS } from "../behaviors/layouts";
 
 const codes = values as Record<string, number>;
 const STORAGE = "ryong.virtualKeyboard.v4"; // v3: no os layer, Backspace/Delete, F1–F12 combos
-export const VIRTUAL_NAME = "Ryong60 (virtual)";
+export const VIRTUAL_NAME = "geist (virtual)";
 
 type Binding = { behaviorId: number; param1: number; param2: number };
 type Layer = { id: number; name: string; bindings: Binding[] };
@@ -88,7 +88,7 @@ const btProfileMacros = (): Macro[] => [0, 1, 2, 3].map((n) => ({ slot: n, name:
   steps: [M.MacroStep.fromPartial({ tap: { behaviorId: 11, param1: 3, param2: n } }),
     ...[0, 1, 2, 3].filter((x) => x !== n).map((x) => M.MacroStep.fromPartial({ tap: { behaviorId: 11, param1: 5, param2: x } }))] }));
 
-/* ---- Default keymap (BT60 / Ryong60 61-key ANSI, from the imported keymap) ---- */
+/* ---- Default keymap (BT60 / geist 61-key ANSI, from the imported keymap) ---- */
 const HEX: Record<string, number> = { LBKT: 0x7002f, RBKT: 0x70030, C_BRI_DEC: 0xc0070, C_BRI_INC: 0xc006f, C_AC_DESKTOP_SHOW_ALL_WINDOWS: 0xc029f };
 const key = (name: string) => codes[name] ?? HEX[name] ?? 0;
 function parse(row: string): Binding[] {
@@ -472,7 +472,7 @@ class VirtualDevice {
     const d = this.device, status = (error: number) => S.Response.fromPartial({ status: { ok: false, error } });
     const state = () => S.Response.fromPartial({ state: { settings: d.settings, caps: { backlight: true, underglow: true, sleepMaxMinutes: 1440, bleUpdate: true, btIndicator: true },
       backlightOn: d.blOn, underglowOn: d.ugOn, usbPowered: this.flash.usb, protocolVersion: 1,
-      keyboardName: d.name ?? "Ryong60 (virtual)", keyboardNameMaxBytes: 16 } });
+      keyboardName: d.name ?? "geist (virtual)", keyboardNameMaxBytes: 16 } });
     if (q.getState) return state();
     if (q.bleUpdate) return state();
     if (q.setName) {
@@ -500,7 +500,7 @@ class VirtualDevice {
 
   /* -- Firmware identity: installs stay disabled, exactly like development firmware -- */
   private update(id: string, q: U.Request): U.Response {
-    if (q.identity) return U.Response.fromPartial({ identity: { model: "ryong60-virtual", buildId: "virtual-preview", version: 1, bootloaderAllowed: false } });
+    if (q.identity) return U.Response.fromPartial({ identity: { model: "geist-virtual", buildId: "virtual-preview", version: 1, bootloaderAllowed: false } });
     void id; return U.Response.fromPartial({ status: { ok: false, error: 1 } });
   }
 }

@@ -5,7 +5,7 @@ import { BUILD_WORKFLOW, ghJson, parseBuildTitle, readChannels, readRegistry, re
 const CHECKS: [file: string, en: string, ko: string][] = [
   ["runtime-client-validation.yml", "Web app and virtual keyboard tests", "웹앱·가상 키보드 테스트"],
   ["bt60-validation.yml", "BT60 firmware compile", "BT60 펌웨어 컴파일"],
-  ["zmk-validation.yml", "Ryong60 firmware compile", "Ryong60 펌웨어 컴파일"],
+  ["zmk-validation.yml", "geist firmware compile", "geist 펌웨어 컴파일"],
   ["host-tests.yml", "Firmware module unit tests", "펌웨어 모듈 단위 테스트"],
   ["updater-validation.yml", "Updater tests", "업데이트 검증 테스트"],
   ["keys-deploy.yml", "keys deploy", "keys.ryong.com 배포"],

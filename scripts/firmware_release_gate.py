@@ -18,7 +18,7 @@ from pathlib import Path
 RELEASE_BRANCH = "dev/keys-ryong-runtime"
 
 
-TARGETS = ("bt60", "bt60-oreo", "ryong60")
+TARGETS = ("bt60", "bt60-oreo", "geist")
 UF2_MAGIC = (0x0A324655, 0x9E5D5157, 0x0AB16F30)
 NRF52840_FAMILY = 0xADA52840
 

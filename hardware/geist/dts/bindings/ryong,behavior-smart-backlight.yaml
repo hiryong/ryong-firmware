@@ -1,0 +1,3 @@
+description: Smart Backlight behavior (toggle, on, off, sensitivity up/down)
+compatible: "ryong,behavior-smart-backlight"
+include: one_param.yaml

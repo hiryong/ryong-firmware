@@ -1,0 +1,276 @@
+/*
+ * Copyright (c) 2021 Nick Winans
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/dts-v1/;
+#include <zephyr/dt-bindings/gpio/nordic-nrf-gpio.h>
+#include <nordic/nrf52840_qiaa.dtsi>
+#include <common/nordic/nrf52840_uf2_boot_mode.dtsi>
+
+#include <dt-bindings/led/led.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/adc/nrf-saadc.h>
+#include <dt-bindings/zmk/matrix_transform.h>
+#include "geist-pinctrl.dtsi"
+#include <layouts/common/60percent/ansi.dtsi>
+
+
+
+
+/ {
+    model = "geist";
+    compatible = "ryong,geist";
+
+    chosen {
+        zephyr,code-partition = &code_partition;
+        zephyr,sram = &sram0;
+        zephyr,flash = &flash0;
+        // zmk,battery = &vbatt;
+        zmk,battery = &builtin_fuel_gauge;
+        zmk,kscan = &kscan0;
+        // zmk,matrix-transform = &default_transform;
+        zmk,physical-layout = &layout_60_ansi;
+        zmk,underglow = &led_strip;
+        zmk,backlight = &backlight;   // geist Ver2: 키별 흰색 LED 61개 (IS31FL3746A 1개, 아래 keyleds)
+    };
+
+    default_transform: keymap_transform_0 {
+        compatible = "zmk,matrix-transform";
+        columns = <14>;
+        rows = <6>;   // geist-UG4: 맨 아래 줄을 왼쪽(ROW4)·오른쪽(ROW4R) 두 핀으로 나눔 → 행렬은 6행
+        map = <
+                RC(0,0) RC(0,1) RC(0,2) RC(0,3) RC(0,4) RC(0,5) RC(0,6) RC(0,7) RC(0,8) RC(0,9) RC(0,10) RC(0,11) RC(0,12) RC(0,13)
+                RC(1,0) RC(1,1) RC(1,2) RC(1,3) RC(1,4) RC(1,5) RC(1,6) RC(1,7) RC(1,8) RC(1,9) RC(1,10) RC(1,11) RC(1,12) RC(1,13)
+                RC(2,0)         RC(2,2) RC(2,3) RC(2,4) RC(2,5) RC(2,6) RC(2,7) RC(2,8) RC(2,9) RC(2,10) RC(2,11) RC(2,12) RC(2,13)
+                RC(3,0)         RC(3,2) RC(3,3) RC(3,4) RC(3,5) RC(3,6) RC(3,7) RC(3,8) RC(3,9) RC(3,10) RC(3,11)          RC(3,13)
+                RC(5,0) RC(5,1) RC(5,2)                         RC(4,6)                         RC(4,10) RC(4,11) RC(4,12) RC(4,13)  
+        >;
+    };
+
+
+    kscan0: kscan {
+        compatible = "zmk,kscan-gpio-matrix";
+        wakeup-source;
+
+        diode-direction = "row2col";
+        // geist-UG4 (MDBT50Q-1MV2): 핀은 기판에 줄기가 들어오는 순서대로 배정. 기판 U2 패드 ↔ 넷은 pinmap_ug4.json
+        col-gpios
+            = <&gpio0 31 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio1 15 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio1 12 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 28 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 29 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio1  9 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 22 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 15 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 20 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 21 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0  9 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 24 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 10 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            , <&gpio0 16 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+            ;
+        row-gpios
+            = <&gpio1 13 GPIO_ACTIVE_HIGH>
+            , <&gpio0 27 GPIO_ACTIVE_HIGH>
+            , <&gpio0 17 GPIO_ACTIVE_HIGH>
+            , <&gpio0 30 GPIO_ACTIVE_HIGH>
+            , <&gpio0 19 GPIO_ACTIVE_HIGH>
+            , <&gpio1 14 GPIO_ACTIVE_HIGH>
+            ;
+    };
+
+    leds {
+        compatible = "gpio-leds";
+        blue_led: led_0 {
+            gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;   // LED (상태 표시)
+        };
+    };
+
+    // Node name must match original "EXT_POWER" label to preserve user settings.
+    EXT_POWER {
+        compatible = "zmk,ext-power-generic";
+        control-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;   // UG_PWR: R7 → U84(TPS2553, 0.31~0.40A 전류 제한) EN 이 언더글로우 전원을 끊고 이음
+    };
+
+    // geist Ver2: 키 LED 61개를 한 장치로 묶음. led 0 = 전체(ZMK 백라이트), led 1+n = 키맵 n번 키 하나
+    backlight: keyleds {
+        compatible = "ryong,keyleds";
+        driver = <&led_drv>;
+        sdb-gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;   // P1.11 = LED_SDB (R21 10k 풀다운)
+        all_keys {
+            label = "all keys";
+        };
+    };
+
+    vbatt: vbatt {
+      compatible = "zmk,battery-nrf-vddh";
+    };    
+};
+
+&layout_60_ansi {
+  transform = <&default_transform>;
+};
+
+&adc {
+    status = "okay";
+    #address-cells = <1>;
+    #size-cells = <0>;
+    // Ver2 고속 충전: P0.03(AIN1) = CC_SENSE. CC1·CC2 각각 220k 로 합친 점 (연결된 쪽 CC 전압의 1/2), 1nF
+    channel@0 {
+        reg = <0>;
+        zephyr,gain = "ADC_GAIN_1_6";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 40)>;
+        zephyr,input-positive = <NRF_SAADC_AIN1>;   // P0.03 = AIN1 = CC_SENSE
+        zephyr,resolution = <12>;
+    };
+};
+
+// NFC 핀 P0.09·P0.10 을 GPIO 로 (NFC 안테나 없음): COL10·COL12 로 씀
+&uicr {
+    nfct-pins-as-gpios;
+};
+
+/ {
+    zephyr,user {
+        io-channels = <&adc 0>;
+        // P1.02 = BQ_EN2. Q83 2N7002 가 EN1 = NOT EN2 로 만들어 Standby(11) 조합은 불가능
+        bq-en2-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+    };
+};
+
+&gpiote {
+    status = "okay";
+};
+
+&gpio0 {
+    status = "okay";
+};
+
+&gpio1 {
+    status = "okay";
+};
+
+&spi3 {
+    compatible = "nordic,nrf-spim";
+
+    pinctrl-0 = <&spi3_default>;
+    pinctrl-1 = <&spi3_sleep>;
+    pinctrl-names = "default", "sleep";
+    status = "okay";
+
+    led_strip: ws2812@0 {
+        compatible = "worldsemi,ws2812-spi";
+
+        /* SPI */
+        reg = <0>; /* ignored, but necessary for SPI bindings */
+        spi-max-frequency = <4000000>;
+
+        /* WS2812 */
+        chain-length = <14>; /* LED strip length */
+        spi-one-frame = <0x70>;
+        spi-zero-frame = <0x40>;
+        color-mapping = <LED_COLOR_ID_GREEN LED_COLOR_ID_RED LED_COLOR_ID_BLUE>;
+    };
+};
+
+&i2c1 {
+  status = "okay";
+  compatible = "nordic,nrf-twi";
+  pinctrl-0 = <&i2c1_default>;
+  pinctrl-1 = <&i2c1_sleep>;
+  pinctrl-names = "default", "sleep";
+
+  clock-frequency = <I2C_BITRATE_STANDARD>;  // 100 kHz: chip-side BSS138 + 47k to VCC_LED rises 0.3-1.8 us on battery (400 kHz needs 0.3 us), geist check
+
+  // geist Ver2: 키 LED 드라이버 IS31FL3746A 1개 (U81, 0x60: ADDR1=ADDR2=GND). RISET 18k
+  led_drv: is31fl3746a@60 {
+      compatible = "issi,is31fl3746a";
+      reg = <0x60>;
+      sdb-gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;     // P1.11 = LED_SDB: SDB + VIO (R21 10k pull-down). I2C isolation FET gates + 47k chip-side pull-ups sit on VCC_LED
+      power-gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;  // P0.08 = LED_PWR: U83 TPS2553 current-limited switch (27k ILIM, min 0.89 A) for VCC_LED, R25 100k EN pull-down (off ~0.1 uA). P0.03 senses USB-C CC
+      // RISET 18k (R20): 255/256 에서 LED 순간 19.0mA, 평균 4.6mA. LITEON LTW-C230DS 연속 정격 20mA 안쪽 (저항으로 보장)
+      current-limit = <255>;
+      spread-spectrum;          // 스캔 클럭 ±5% 확산: 전자파 피크를 낮춤 (안테나 보호)
+  };
+
+  builtin_fuel_gauge: max17048@36 {
+      compatible = "zmk,maxim-max17048";
+      status = "okay";
+      reg = <0x36>;
+  };
+
+  // geist-UG4-SB: Smart Backlight 센서 FDC1004 (U85, 0x50). 전극 CIN1 왼쪽 · CIN4 오른쪽(S4: 아래 세 줄 스위치 면 띠 전극), SHLD1 = L3 쉴드
+  smart_bl: fdc1004@50 {
+      compatible = "ryong,smart-backlight";
+      status = "okay";
+      reg = <0x50>;
+      enable-gpios = <&gpio1 0 (GPIO_ACTIVE_HIGH | NRF_GPIO_DRIVE_H0H1)>;   // U2 패드 47 P1.00 = SB_EN = U85 VDD: 측정하는 약 10ms 만 켬, 그 외 0V
+  };
+};
+
+/ {
+    behaviors {
+        // &sbl SBL_TOG / SBL_ON / SBL_OFF / SBL_UP / SBL_DN (ryong_smartbl.c)
+        sbl: smart_bl_behavior {
+            compatible = "ryong,behavior-smart-backlight";
+            #binding-cells = <1>;
+            display-name = "Smart Backlight";
+        };
+    };
+};
+
+zephyr_udc0: &usbd {
+    status = "okay";
+};
+
+&flash0 {
+    /*
+    * For more information, see:
+    * http://docs.zephyrproject.org/latest/devices/dts/flash_partitions.html
+    */
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        sd_partition: partition@0 {
+            reg = <0x00000000 0x00001000>;
+        };
+
+        code_partition: partition@1000 {
+            reg = <0x00001000 0x000d3000>;
+        };
+
+        /*
+        * The flash starting at 0x000d4000 and ending at
+        * 0x000f3fff is reserved for use by the application.
+        */
+
+        /*
+        * Storage partition will be used by FCB/LittleFS/NVS
+        * if enabled.
+        */
+        storage_partition: partition@d4000 {
+            reg = <0x000d4000 0x00020000>;
+        };
+
+        boot_partition: partition@f4000 {
+            reg = <0x000f4000 0x0000c000>;
+        };
+    };
+};
+
+// geist: REG1 DC/DC 는 켬 (Kconfig BOARD_ENABLE_DCDC 기본 y → SOC_DCDC_NRF52X).
+//   원본 zmk-rule60 보드 정의(chcbaram)도 같은 Kconfig·같은 기본값 y, geist-UG4 는 Raytac MDBT50Q-1MV2 (REG1 인덕터는 모듈 안).
+//   첫 보드가 부팅하지 않거나 리셋이 반복되면 CONFIG_BOARD_ENABLE_DCDC=n (LDO) 로 빌드해 확인.
+
+// geist: 전원 끄기(soft off) 뒤에 칩을 깨우는 키 (기본 Fn, 맨 아래 맨 오른쪽).
+//   keys.ryong.com 이 ryong-power.json 으로 만드는 파일 — 사이트의 펌웨어 → 편집 → 깨우기 키에서 바꿈.
+//   깨어난 뒤에는 geist_power.c 가 깨우기 키 + Soft Off 키를 3초 누르고 있는지 확인하고, 아니면 다시 끔.
+//   (15분 무입력 자동 절전은 이와 별개로 아무 키나 누르면 깨어남)
+#include "ryong-wake.dtsi"

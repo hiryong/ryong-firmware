@@ -2,6 +2,8 @@
 
 Private development repository for owner-designed **non-split keyboards**, starting with **Ryong60**.
 
+> **2026-11-14:** the 60% target is now **geist** (`hardware/geist`, `geist//zmk`), replacing the old Ryong60 rev1.0 board. See `docs/GEIST.md`.
+
 ## Objective
 
 Build a VIA-like runtime configuration experience on top of **ZMK**, retaining its BLE / USB HID and power-management foundations.

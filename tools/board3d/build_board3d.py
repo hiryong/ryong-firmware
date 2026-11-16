@@ -133,8 +133,8 @@ def layer_of(g):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pcb", required=True); ap.add_argument("--bom", required=True)
-    ap.add_argument("--out", required=True); ap.add_argument("--name", default="ryong60")
-    ap.add_argument("--title", default="ryong60 (geist rev 1.0)")
+    ap.add_argument("--out", required=True); ap.add_argument("--name", default="geist")
+    ap.add_argument("--title", default="geist rev 1.0")
     a = ap.parse_args()
 
     board = parse(Path(a.pcb).read_text(encoding="utf-8"))

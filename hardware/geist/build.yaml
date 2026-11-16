@@ -1,0 +1,5 @@
+# geist 펌웨어 빌드 목록 (GitHub Actions)
+include:
+  - board: geist//zmk
+    snippet: studio-rpc-usb-uart
+    artifact-name: geist

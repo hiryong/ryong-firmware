@@ -1,0 +1,73 @@
+# Copyright (c) 2021 Nick Winans
+# SPDX-License-Identifier: MIT
+
+
+
+# CONFIG_ZMK_SETTINGS_RESET_ON_START=y
+
+CONFIG_ZMK_PM_SOFT_OFF=y
+CONFIG_ZMK_IDLE_TIMEOUT=30000           
+CONFIG_ZMK_EXT_POWER=y
+CONFIG_ZMK_SLEEP=y
+CONFIG_ZMK_IDLE_SLEEP_TIMEOUT=900000
+
+
+# Enable MPU
+CONFIG_ARM_MPU=y
+
+CONFIG_PINCTRL=y
+
+# enable GPIO
+CONFIG_GPIO=y
+
+CONFIG_USE_DT_CODE_PARTITION=y
+CONFIG_BUILD_OUTPUT_UF2=y
+
+CONFIG_MPU_ALLOW_FLASH_WRITE=y
+CONFIG_NVS=y
+CONFIG_SETTINGS_NVS=y
+CONFIG_FLASH=y
+CONFIG_FLASH_PAGE_LAYOUT=y
+CONFIG_FLASH_MAP=y
+
+CONFIG_SPI=y
+CONFIG_LED_STRIP=y
+
+CONFIG_ZMK_RGB_UNDERGLOW=y
+# "USB 전원에서만 켜기"는 keys.ryong.com 키보드 설정(ryong-runtime-settings, 언더글로우 기본 = USB 전용)이 맡음.
+#   ZMK 자체 AUTO_OFF_USB 는 그 모듈과 함께 쓸 수 없어 끔. 저전압 자동 끄기는 ryong_ug_batt.c 가 그대로 함.
+#   BRT_MAX=50: 최대 밝기 50% 제한 (언더글로우 + 백라이트 + 충전이 USB 한도를 넘지 않게)
+CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX=50
+# CONFIG_ZMK_RGB_UNDERGLOW_HUE_START=160
+# CONFIG_ZMK_RGB_UNDERGLOW_EFF_START=3
+CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER=y
+CONFIG_ZMK_RGB_UNDERGLOW_ON_START=n
+
+CONFIG_ZMK_POINTING=y
+
+CONFIG_ZMK_USB=y
+CONFIG_ZMK_BLE=y
+
+CONFIG_I2C=y
+CONFIG_ZMK_MAX17048=y
+
+# ---- geist 추가 ----
+# Bluetooth 슬롯 표시는 ZMK(ble_indicator, 사이트에서 켬/끔·밝기 조절)가 맡음 → 보드의 키별 슬롯 LED는 끔
+CONFIG_RYONG_SLOT_LED=n
+CONFIG_ZMK_KEYBOARD_NAME="geist"
+
+# Ver2 키별 백라이트: IS31FL3746A 1개 (I2C 0x60, drivers/led/is31fl3746a.c) + ryong,keyleds (boards/ryong/geist/ryong_keyleds.c)
+CONFIG_LED=y
+CONFIG_ZMK_BACKLIGHT=y
+CONFIG_ZMK_BACKLIGHT_ON_START=n
+CONFIG_ZMK_BACKLIGHT_BRT_START=40
+CONFIG_ZMK_BACKLIGHT_BRT_STEP=20
+CONFIG_ZMK_BACKLIGHT_AUTO_OFF_IDLE=y
+
+# ZMK Studio (브라우저에서 키 실시간 변경). 빌드 때 -S studio-rpc-usb-uart 를 함께 줘야 함
+CONFIG_ZMK_STUDIO=y
+
+# rev1.1: USB 전원 요청값을 실제 소비와 맞춤 (충전 IC BQ24075 가 USB 입력을 500mA 이하로 제한)
+#   SELF_POWERED=n: 버스 전원 장치로 신고 / MAX_POWER=250: 2mA 단위 → 500mA
+CONFIG_USB_SELF_POWERED=n
+CONFIG_USB_MAX_POWER=250

@@ -41,9 +41,9 @@ class Gate(unittest.TestCase):
     def test_released_without_bench_test(self):
         self.assertEqual(self.check(), [])
         self.assertEqual(self.check("stable"), [])  # stable no longer waits for beta
-        self.assertEqual(self.check(i=info(target="ryong60")), [])
+        self.assertEqual(self.check(i=info(target="geist")), [])
         # a failed record is attached but does not decide anything
-        self.assertEqual(self.check(rec={"result": "fail", "tested_board": "ryong60"}), [])
+        self.assertEqual(self.check(rec={"result": "fail", "tested_board": "geist"}), [])
 
     def test_board_check_stays(self):
         self.assertTrue(self.check(r=run(head_branch="other")))  # only the development branch

@@ -21,7 +21,7 @@ class VendorZmkTest(unittest.TestCase):
             for name in ("zmk-feature-runtime-combo", "zmk-feature-runtime-macro", "zmk-feature-custom-settings"):
                 self.assertTrue(projects[name]["url"].startswith("file://"), name)
 
-    def test_ryong60_uses_official_zmk(self):
+    def test_geist_uses_official_zmk(self):
         self.check(["scripts/prepare_zmk.py"])
 
     def test_bt60_uses_official_zmk(self):

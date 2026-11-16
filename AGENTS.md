@@ -7,14 +7,14 @@ The existing production app at `hiryong/keys-ryong` is **NEVER to be modified** 
 
 
 ## Product scope
-Build the firmware and settings site for user-designed, non-split keyboards. First target Ryong60 (nRF52840), later the maker's own layouts only. Use ZMK BLE, USB, sleep and power management rather than rewriting them.
+Build the firmware and settings site for user-designed, non-split keyboards. First target geist (nRF52840; formerly called Ryong60), later the maker's own layouts only. Use ZMK BLE, USB, sleep and power management rather than rewriting them.
 
 ## Non-negotiable rules
 - Dynamic keymap, combo, macro and advanced-behavior editing must not require firmware rebuild or reflash.
 - Standard user configuration and device firmware update must be separate operations.
 - Factory firmware and bootloader are preflashed and quality checked. Do not ask customers to install bootloaders, copy UF2 files, use GitHub, or handle SWD.
 - Prefer a ZMK/Zephyr out-of-tree module. Do not fork upstream ZMK without a documented technical need.
-- No invented board pin assignments, diode direction, reset/wake behavior or flash partitions. Import genuine Ryong60 PCB/board source and verify it.
+- No invented board pin assignments, diode direction, reset/wake behavior or flash partitions. Import genuine geist PCB/board source and verify it.
 - Never claim tested physical hardware or ZMK compatibility on the strength of PC unit tests alone.
 - Protect existing BLE bonds and user configuration through upgrades, or explain planned migration explicitly.
 - Bounded configuration sizes, validation, interrupted-write recovery and concurrency tests are mandatory.
@@ -44,4 +44,4 @@ The owner has an already-working customer-facing Keys · ryong website, built us
 - Having `ryong-firmware` access does not grant `keys-ryong` access. If the app repo is private, GitHub App installation may need explicit additional repository permission.
 
 ## User-authorized BT60 v2 development fixture
-On 2026-11-02 the user clarified that their BT60 v2 is used for all ZMK physical tests while Ryong60 completion is unknown. Support this as a development fixture only, not a third-party product-support expansion. Read hiryong/zmk-config-bt60 at pinned commit dbf49fcdf3e5c45b0960859919b91361e33fa36f; never write or trigger Actions there. Keep all fixture copies/builds in ryong-firmware. Build bt60//zmk independently; NEVER flash a Ryong60 image to BT60 or reuse its hardware/power code. Ryong60 electrical questions do not block software testing on BT60, but the BT60 unit, known-good firmware and recovery path must still be verified before requesting a physical test.
+On 2026-11-02 the user clarified that their BT60 v2 is used for all ZMK physical tests while geist completion is unknown. Support this as a development fixture only, not a third-party product-support expansion. Read hiryong/zmk-config-bt60 at pinned commit dbf49fcdf3e5c45b0960859919b91361e33fa36f; never write or trigger Actions there. Keep all fixture copies/builds in ryong-firmware. Build bt60//zmk independently; NEVER flash a geist image to BT60 or reuse its hardware/power code. geist electrical questions do not block software testing on BT60, but the BT60 unit, known-good firmware and recovery path must still be verified before requesting a physical test.

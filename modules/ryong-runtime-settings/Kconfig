@@ -24,6 +24,13 @@ config RYONG_RUNTIME_SETTINGS_LIGHTS_DEFAULT_USE
       Backlight only. Off by default so the same image is safe on boards without LEDs.
       Underglow always starts unused (most cases are opaque); the user turns it on.
 
+config RYONG_RUNTIME_SETTINGS_UNDERGLOW_DEFAULT_ON
+    bool "Underglow in use and on at start until the user changes it (board check images only)"
+    default n
+    help
+      For a first-board check image: the underglow lights without visiting the web page. Its
+      "only on USB power" default stays. Stored settings, once saved, win as usual.
+
 endif
 
 config RYONG_BLE_DFU_ENTRY
