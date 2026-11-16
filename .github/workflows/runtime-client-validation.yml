@@ -41,6 +41,7 @@ jobs:
         run: |
           npm ci
           node tests/web-update.test.mjs
+          node tests/ble-dfu.test.mjs
           node tests/update-machine.test.mjs
           node tests/update-device.test.mjs
           node tests/backup-dynamic.test.mjs
@@ -81,6 +82,7 @@ jobs:
         run: |
           node tests/runtime-ui.test.mjs
           node tests/web-update.test.mjs
+          node tests/ble-dfu.test.mjs
       - name: Use every feature through the virtual keyboard (Chromium and WebKit)
         working-directory: apps/keys-ryong-runtime
         env:

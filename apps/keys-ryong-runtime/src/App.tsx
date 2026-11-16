@@ -35,6 +35,7 @@ import { valueAfter } from "./misc/async";
 import { AppFooter } from "./AppFooter";
 import { AboutModal } from "./AboutModal";
 import { Maintenance } from "./ryong/maintenance/Maintenance";
+import { BleUpdateDialog } from "./ryong/BleUpdateDialog";
 import { LicenseNoticeModal } from "./misc/LicenseNoticeModal";
 import { Hub, HubTab, HUB_TABS, useResumeHub } from "./ryong/Hub";
 import { KeysWatcher } from "./ryong/KeysWatcher";
@@ -368,6 +369,7 @@ function App() {
           />
           <AboutModal open={showAbout} onClose={() => setShowAbout(false)} />
           <Maintenance open={showMaint} onClose={() => setShowMaint(false)} />
+          {import.meta.env.VITE_RYONG_RUNTIME === "1" && <BleUpdateDialog />}
           <LicenseNoticeModal
             open={showLicenseNotice}
             onClose={() => setShowLicenseNotice(false)}

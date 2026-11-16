@@ -4,6 +4,7 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { ConnectionContext } from "../rpc/ConnectionContext";
 import { LockStateContext } from "../rpc/LockStateContext";
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core";
+import { OPEN_BLE_UPDATE } from "./BleUpdateDialog";
 import { firmwareDevice } from "./runtime/updateDevice";
 import { connectDeviceSettings, DeviceSettings, DeviceSettingsClient, DeviceState } from "./runtime/deviceSettings";
 import type { Light } from "./runtime/proto/settings";
@@ -201,18 +202,20 @@ export function DeviceSettingsPanel() {
       {!state.caps!.backlight && !state.caps!.underglow && <p className="ry-faint">{t("This firmware has no lights built in.", "이 펌웨어에는 조명 기능이 없어요.")}</p>}
       {state.caps!.bleUpdate && <section className="ry-card ry-setcard" aria-label={t("Wireless firmware update (for developers)", "무선 펌웨어 업데이트 (개발자용)")}>
         <Row title={t("Wireless firmware update (for developers)", "무선 펌웨어 업데이트 (개발자용)")}
-          hint={t("Restarts the keyboard so it waits for new firmware. In the iPhone app “nRF Device Firmware Update”, send it the new firmware file (ending in -bluetooth.zip). If that doesn't work, connect USB and copy the .uf2 file onto the drive that appears.",
-            "키보드가 새 펌웨어를 받을 수 있는 상태로 다시 켜져요. 아이폰 “nRF Device Firmware Update” 앱에서 새 펌웨어 파일(이름이 -bluetooth.zip으로 끝남)을 보내면 설치돼요. 잘 안 되면 USB로 연결하고, 나타나는 드라이브에 .uf2 파일을 복사하세요.")}>
+          hint={t("Restarts the keyboard so it waits for new firmware, then send it the new firmware file (ending in -bluetooth.zip) from this computer (Chromium browsers only: Chrome, Edge…) or with Nordic's iPhone app “nRF Device Firmware Update”. If that doesn't work, connect USB and copy the .uf2 file onto the drive that appears.",
+            "키보드가 새 펌웨어를 기다리는 상태로 다시 켜져요. 그다음 새 펌웨어 파일(이름이 -bluetooth.zip으로 끝남)을 이 컴퓨터에서 보내거나(크롬·엣지 같은 크로미움 계열 브라우저 전용), Nordic의 아이폰 앱 “nRF Device Firmware Update”로 보내면 설치돼요. 잘 안 되면 USB로 연결하고, 나타나는 드라이브에 .uf2 파일을 복사하세요.")}>
           {confirmDfu ? <span className="ry-gap">
             <button className="ry-text" onClick={() => setConfirmDfu(false)}>{t("Cancel", "취소")}</button>
             <button className="ry-primary" disabled={busy} onClick={async () => {
               setError(null);
-              try { await dev!.bleUpdate(); setDfuSent(true); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+              try { await dev!.bleUpdate(); setDfuSent(true); window.dispatchEvent(new Event(OPEN_BLE_UPDATE)); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
               setConfirmDfu(false);
             }}>{t("Restart now", "지금 다시 시작")}</button></span>
-            : <button className="ry-outline" disabled={busy || dirty} onClick={() => setConfirmDfu(true)}>{t("Wait for update", "업데이트 대기로 켜기")}</button>}
+            : <span className="ry-gap">
+              <button className="ry-text" onClick={() => window.dispatchEvent(new Event(OPEN_BLE_UPDATE))}>{t("Install from this computer", "이 컴퓨터에서 설치")}</button>
+              <button className="ry-outline" disabled={busy || dirty} onClick={() => setConfirmDfu(true)}>{t("Wait for update", "업데이트 대기로 켜기")}</button></span>}
         </Row>
-        {dfuSent && <p className="ry-note" role="status">{t("The keyboard is restarting to wait for new firmware. In the app it shows up as a “DFU” device.", "키보드가 새 펌웨어를 기다리는 상태로 다시 켜지고 있어요. 앱에서는 “DFU” 장치로 보여요.")}</p>}
+        {dfuSent && <p className="ry-note" role="status">{t("The keyboard is restarting to wait for new firmware. It shows up as a “DFU” device (often “AdaDFU”).", "키보드가 새 펌웨어를 기다리는 상태로 다시 켜지고 있어요. “DFU” 장치(보통 “AdaDFU”)로 보여요.")}</p>}
       </section>}
       <p className="ry-faint">{t("Not changeable here: how many keys can be pressed at once (N-key rollover), mouse-movement keys, Bluetooth signal strength, and the unlock step before editing. These are set when the firmware is made, by the keyboard maker.",
         "여기서 바꿀 수 없는 것: 동시에 누를 수 있는 키 개수(N키 롤오버), 마우스를 움직이는 키, Bluetooth 신호 세기, 편집 전 잠금 해제 단계. 이건 펌웨어를 만들 때 키보드 제작자가 정해요.")}</p>

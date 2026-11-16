@@ -40,3 +40,14 @@ No real board policy/key is enabled. A BT60 UF2 drive alone does not establish
 CDC DFU support, application offset or a unique USB bootloader identity.
 Native inventory is a fallback diagnostic, not an app-install requirement.
 Web Serial requests may need a browser-controlled device permission prompt.
+
+## Bluetooth (Web Bluetooth) legacy DFU — bleDfu.ts
+Protocol reference: NordicSemiconductor/Android-DFU-Library, LegacyDfuImpl.java (main branch,
+read 2026-11-16): service/characteristic UUIDs 0x1530/0x1531/0x1532/0x1534 on base
+xxxxxxxx-1212-EFDE-1523-785FEABCD123, opcodes 1 start, 2 init (0 start / 1 complete), 3 receive,
+4 validate, 5 activate, 8 receipt request, 0x10 response, 0x11 receipt; application-only start,
+12-byte size array, PRN of 10 or fewer for legacy targets. Package format: adafruit-nrfutil
+0.5.3.post16 `dfu genpkg` (manifest.json + .bin + .dat, DFU 0.5); the test fixture
+tests/fixtures/ble-dfu-test-bluetooth.zip was made with it from a synthetic 100-byte image.
+Development tool: the package is the unsigned build output, as with Nordic's own app. Not tried
+on a real keyboard yet.

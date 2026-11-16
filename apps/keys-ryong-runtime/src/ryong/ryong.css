@@ -1235,3 +1235,12 @@ dialog.ry-kbpick h2 { margin: 0 0 6px; font-size: 18px; }
 /* board 3D: a quiet note while the part models arrive (they appear all at once) */
 .ry-b3-loading { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); margin: 0; padding: 6px 12px;
   border-radius: 999px; background: rgba(0,0,0,.55); color: rgba(255,255,255,.8); font-size: 12px; pointer-events: none; }
+
+/* wireless firmware install (development): a small dialog over the editor */
+dialog.ry-bledfu { width: min(560px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: #0D0D0D; color: inherit; }
+dialog.ry-bledfu::backdrop { background: rgba(0,0,0,.6); }
+.ry-bledfu-in { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.ry-bledfu-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.ry-bledfu-steps input[type=file] { display: block; margin-top: 6px; }
+.ry-bledfu .ry-primary { align-self: flex-start; }
+.ry-bledfu progress { width: 100%; }
