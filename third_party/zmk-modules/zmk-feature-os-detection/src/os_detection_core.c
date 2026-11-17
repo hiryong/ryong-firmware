@@ -75,6 +75,13 @@ enum zmk_os zmk_os_detection_ble_profile_detected(uint8_t profile_index) {
     if (profile_index >= ZMK_BLE_PROFILE_COUNT) {
         return ZMK_OS_UNKNOWN;
     }
+#if IS_ENABLED(CONFIG_ZMK_CUSTOM_SETTINGS)
+    /* Until the slot's host connects again after a start (waking from deep sleep is a start too),
+     * report the stored guess: a slot that is not connected right now still shows its last OS. */
+    if (ble_detected[profile_index] == ZMK_OS_UNKNOWN && zmk_os_detection_ble_profile_bonded(profile_index)) {
+        return zmk_os_detection_settings_get_detected_cache(profile_index);
+    }
+#endif
     return ble_detected[profile_index];
 #else
     return ZMK_OS_UNKNOWN;
