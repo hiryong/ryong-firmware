@@ -189,7 +189,9 @@ class VirtualDevice {
   subscribe(l: Listener) { this.listeners.add(l); return () => { this.listeners.delete(l); }; }
 
   /* -- Panel actions (what a person would do with the physical keyboard) -- */
-  attach(send: (msg: Response) => void) { this.notify = send; this.connected = true; this.locked = true; this.emit(); }
+  /* Like a Bluetooth keyboard: its link to the computer stays up when a page lets go, so Studio stays
+   * as it was (a power cycle locks it); the site locks it at each new connection. */
+  attach(send: (msg: Response) => void) { this.notify = send; this.connected = true; this.emit(); }
   detach() { this.notify = undefined; this.connected = false; this.emit(); }
   setLock(locked: boolean) {
     this.locked = locked;

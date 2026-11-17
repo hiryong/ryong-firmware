@@ -152,6 +152,12 @@ async function listen_for_notifications(
   notification_stream.cancel();
 }
 
+// The stock client pipes its request stream to the transport with our abort signal and leaves that
+// pipe's promise unhandled (zmk-studio-ts-client index.js), so ending a connection on purpose surfaced
+// as an uncaught error. Only the reasons this page itself aborts with are absorbed.
+const OWN_ABORTS = new Set(["User disconnected", "No answer"]);
+window.addEventListener("unhandledrejection", (e) => { if (typeof e.reason === "string" && OWN_ABORTS.has(e.reason)) e.preventDefault(); });
+
 async function connect(
   transport: RpcTransport,
   setConn: Dispatch<ConnectionState>,
@@ -176,6 +182,11 @@ async function connect(
     window.alert(t("The keyboard didn't answer. Wake it with a key press and try again.", "키보드가 응답하지 않았어요. 키를 한 번 눌러 깨운 뒤 다시 연결해 주세요."));
     return;
   }
+
+  // Every new connection starts locked, so the unlock keys (Esc + Backspace) are asked each time the
+  // site connects. Over Bluetooth the keyboard can't tell that a browser closed: its link to the
+  // computer stays up, and Studio would stay unlocked for whoever opens the site next.
+  await Promise.race([call_rpc(conn, { core: { lock: true } }).catch(() => undefined), valueAfter(undefined, 3000)]);
 
   listen_for_notifications(conn.notification_readable, signal)
     .then(() => {
@@ -245,7 +256,7 @@ function App() {
       );
     }
 
-    updateLockState();
+    updateLockState().catch(() => {}); // the connection ended meanwhile
   }, [conn, setLockState]);
 
 
@@ -310,6 +321,8 @@ function App() {
         return;
       }
 
+      // leave the keyboard locked behind us (see connect)
+      await Promise.race([call_rpc(conn.conn, { core: { lock: true } }).catch(() => undefined), valueAfter(undefined, 1500)]);
       await closeConnection(conn.conn);
       connectionAbort.abort("User disconnected");
       setConnectionAbort(new AbortController());

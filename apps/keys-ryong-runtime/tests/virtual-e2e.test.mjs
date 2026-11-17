@@ -97,6 +97,17 @@ await step("connect and unlock", async () => {
   await page.screenshot({ path: `${output}/01-keymap.png` });
 });
 
+await step("a new connection asks for the unlock keys again, though the keyboard stayed unlocked", async () => {
+  if (!(await page.getByRole("button", { name: "연결 끊기" }).isVisible())) await page.locator(".ry-virtual button").first().click();
+  await page.getByRole("button", { name: "연결 끊기" }).click();
+  await page.waitForFunction(() => window.__ryongVirtual.locked === true, null, { timeout: 5000 }); // Disconnect locks it
+  // a browser closed without that reaching the keyboard: its Bluetooth link stays up, still unlocked
+  await page.evaluate(() => window.__ryongVirtual.setLock(false));
+  await connect(); // waits for the unlock screen and presses the unlock keys
+  assert.equal(await page.evaluate(() => window.__ryongVirtual.locked), false);
+  if (await page.getByRole("button", { name: "연결 끊기" }).isVisible()) await page.locator(".ry-virtual button").first().click();
+});
+
 await step("Base layer shows real legends on first open", async () => {
   assert.equal(await page.getByRole("option", { name: "base" }).getAttribute("aria-selected"), "true");
   const legends = await page.locator("button.ry-key").allInnerTexts();

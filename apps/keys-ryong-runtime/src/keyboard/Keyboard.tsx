@@ -88,7 +88,7 @@ function useBehaviors(): BehaviorMap {
     }
 
     let ignore = false;
-    startRequest();
+    startRequest().catch(() => {}); // the connection ended meanwhile
 
     return () => {
       ignore = true;
@@ -142,7 +142,7 @@ function useLayouts(): [
     }
 
     let ignore = false;
-    startRequest();
+    startRequest().catch(() => {}); // the connection ended meanwhile
 
     return () => {
       ignore = true;

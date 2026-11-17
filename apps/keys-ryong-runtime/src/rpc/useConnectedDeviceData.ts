@@ -41,7 +41,8 @@ export function useConnectedDeviceData<T>(
       }
 
       let ignore = false;
-      startRequest();
+      // the connection can end while this read is out (Disconnect, keyboard asleep): nothing to show then
+      startRequest().catch(() => { if (!ignore) setData(undefined); });
 
       return () => {
         ignore = true;
