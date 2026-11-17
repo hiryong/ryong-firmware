@@ -133,7 +133,7 @@ export function HostPanel() {
           <label className="ry-field"><span className="ry-label">{t("Key layout", "키 배치")}</span>
             <select value={os.override} disabled={busy || !hostDev} aria-label={t("Slot {n} layout", "슬롯 {n} 배치", { n: index + 1 })}
               onChange={e => { const next = Number(e.target.value) as Os; act(async () => { setHost(await hostDev!.setOverride(index, next, host!)); }); }}>
-              <option value={Os.OS_UNKNOWN}>{t("Automatic", "자동")} · {os.effective === Os.OS_UNKNOWN || os.effective === Os.OS_UNSPECIFIED ? t("not detected yet, Windows standard until then", "아직 감지 전 · 그동안 Windows 표준") : layout(os.effective)}</option>
+              <option value={Os.OS_UNKNOWN}>{t("Automatic", "자동")} · {layout(os.effective)}</option>
               <option value={Os.OS_WINDOWS}>{t("Windows standard", "Windows 표준")}</option>
               <option value={Os.OS_MACOS}>Apple</option>
               {![Os.OS_UNKNOWN, Os.OS_WINDOWS, Os.OS_MACOS].includes(os.override) && <option value={os.override}>{t("Existing custom choice", "기존 지정")}</option>}

@@ -120,9 +120,11 @@ static void decide(struct session *s) {
     s->stats.apple_probe = zmk_os_detection_probe_result(p);
 #endif
     enum zmk_os detected = zmk_os_classify_ble(&s->stats);
-    bool host_said = s->stats.apple_probe != ZMK_OS_PROBE_NONE || s->stats.ancs_or_ams_present;
+    /* The slot's OS is fixed by its pairing: decided on the pairing connection (the host's own answer
+     * may still refine it there) and kept until the slot is cleared. A later connection only fills it
+     * in if nothing was ever stored. */
     enum zmk_os stored = stored_result(p);
-    bool apply = detected != ZMK_OS_UNKNOWN && (s->fresh || host_said || stored == ZMK_OS_UNKNOWN);
+    bool apply = detected != ZMK_OS_UNKNOWN && (s->fresh || stored == ZMK_OS_UNKNOWN);
 
     last_fp[p] = s->stats;
     last_classified[p] = detected;
