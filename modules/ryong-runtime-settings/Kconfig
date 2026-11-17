@@ -12,6 +12,15 @@ config RYONG_RUNTIME_SETTINGS
 
 if RYONG_RUNTIME_SETTINGS
 
+config RYONG_FAST_WAKE
+    bool "Wake from deep sleep without the bootloader's 500 ms wait"
+    depends on SOC_SERIES_NRF52X && POWEROFF
+    default y
+    help
+      Before power-off, leave the Adafruit UF2 bootloader's "start the application" mark in
+      retained RAM, so older bootloaders (before 0.6.3) skip their 500 ms double-reset wait when a
+      key wakes the keyboard. Newer bootloaders already skip it; the mark is harmless there.
+
 config RYONG_RUNTIME_SETTINGS_SLEEP_DEFAULT_MIN
     int "Deep sleep after N minutes until the user changes it (0 = off)"
     range 0 1440
