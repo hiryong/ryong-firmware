@@ -24,6 +24,7 @@ import { decode, wireOf } from "../runtime/modelBridge";
 import { assignKeys, bindingAt, keysWith, tapUsageAt, wireAt, Wire } from "../runtime/assignKey";
 import values from "../runtime/keycode-values.json";
 import { t } from "../i18n";
+import { legendFor, type Legend } from "../keyLegend";
 
 const codes = values as Record<string, number>;
 
@@ -79,6 +80,18 @@ function ActionBox({ label, empty, open, onClick, name }: { label?: string; empt
 type DanceDraft = { id?: string; from?: Spot; spot?: Spot; acts: (Binding | null)[] };
 const danceIndex = (id?: string) => id?.startsWith("runtime_dance_") ? Number(id.slice(14)) : undefined;
 const TERMS = [150, 200, 300];
+
+
+/** A key as the keymap draws it (▽ for a see-through key, icons, layer keys); a runtime macro or
+ * tap dance by its own name; `fallback` when the keyboard's behavior list isn't known. */
+function keymapLegend(view: RuntimeView, layer: number, pos: number, widthU: number, label: (b: Binding) => string, fallback?: () => string | undefined): Legend | undefined {
+  const w = wireAt(view, layer, pos), keymap = view.snapshot.keymap, details = view.behaviorDetails;
+  const b = bindingAt(view, layer, pos);
+  const plain = () => { const s = b ? label(b) : fallback?.(); return s === undefined ? undefined : { main: s }; };
+  if (!w || !keymap || !details?.[w.behaviorId]) return plain();
+  const lg = legendFor(w, details, keymap, widthU);
+  return lg.main === details[w.behaviorId].displayName ? (plain() ?? lg) : lg;
+}
 
 export function TapDancePanel(p: KeyFeatureProps) {
   const { view, doc, layers, keys } = p;
@@ -206,7 +219,7 @@ export function TapDancePanel(p: KeyFeatureProps) {
       <div className="ry-kx-step"><span className="ry-kx-num">1</span><b>{t("Which key?", "어느 키에?")}</b>
         <span className="ry-faint">{draft.spot ? `${keyName(draft.spot)}${where(layers, draft.spot)}` : t("Click it on the map.", "아래 키보드에서 누르세요.")}</span></div>
       <KeyPick keys={keys} layers={layers} layer={mapLayer} pos={draft.spot?.layer === mapLayer ? draft.spot.pos : undefined}
-        labelAt={(l, pos) => { const b = bindingAt(view, l, pos); return b ? label(b) : undefined; }} onLayer={setMapLayer} onPick={choose} />
+        legendAt={(l, pos, wU) => keymapLegend(view, l, pos, wU, label)} onLayer={setMapLayer} onPick={choose} />
       <div className="ry-kx-step"><span className="ry-kx-num">2</span><b>{t("What each count does", "누른 횟수마다 할 동작")}</b></div>
       <div className="ry-kx-lines">
         {draft.acts.map((b, i) => <div key={i} className="ry-kx-line">
@@ -392,7 +405,7 @@ export function TapHoldPanel(p: KeyFeatureProps) {
       <div className="ry-kx-step"><span className="ry-kx-num">1</span><b>{t("Which key?", "어느 키에?")}</b>
         <span className="ry-faint">{draft.spot ? `${keyName(draft.spot)}${where(layers, draft.spot)}` : t("Click it on the map.", "아래 키보드에서 누르세요.")}</span></div>
       <KeyPick keys={keys} layers={layers} layer={mapLayer} pos={draft.spot?.layer === mapLayer ? draft.spot.pos : undefined}
-        labelAt={(l, pos) => { const b = bindingAt(view, l, pos); if (b) return label(b); const u = tapUsageAt(view, l, pos); return u !== undefined ? usageLabel(u) : undefined; }}
+        legendAt={(l, pos, wU) => keymapLegend(view, l, pos, wU, label, () => { const u = tapUsageAt(view, l, pos); return u !== undefined ? usageLabel(u) : undefined; })}
         onLayer={setMapLayer} onPick={choose} />
       <div className="ry-kx-step"><span className="ry-kx-num">2</span><b>{t("Short press and hold", "짧게 / 길게")}</b></div>
       <div className="ry-kx-lines">

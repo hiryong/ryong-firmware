@@ -1,3 +1,4 @@
+import type { GetBehaviorDetailsResponse } from "@zmkfirmware/zmk-studio-ts-client/behaviors";
 import { call_rpc } from "../../rpc/pipeline";
 import type { RpcConnection } from "@zmkfirmware/zmk-studio-ts-client/index";
 import type { BehaviorDoc, Binding, Mod, MacroStep as EditorStep } from "../behaviors/model";
@@ -32,6 +33,8 @@ export type RuntimeView = {
   session: RuntimeSession; snapshot: RuntimeSnapshot; catalog: Catalog; layerNames: string[];
   /** Behavior display names. A runtime macro whose name is one of these is played by a key bound by name. */
   behaviorNames?: string[];
+  /** Each behavior's details by ID, for drawing key legends the way the keymap does. */
+  behaviorDetails?: Record<number, GetBehaviorDetailsResponse>;
 };
 
 export async function loadRuntimeView(conn: RpcConnection): Promise<RuntimeView> {
@@ -41,11 +44,13 @@ export async function loadRuntimeView(conn: RpcConnection): Promise<RuntimeView>
   if (!list) throw new Error("Device behavior catalog is missing.");
   const catalog: Catalog = {};
   const behaviorNames: string[] = [];
+  const behaviorDetails: Record<number, GetBehaviorDetailsResponse> = {};
   const details = await Promise.all(list.map((id) => call_rpc(conn, { behaviors: { getBehaviorDetails: { behaviorId: id } } })));
   for (const [i, id] of list.entries()) {
     const detail = details[i].behaviors?.getBehaviorDetails;
     if (!detail) throw new Error("Incomplete device behavior catalog.");
     behaviorNames.push(detail.displayName);
+    behaviorDetails[id] = detail;
     const name = normalized(detail.displayName);
     for (const [kind, names] of Object.entries(aliases)) {
       if (names.includes(name)) {
@@ -60,7 +65,7 @@ export async function loadRuntimeView(conn: RpcConnection): Promise<RuntimeView>
   session.port.noneBehaviorId = catalog.none;
   const keymap = (await call_rpc(conn, { keymap: { getKeymap: true } })).keymap?.getKeymap;
   if (!keymap) throw new Error("Device keymap is unavailable.");
-  return { session, snapshot, catalog, layerNames: keymap.layers.map(layer => layer.name), behaviorNames };
+  return { session, snapshot, catalog, layerNames: keymap.layers.map(layer => layer.name), behaviorNames, behaviorDetails };
 }
 
 export function keyValue(key: string, depth = 0): number {

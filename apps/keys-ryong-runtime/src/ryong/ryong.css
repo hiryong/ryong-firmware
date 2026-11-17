@@ -298,6 +298,14 @@ button.ry-link { background: none; border: 0; padding: 0; font: inherit; cursor:
 .ry-combokeys button span { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border-radius: 5px; background: #0D0D0D;
   outline: 1px solid var(--line); outline-offset: -1px; color: var(--soft); font-size: 11px; white-space: nowrap; overflow: hidden; }
 .ry-combokeys button:hover span { background: #1a1a1a; color: var(--ink); }
+/* key legends as on the keymap (KeyPick): shrink to fit, two lines for long names, ▽ faint */
+.ry-combokeys button span { font-size: calc(11px * var(--fit, 1)); }
+.ry-combokeys button span[data-ry-long] { white-space: normal; line-height: 1.1; text-align: center; word-break: keep-all; padding: 0 2px; }
+.ry-combokeys button span.is-quiet { color: rgba(255, 255, 255, 0.3); }
+.ry-combokeys button[aria-pressed="true"] span.is-quiet { color: rgba(0, 0, 0, 0.45); }
+.ry-combokeys button span svg { width: 14px; height: 14px; }
+.ry-combokeys button span { position: relative; }
+.ry-combokeys .ry-kp-sub { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); font-size: 8px; opacity: 0.8; white-space: nowrap; }
 .ry-combokeys button[aria-pressed="true"] span { background: var(--ink); color: #000; outline-color: var(--ink); }
 
 .ry-pre { margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: #000; color: var(--body);
