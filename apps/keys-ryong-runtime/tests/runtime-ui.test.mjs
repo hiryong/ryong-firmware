@@ -78,51 +78,46 @@ try {
   await page.getByRole("button", { name: "미리보기 저장", exact: true }).click();
   await page.getByText("미리보기를 이 브라우저에 저장했습니다.", { exact: true }).waitFor();
   assert.equal(await page.locator(".ry-item").count(), 0);
-  await page.getByRole("button", {name:/^탭댄스/}).click();
-  await page.getByRole("button", {name:"새 탭댄스",exact:true}).click();
-  await page.locator(".ry-item.is-open input[type=text]").first().fill("Double test");
-  await page.locator(".ry-item.is-open input[type=number]").fill("250");
-  // Friendly picker: open the list, pick the letter tile.
-  const dancePickers=page.locator(".ry-item.is-open .ry-fb");
-  for (const [i,k] of [[0,"A"],[1,"B"]]) {
-    await dancePickers.nth(i).getByRole("button",{name:"목록에서 고르기"}).click();
-    await dancePickers.nth(i).getByRole("tab",{name:"문자·숫자"}).click();
-    await dancePickers.nth(i).locator(".ry-fb-tile",{hasText:new RegExp(`^${k}$`)}).click();
+  // Tap dances and tap·holds are registered on a key of a connected keyboard (covered with the
+  // virtual keyboard in virtual-e2e). In the preview their editors open, but registering waits for a keyboard.
+  for (const [tabName, addName, regionName] of [["탭댄스","탭댄스 추가","새 탭댄스"],["탭·홀드","탭·홀드 추가","새 탭·홀드"]]) {
+    await page.getByRole("button", {name:new RegExp("^"+tabName)}).click();
+    await page.getByRole("button", {name:addName,exact:true}).click();
+    const editor=page.getByRole("region",{name:regionName});
+    await editor.getByText("어느 키에?",{exact:true}).waitFor();
+    assert.ok(await editor.getByRole("button",{name:"키에 등록"}).isDisabled(), tabName+": registering needs a keyboard");
+    await editor.getByRole("button",{name:"닫기"}).click();
+    await editor.waitFor({state:"detached"});
   }
-  await page.getByRole("button", {name:"미리보기 저장",exact:true}).click();
-  await page.getByText("미리보기를 이 브라우저에 저장했습니다.",{exact:true}).waitFor();
-  await page.getByRole("button", {name:/^탭·홀드/}).click();
-  const modtap=page.locator(".ry-taphold");
-  await page.getByRole("button",{name:"직접",exact:true}).click();
-  await modtap.locator("input[type=number]").first().fill("285");
-  await page.getByRole("radio",{name:/균형/}).check();
-  await page.getByRole("button", {name:"미리보기 저장",exact:true}).click();
-  await page.getByText("미리보기를 이 브라우저에 저장했습니다.",{exact:true}).waitFor();
+  await page.getByRole("button",{name:/^탭댄스/}).click();
+  await page.locator(".ry-workspace").evaluate(element=>element.scrollTo(0,0));
+  await page.screenshot({path:output+"/advanced.png",fullPage:true});
+  // Backup download and import round trip (the combo saved above).
   const downloadEvent=page.waitForEvent("download");
   await openTools(); await page.getByRole("button",{name:"동적 설정 백업",exact:true}).click();
   const download=await downloadEvent;
   const backup=await fs.readFile(await download.path(),"utf8");
-  assert.equal(JSON.parse(backup).doc.tapDances[0].term,250);
-  await page.reload();
+  assert.equal(JSON.parse(backup).doc.combos[0].timeout,65);
   await page.getByRole("button", { name: "콤보", exact: true }).click();
-  if (await page.getByRole("button", { name: "연결 없이 미리보기", exact: true }).isVisible()) await page.getByRole("button", { name: "연결 없이 미리보기", exact: true }).click();
-  await page.getByRole("button",{name:/^탭·홀드/}).click();
-  assert.equal(await modtap.locator("input[type=number]").first().inputValue(),"285");
+  if (!(await page.locator(".ry-item.is-open").count())) await page.locator(".ry-item-head").first().click();
+  await page.locator(".ry-item.is-open input[type=number]").fill("70");
+  await page.getByRole("button", {name:"미리보기 저장",exact:true}).click();
+  await page.getByText("미리보기를 이 브라우저에 저장했습니다.",{exact:true}).waitFor();
   await openTools(); await page.getByLabel("동적 설정 백업 불러오기",{exact:true}).setInputFiles({name:"backup.json",mimeType:"application/json",buffer:Buffer.from(backup)});
-  await page.getByRole("button",{name:/^탭댄스/}).click();
-  await page.getByRole("button",{name:/Double test/}).first().waitFor();
-  await page.locator(".ry-workspace").evaluate(element=>element.scrollTo(0,0));
-  await page.screenshot({path:output+"/advanced.png",fullPage:true});
-  // Unsaved edits survive navigation, reload and explicit review-only draft recovery.
-  await page.getByRole("button",{name:/^탭·홀드/}).click();
-  await modtap.locator("input[type=number]").first().fill("299");
+  if (!(await page.locator(".ry-item.is-open").count())) await page.locator(".ry-item-head").first().click();
+  await page.waitForFunction(()=>document.querySelector(".ry-item.is-open input[type=number]")?.value==="65");
+  await page.getByRole("button", {name:"미리보기 저장",exact:true}).click();
+  await page.getByText("미리보기를 이 브라우저에 저장했습니다.",{exact:true}).waitFor();
+  // Unsaved edits survive reload and explicit review-only draft recovery.
+  await page.locator(".ry-item.is-open input[type=number]").fill("99");
   await page.reload();
   await page.getByRole("button",{name:"콤보",exact:true}).click();
-  await page.getByRole("button",{name:"연결 없이 미리보기",exact:true}).click();
+  if (await page.getByRole("button", { name: "연결 없이 미리보기", exact: true }).isVisible()) await page.getByRole("button",{name:"연결 없이 미리보기",exact:true}).click();
   await openTools(); await page.getByRole("button",{name:"편집 내용 복원",exact:true}).click();
-  await page.getByRole("button",{name:/^탭·홀드/}).click();
-  assert.equal(await modtap.locator("input[type=number]").first().inputValue(),"299");
-  assert.equal(JSON.parse(await page.evaluate(()=>localStorage.getItem("ryong-runtime-preview-v1"))).advanced.holds[0].tappingTermMs,285);
+  await page.getByRole("button",{name:"콤보",exact:true}).click();
+  if (!(await page.locator(".ry-item.is-open").count())) await page.locator(".ry-item-head").first().click();
+  assert.equal(await page.locator(".ry-item.is-open input[type=number]").inputValue(),"99");
+  assert.equal(JSON.parse(await page.evaluate(()=>localStorage.getItem("ryong-runtime-preview-v1"))).combos[0].timeoutMs,65);
   await page.setViewportSize({width:390,height:844});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth));
   await page.screenshot({path:output+"/mobile-workspace.png",fullPage:true});
@@ -143,7 +138,7 @@ try {
   assert.deepEqual(mutations, []);
   await fs.writeFile(output + "/result.json", JSON.stringify({ passed: true,
     mode: "browser-only preview; no device attached", checks: ["original editor rendering", "combo edit/save/reload",
-      "macro text edit/save/reload", "Tap Dance actions/save/reload", "Tap·Hold timing/save/reload", "dynamic backup download/import", "standalone file:// preview", "no JavaScript page errors", "zero HTTP mutations"] }, null, 2));
+      "macro text edit/save/reload", "Tap Dance and Tap·Hold editors open, registering waits for a keyboard", "dynamic backup download/import", "draft recovery", "standalone file:// preview", "no JavaScript page errors", "zero HTTP mutations"] }, null, 2));
   console.log("PASS: original runtime editor browser preview, combo/macro saves and reload, zero remote mutations");
 } catch (error) {
   await page.screenshot({ path: output + "/failure.png", fullPage: true });
