@@ -32,8 +32,8 @@
     "zmk-feature-os-detection": {
       "from": "cormoran/zmk-feature-os-detection@3052679",
       "from_revision": "3052679f645b8fc1997275c2eaa6b86bdd55ca01",
-      "tree_sha256": "37f78e36d1e188ea2aa68ba0cf1d00c57ebbe12f51684eeff8958113f5362c67",
-      "ryong_changes": "any real reads decide (only an empty fingerprint keeps the stored result); Windows needs Appearance together with a HID read; last fingerprint over Studio; optional host probe (off); BLE side rewritten: per-connection counters, a slot's OS decided at pairing (or by the host's own answer) and kept on reconnects, probe rewritten with watchdog, LL company ID in diagnostics"
+      "tree_sha256": "760da62057425869a1095064ee112b8f3dd7908f4bdb417e13519a6ce5bc8b6f",
+      "ryong_changes": "any real reads decide (only an empty fingerprint keeps the stored result); Windows needs Appearance together with a HID read; last fingerprint over Studio; optional host probe (off); BLE side rewritten: per-connection counters, a slot's OS decided at pairing (or by the host's own answer) and kept on reconnects, probe rewritten with watchdog, LL company ID in diagnostics; a paired slot not connected since start reports its stored result"
     },
     "zmk-feature-runtime-combo": {
       "from": "cormoran/zmk-feature-runtime-combo@d9490e7",
