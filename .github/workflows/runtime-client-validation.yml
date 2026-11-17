@@ -81,6 +81,7 @@ jobs:
           RYONG_PLAYWRIGHT: /tmp/ryong-ui-qa/node_modules/playwright/index.mjs
         run: |
           node tests/runtime-ui.test.mjs
+          node tests/hid-picker.test.mjs
           node tests/web-update.test.mjs
           node tests/ble-dfu.test.mjs
       - name: Use every feature through the virtual keyboard (Chromium and WebKit)

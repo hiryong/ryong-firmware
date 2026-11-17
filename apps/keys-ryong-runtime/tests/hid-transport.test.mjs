@@ -36,4 +36,9 @@ const w=tr.writable.getWriter();await w.write(new Uint8Array(40).map((_,i)=>i));
 const rd=tr.readable.getReader();let got=[];while(got.length<40){const {value}=await rd.read();got.push(...value);}
 assert.deepEqual(got,[...Array(40).keys()].reverse());
 tr.abortController.abort();await new Promise(r=>setTimeout(r,0));assert.equal(dev.opened,false);
-console.log("PASS: Studio WebHID transport framing, name, round trip, close");
+// one keyboard already allowed and connected: opened at once, no list, no name check, no browser list
+let opens=0;const open0=dev.open;dev.open=async function(){opens++;return open0.call(this);};
+const tr2=await module.exports.connect();
+assert.equal(tr2.label,"Oreo");assert.equal(opens,1,"opened once: no separate name-check connection");
+tr2.abortController.abort();await new Promise(r=>setTimeout(r,0));assert.equal(dev.opened,false);
+console.log("PASS: Studio WebHID transport framing, name, round trip, close; one allowed keyboard connects at once with a single open");

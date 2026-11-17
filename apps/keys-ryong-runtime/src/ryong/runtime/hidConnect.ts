@@ -105,7 +105,13 @@ export async function nameOf(dev: HidDevice): Promise<string> {
   finally { tr?.abortController.abort(); if (!wasOpen) await dev.close().catch(() => {}); }
 }
 
-/** More than one keyboard allowed on this site: ask which one, by its own name. */
+/* Asking a keyboard its name opens a second, short connection to it. It must be fully closed before
+ * the real connection opens: both would read the same reports, and closing the name check would
+ * close the keyboard under the real connection (slow or stuck loading, seen on Windows). */
+let naming: Promise<unknown> = Promise.resolve();
+
+/** More than one keyboard allowed on this site: ask which one, by its own name. The names are asked
+ * one keyboard at a time, and the choices wait until every check has closed. */
 function choose(hid: Hid, known: HidDevice[]): Promise<HidDevice> {
   return new Promise((resolve, reject) => {
     const dlg = document.createElement("dialog");
@@ -114,17 +120,26 @@ function choose(hid: Hid, known: HidDevice[]): Promise<HidDevice> {
     dlg.querySelector("h2")!.textContent = t("Which keyboard?", "어느 키보드에 연결할까요?");
     dlg.querySelector("p")!.textContent = t("Keyboards this site may use, by their own names.", "이 사이트에서 쓸 수 있는 키보드예요. 키보드가 알려 준 이름으로 보여요.");
     const list = dlg.querySelector(".ry-kbpick-list")!;
+    const add = dlg.querySelector<HTMLButtonElement>("[data-add]")!;
     let done = false;
     const finish = (f: () => void) => { if (done) return; done = true; dlg.close(); dlg.remove(); f(); };
-    known.forEach((d, i) => {
+    const items = known.map((d) => {
       const b = document.createElement("button");
       b.className = "ry-kbpick-item";
       b.textContent = d.productName || t("Checking the name…", "이름 확인 중…");
+      b.disabled = true;
       b.onclick = () => finish(() => resolve(d));
       list.appendChild(b);
-      if (!d.productName) void nameOf(d).then((n) => { b.textContent = n || t("Keyboard {n}", "키보드 {n}", { n: i + 1 }); });
+      return b;
     });
-    const add = dlg.querySelector<HTMLButtonElement>("[data-add]")!;
+    add.disabled = true;
+    naming = (async () => {
+      for (const [i, d] of known.entries()) {
+        if (done) break;
+        const n = d.productName || await nameOf(d);
+        items[i].textContent = n || t("Keyboard {n}", "키보드 {n}", { n: i + 1 });
+      }
+    })().finally(() => { items.forEach((b) => (b.disabled = false)); add.disabled = false; });
     add.textContent = t("Another keyboard…", "다른 키보드 추가…");
     add.onclick = () => finish(() => request(hid).then(resolve, reject));
     const cancel = dlg.querySelector<HTMLButtonElement>("[data-cancel]")!;
@@ -137,17 +152,22 @@ function choose(hid: Hid, known: HidDevice[]): Promise<HidDevice> {
 }
 
 async function pick(hid: Hid): Promise<HidDevice> {
-  // Already allowed on this site: our own list, with each keyboard's own name (the browser's list
-  // can't name a Bluetooth keyboard on Windows) and "another keyboard" for one not allowed yet.
+  await naming.catch(() => {});
+  // Already allowed on this site and connected to this computer: one keyboard is connected at once
+  // without asking; several get our own list with each keyboard's own name (the browser's list
+  // can't name a Bluetooth keyboard on Windows). None: the browser's list.
   const known = (await hid.getDevices()).filter(isStudio);
-  if (known.length) return choose(hid, known);
+  if (known.length === 1) return known[0];
+  if (known.length > 1) return choose(hid, known);
   return request(hid);
 }
 
 export async function connect(): Promise<RpcTransport> {
   const hid = webHid();
   if (!hid) throw new Error(t("This browser has no WebHID. Use Chrome or Edge.", "이 브라우저는 WebHID를 지원하지 않아요. Chrome이나 Edge를 쓰세요."));
-  return openTransport(await pick(hid));
+  const dev = await pick(hid);
+  await naming.catch(() => {});
+  return openTransport(dev);
 }
 
 export async function openTransport(dev: HidDevice, stats = true): Promise<RpcTransport> {
