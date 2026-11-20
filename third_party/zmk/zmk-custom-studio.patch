@@ -3666,6 +3666,35 @@ index fafe0248c95af1871a9ebbf1f39152ab356d22b4..5b3b247741cf9c2cdda7380ecc2ebfeb
 +    set_state(ZMK_STUDIO_CORE_LOCK_STATE_LOCKED);
 +}
 \ No newline at end of file
+diff --git a/app/src/studio/core_subsystem.c b/app/src/studio/core_subsystem.c
+index 1739919a62fcab36ab77832ec8a75a4191da15e5..65dec1baae0d043882f292156ec61aaf622ad7f5 100644
+--- a/app/src/studio/core_subsystem.c
++++ b/app/src/studio/core_subsystem.c
+@@ -63,6 +63,16 @@ zmk_studio_Response get_lock_state(const zmk_studio_Request *req) {
+     return CORE_RESPONSE(get_lock_state, resp);
+ }
+ 
++/* The protocol's lock request (core.proto `lock = 3`) had no handler, so a page could not lock the
++ * keyboard. Over Bluetooth HID the keyboard can't tell that a browser closed (its link stays up), so
++ * the page locks it at each new connection and on Disconnect. Locking needs no unlock. The protocol
++ * has no lock response, so the reply is the lock state, as get_lock_state answers. */
++static zmk_studio_Response lock(const zmk_studio_Request *req) {
++    LOG_DBG("");
++    zmk_studio_core_lock();
++    return CORE_RESPONSE(get_lock_state, zmk_studio_core_get_lock_state());
++}
++
+ zmk_studio_Response reset_settings(const zmk_studio_Request *req) {
+     LOG_DBG("");
+     ZMK_RPC_SUBSYSTEM_SETTINGS_RESET_FOREACH(sub) {
+@@ -78,6 +88,7 @@ zmk_studio_Response reset_settings(const zmk_studio_Request *req) {
+ 
+ ZMK_RPC_SUBSYSTEM_HANDLER(core, get_device_info, ZMK_STUDIO_RPC_HANDLER_UNSECURED);
+ ZMK_RPC_SUBSYSTEM_HANDLER(core, get_lock_state, ZMK_STUDIO_RPC_HANDLER_UNSECURED);
++ZMK_RPC_SUBSYSTEM_HANDLER(core, lock, ZMK_STUDIO_RPC_HANDLER_UNSECURED);
+ ZMK_RPC_SUBSYSTEM_HANDLER(core, reset_settings, ZMK_STUDIO_RPC_HANDLER_SECURED);
+ 
+ static int core_event_mapper(const zmk_event_t *eh, zmk_studio_Notification *n) {
 diff --git a/app/src/studio/custom_subsystem.c b/app/src/studio/custom_subsystem.c
 new file mode 100644
 index 0000000000000000000000000000000000000000..b2096405bbe045bf04fc7234ec4f46d9b5885e6b

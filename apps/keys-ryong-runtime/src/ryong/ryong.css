@@ -1252,3 +1252,10 @@ dialog.ry-bledfu::backdrop { background: rgba(0,0,0,.6); }
 .ry-bledfu-steps input[type=file] { display: block; margin-top: 6px; }
 .ry-bledfu .ry-primary { align-self: flex-start; }
 .ry-bledfu progress { width: 100%; }
+
+/* connecting status (ConnectProgress): above the connect screen until the keyboard answers */
+.ry-connecting { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); z-index: 1000; background: #1b1b1b; color: var(--ink, #fff); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 12px 18px; font-size: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.5); max-width: calc(100vw - 32px); }
+.ry-connecting .ry-faint { margin-top: 4px; font-size: 12px; }
+.ry-connecting-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; margin-right: 10px; vertical-align: middle; animation: ry-pulse 1s ease-in-out infinite; }
+@keyframes ry-pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .ry-connecting-dot { animation: none; } }

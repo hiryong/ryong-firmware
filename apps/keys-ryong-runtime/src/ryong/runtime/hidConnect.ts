@@ -9,6 +9,7 @@
 import { UserCancelledError } from "@zmkfirmware/zmk-studio-ts-client/transport/errors";
 import type { RpcTransport } from "@zmkfirmware/zmk-studio-ts-client/transport/index";
 import { t } from "../i18n";
+import { connectPhase } from "../ConnectProgress";
 import { create_rpc_connection } from "@zmkfirmware/zmk-studio-ts-client";
 import { call_rpc as raw_rpc } from "../../rpc/pipeline";
 
@@ -167,7 +168,9 @@ export async function connect(): Promise<RpcTransport> {
   if (!hid) throw new Error(t("This browser has no WebHID. Use Chrome or Edge.", "이 브라우저는 WebHID를 지원하지 않아요. Chrome이나 Edge를 쓰세요."));
   const dev = await pick(hid);
   await naming.catch(() => {});
-  return openTransport(dev);
+  connectPhase("opening");
+  try { return await openTransport(dev); }
+  catch (e) { connectPhase("idle"); throw e; }
 }
 
 export async function openTransport(dev: HidDevice, stats = true): Promise<RpcTransport> {

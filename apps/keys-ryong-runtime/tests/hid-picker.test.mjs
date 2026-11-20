@@ -47,6 +47,8 @@ try {
   assert.equal(names.length, 2);
   await first.click();
   await page.waitForFunction(() => window.__hidLog.filter((l) => l === "open A").length >= 2, null, { timeout: 10000 });
+  // the page says it is connecting instead of sitting still (the fake keyboard never answers)
+  await page.locator(".ry-connecting").filter({ hasText: /첫 응답|first answer|여는 중|Opening/ }).waitFor({ timeout: 5000 });
   const log = await page.evaluate(() => window.__hidLog);
   assert.ok(!log.some((l) => l.startsWith("double-open")), "no overlapping opens: " + log.join(", "));
   const realOpen = log.lastIndexOf("open A");

@@ -7,6 +7,7 @@ import { create_rpc_connection } from "@zmkfirmware/zmk-studio-ts-client";
 import { call_rpc } from "./rpc/logging";
 import { closeConnection } from "./rpc/pipeline";
 import { RpcErrorToast } from "./ryong/RpcErrorToast";
+import { ConnectProgress, connectPhase } from "./ryong/ConnectProgress";
 
 import type { Notification } from "@zmkfirmware/zmk-studio-ts-client/studio";
 import { ConnectionState, ConnectionContext } from "./rpc/ConnectionContext";
@@ -166,6 +167,7 @@ async function connect(
 ) {
   let conn = await create_rpc_connection(transport, { signal });
 
+  connectPhase("asking");
   let details = await Promise.race([
     call_rpc(conn, { core: { getDeviceInfo: true } })
       .then((r) => r?.core?.getDeviceInfo)
@@ -178,6 +180,7 @@ async function connect(
 
   if (!details) {
     // Release the device, or the next attempt would run beside a half-open connection.
+    connectPhase("idle");
     transport.abortController.abort("No answer");
     window.alert(t("The keyboard didn't answer. Wake it with a key press and try again.", "키보드가 응답하지 않았어요. 키를 한 번 눌러 깨운 뒤 다시 연결해 주세요."));
     return;
@@ -186,7 +189,9 @@ async function connect(
   // Every new connection starts locked, so the unlock keys (Esc + Backspace) are asked each time the
   // site connects. Over Bluetooth the keyboard can't tell that a browser closed: its link to the
   // computer stays up, and Studio would stay unlocked for whoever opens the site next.
-  await Promise.race([call_rpc(conn, { core: { lock: true } }).catch(() => undefined), valueAfter(undefined, 3000)]);
+  // Sent without waiting: the keyboard answers requests in order, so the lock state read next already
+  // sees it. Firmware without the lock request answers "not found" and stays as it was.
+  void call_rpc(conn, { core: { lock: true } }).catch(() => undefined);
 
   listen_for_notifications(conn.notification_readable, signal)
     .then(() => {
@@ -200,6 +205,7 @@ async function connect(
 
   setConnectedDeviceName(details.name);
   setConn({ conn });
+  connectPhase("idle");
 }
 
 function App() {
@@ -350,6 +356,7 @@ function App() {
     <ConnectionContext.Provider value={conn}>
       <LockStateContext.Provider value={lockState}>
         <UndoRedoContext.Provider value={doIt}>
+          <ConnectProgress />
           <UnlockModal extra={<>{VIRTUAL_ON && <VirtualUnlockButton />}<UnlockHelp deviceName={connectedDeviceName} onTab={setHubTab} onApp={openApp} /></>} />
           <ConnectModal
             open={!conn.conn && !runtimeOpen && !updating}
