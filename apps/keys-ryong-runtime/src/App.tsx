@@ -156,8 +156,12 @@ async function listen_for_notifications(
 // The stock client pipes its request stream to the transport with our abort signal and leaves that
 // pipe's promise unhandled (zmk-studio-ts-client index.js), so ending a connection on purpose surfaced
 // as an uncaught error. Only the reasons this page itself aborts with are absorbed.
-const OWN_ABORTS = new Set(["User disconnected", "No answer"]);
-window.addEventListener("unhandledrejection", (e) => { if (typeof e.reason === "string" && OWN_ABORTS.has(e.reason)) e.preventDefault(); });
+const OWN_ABORTS = new Set(["User disconnected", "No answer", "No response"]);
+// A request left waiting when the page gave up on a silent keyboard ends as "No response" there too.
+window.addEventListener("unhandledrejection", (e) => {
+  const r = e.reason as { name?: string; message?: string } | string;
+  if (typeof r === "string" ? OWN_ABORTS.has(r) : r?.name === "NoResponseError" || r?.message === "No response") e.preventDefault();
+});
 
 async function connect(
   transport: RpcTransport,
@@ -175,7 +179,9 @@ async function connect(
         console.error("Failed first RPC call", e);
         return undefined;
       }),
-    valueAfter(undefined, 5000), // a Bluetooth keyboard waking from sleep needs a moment
+    // a Bluetooth keyboard waking from sleep needs a moment, and on Windows over Bluetooth the first
+    // answer was seen to take 2-5 s; the page shows the wait meanwhile (ConnectProgress)
+    valueAfter(undefined, 15000),
   ]);
 
   if (!details) {

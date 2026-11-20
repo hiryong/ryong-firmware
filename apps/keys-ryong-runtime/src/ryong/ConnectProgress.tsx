@@ -17,6 +17,9 @@ export function connectPhase(phase: ConnectPhase) {
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(EVENT, { detail: phase }));
 }
 
+/** A connection is being set up (from the browser's list closing until the keyboard's first answer). */
+export const connectBusy = () => current !== "idle";
+
 export function ConnectProgress() {
   const [phase, setPhase] = useState<ConnectPhase>(current);
   const [, tick] = useState(0);

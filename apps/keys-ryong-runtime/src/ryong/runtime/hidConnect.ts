@@ -9,7 +9,7 @@
 import { UserCancelledError } from "@zmkfirmware/zmk-studio-ts-client/transport/errors";
 import type { RpcTransport } from "@zmkfirmware/zmk-studio-ts-client/transport/index";
 import { t } from "../i18n";
-import { connectPhase } from "../ConnectProgress";
+import { connectBusy, connectPhase } from "../ConnectProgress";
 import { create_rpc_connection } from "@zmkfirmware/zmk-studio-ts-client";
 import { call_rpc as raw_rpc } from "../../rpc/pipeline";
 
@@ -166,6 +166,7 @@ async function pick(hid: Hid): Promise<HidDevice> {
 export async function connect(): Promise<RpcTransport> {
   const hid = webHid();
   if (!hid) throw new Error(t("This browser has no WebHID. Use Chrome or Edge.", "이 브라우저는 WebHID를 지원하지 않아요. Chrome이나 Edge를 쓰세요."));
+  if (connectBusy()) throw new UserCancelledError("A keyboard is already connecting", { cause: undefined });
   const dev = await pick(hid);
   await naming.catch(() => {});
   connectPhase("opening");
@@ -195,6 +196,7 @@ export async function openTransport(dev: HidDevice, stats = true): Promise<RpcTr
         const bytes = fromReport(ev.data);
         if (bytes.length) {
           const now = performance.now();
+          if (firstAnswer && pendingSince) { firstAnswer = false; console.info(`[connect] first answer ${Math.round(now - pendingSince)} ms after the request was handed over`); }
           if (pendingSince) { const w = now - pendingSince; hidStats.waits++; hidStats.waitMs += w; hidStats.maxWaitMs = Math.max(hidStats.maxWaitMs, w); pendingSince = 0; }
           hidStats.bytesIn += bytes.length; hidStats.last = now; bump();
           controller.enqueue(bytes);
@@ -216,6 +218,7 @@ export async function openTransport(dev: HidDevice, stats = true): Promise<RpcTr
   // Requests written in the same moment are packed into full reports: each report is one Bluetooth
   // write (one round trip on a Mac), and the keyboard reads the bytes as a stream anyway.
   let queued: Uint8Array[] = [];
+  let firstWrite = true, firstAnswer = true;
   let sending: Promise<void> | undefined;
   let failure: unknown;
   const flush = async () => {
@@ -225,7 +228,9 @@ export async function openTransport(dev: HidDevice, stats = true): Promise<RpcTr
       const total = parts.reduce((n, p) => n + p.length, 0);
       const all = new Uint8Array(total); let o = 0;
       for (const p of parts) { all.set(p, o); o += p.length; }
+      const w0 = performance.now();
       for (const r of toReports(all, size)) await dev.sendReport(STUDIO_REPORT_ID, r);
+      if (firstWrite) { firstWrite = false; console.info(`[connect] first request handed to the keyboard in ${Math.round(performance.now() - w0)} ms`); }
       hidStats.writes += parts.length; hidStats.bytesOut += total; if (!pendingSince) pendingSince = performance.now(); bump();
     }
   };
