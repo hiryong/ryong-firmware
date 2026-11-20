@@ -3560,7 +3560,7 @@ index a8417dd768885482a44cc8d8b0883ddb6903fd2a..491ea44fedb6f2b48b8ca860ed9cbf42
 +target_sources_ifdef(CONFIG_ZMK_STUDIO_TRANSPORT_HID app PRIVATE hid_rpc_transport.c)
 \ No newline at end of file
 diff --git a/app/src/studio/Kconfig b/app/src/studio/Kconfig
-index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..ed180f015d89ab52b2954cd141ab40d13ebe2be6 100644
+index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..cb8f62f90497b4e92cf97bb409a971203c539558 100644
 --- a/app/src/studio/Kconfig
 +++ b/app/src/studio/Kconfig
 @@ -29,6 +29,13 @@ config ZMK_STUDIO_LOCK_ON_DISCONNECT
@@ -3577,7 +3577,7 @@ index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..ed180f015d89ab52b2954cd141ab40d1
  menuconfig ZMK_STUDIO_RPC
      bool "Remote Procedure Calls (RPC)"
      select NANOPB
-@@ -73,6 +80,26 @@ config ZMK_STUDIO_TRANSPORT_UART_RX_PRIORITY
+@@ -73,6 +80,30 @@ config ZMK_STUDIO_TRANSPORT_UART_RX_PRIORITY
  
  endif
  
@@ -3585,6 +3585,10 @@ index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..ed180f015d89ab52b2954cd141ab40d1
 +    bool "HID reports (USB and BLE HID; reachable from WebHID while the keyboard stays connected)"
 +    select RING_BUFFER
 +    select BT_USER_DATA_LEN_UPDATE if ZMK_BLE
++    # long radio packets agreed when a computer connects, not when Studio first talks: while the
++    # data length update runs the controller holds all outgoing data (ull_llcp_common.c), which
++    # delayed Studio's first answer by 1.6-3.8 s on Windows
++    select BT_AUTO_DATA_LEN_UPDATE if ZMK_BLE
 +    depends on ZMK_BLE || ZMK_USB
 +    default y
 +
@@ -3604,7 +3608,7 @@ index 1f4da6d3afa6eda15681d13b18adbc79eb646e6f..ed180f015d89ab52b2954cd141ab40d1
  config ZMK_STUDIO_TRANSPORT_BLE
      bool "BLE (GATT)"
      select RING_BUFFER
-@@ -109,6 +136,25 @@ config ZMK_STUDIO_RPC_TX_BUF_SIZE
+@@ -109,6 +140,25 @@ config ZMK_STUDIO_RPC_TX_BUF_SIZE
      int "TX Buffer Size"
      default 64
  
@@ -3966,10 +3970,10 @@ index dff1825908b8f8c54bce758aa8701a25ce928d20..993276f210854361f15185d88853df53
  }
 diff --git a/app/src/studio/hid_rpc_transport.c b/app/src/studio/hid_rpc_transport.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..641c4dee1fad7e216e36c9243469ef087b658315
+index 0000000000000000000000000000000000000000..924b1d307351a2fcb4712b52e13907c5a469f750
 --- /dev/null
 +++ b/app/src/studio/hid_rpc_transport.c
-@@ -0,0 +1,302 @@
+@@ -0,0 +1,310 @@
 +/*
 + * Copyright (c) 2026 The ZMK Contributors
 + *
@@ -4096,10 +4100,18 @@ index 0000000000000000000000000000000000000000..641c4dee1fad7e216e36c9243469ef08
 +        struct bt_conn *conn = live_conn_id(id, addr);
 +        if (conn) {
 +            set_latency(conn, 0);
-+            /* Long radio packets: a Studio report then leaves in one packet instead of three. */
-+            int dle = bt_conn_le_data_len_update(conn, BT_LE_DATA_LEN_PARAM_MAX);
-+            if (dle < 0 && dle != -EALREADY) {
-+                LOG_DBG("Studio HID: data length update not started (%d)", dle);
++            /* Long radio packets: a Studio report then leaves in one packet instead of three. They
++             * are agreed when the computer connects (BT_AUTO_DATA_LEN_UPDATE); asked here only if
++             * that didn't happen, because the controller holds all outgoing data while the update
++             * runs, Studio's answer included (seen: first answer 1.6-3.8 s on Windows). */
++            struct bt_conn_info info;
++            bool short_packets = bt_conn_get_info(conn, &info) == 0 && info.le.data_len &&
++                                 info.le.data_len->tx_max_len < ZMK_HID_STUDIO_REPORT_SIZE + 7;
++            if (short_packets) {
++                int dle = bt_conn_le_data_len_update(conn, BT_LE_DATA_LEN_PARAM_MAX);
++                if (dle < 0 && dle != -EALREADY) {
++                    LOG_DBG("Studio HID: data length update not started (%d)", dle);
++                }
 +            }
 +            bt_conn_unref(conn);
 +            fast_addr = *addr;
